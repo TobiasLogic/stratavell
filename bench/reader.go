@@ -61,6 +61,8 @@ type ReaderRecord struct {
 	Retrieved bool    `json:"retrieval_added"`
 	Overflow  bool    `json:"overflow"`
 	Correct   bool    `json:"correct"`
+	Strict    bool    `json:"correct_strict"`
+	Evidence  bool    `json:"evidence_available"`
 	Answer    string  `json:"answer"`
 	PromptTok int     `json:"prompt_tokens"`
 	OutTok    int     `json:"output_tokens"`
@@ -68,6 +70,10 @@ type ReaderRecord struct {
 }
 
 var reDigits = regexp.MustCompile(`\d+`)
+
+var reHedge = regexp.MustCompile(`(?i)\b(i )?(don't|do not) know\b|not (stated|shown|present|mentioned)|cannot (confirm|determine)|can't (confirm|determine)`)
+
+func Hedged(answer string) bool { return reHedge.MatchString(answer) }
 
 func grade(answer string, keys []string) bool {
 	la := strings.ToLower(answer)
@@ -140,11 +146,13 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 						if !v.Overflow {
 							r.Visible = containsAll(v.Text, f.Keys)
 							r.Grounded = containsAll(v.Text, f.GroundKeys())
+							r.Evidence = r.Grounded
 							var extra []string
 							if rt, ok := st.(retrievalTexter); ok && !r.Grounded {
 								if txt := rt.RetrieveText(ctx, f.Query, 3000); txt != "" {
 									extra = append(extra, "Results of the memory tools for this question:\n"+txt)
 									r.Retrieved = true
+									r.Evidence = containsAll(txt, f.GroundKeys())
 								}
 							}
 							q := fmt.Sprintf("Answer this question about the work session above, using only information present in it.\nQuestion: %s\nReply in one short sentence: give the exact value, identifier or phrase, and the reason only if the question asks why. If the session does not contain the answer, say you do not know.", f.Question)
@@ -158,6 +166,7 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 								r.PromptTok = res.InputTokens
 								r.OutTok = res.OutputTokens
 								r.Correct = grade(r.Answer, f.AnswerKeys())
+								r.Strict = r.Correct && !Hedged(r.Answer)
 							}
 						}
 						recs = append(recs, r)
@@ -190,7 +199,7 @@ func clip(s string, n int) string {
 }
 
 func ReaderReport(recs []ReaderRecord, model string) string {
-	type agg struct{ n, correct, visible, visCorrect, hidden, hidCorrect, ovf int }
+	type agg struct{ n, correct, strict, evid, visible, visCorrect, hidden, hidCorrect, ovf int }
 	by := map[string]*agg{}
 	var order []string
 	for _, r := range recs {
@@ -207,6 +216,12 @@ func ReaderReport(recs []ReaderRecord, model string) string {
 		if r.Correct {
 			a.correct++
 		}
+		if r.Strict {
+			a.strict++
+		}
+		if r.Evidence {
+			a.evid++
+		}
 		if r.Visible {
 			a.visible++
 			if r.Correct {
@@ -221,10 +236,10 @@ func ReaderReport(recs []ReaderRecord, model string) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Reader model: %s. Each row is one question asked at a probe point with that strategy's assembled context; overflowed requests count as wrong.\n\n", model)
-	b.WriteString("| strategy | questions | correct | accuracy % | overflowed | correct when fact visible | correct when not visible |\n|---|---|---|---|---|---|---|\n")
+	b.WriteString("| strategy | questions | strict correct | strict accuracy % | value recovered (lenient) | evidence available | overflowed | lenient correct when visible | lenient correct when not visible |\n|---|---|---|---|---|---|---|---|---|\n")
 	for _, s := range order {
 		a := by[s]
-		fmt.Fprintf(&b, "| %s | %d | %d | %.1f | %d | %d/%d | %d/%d |\n", s, a.n, a.correct, 100*float64(a.correct)/float64(max(1, a.n)), a.ovf, a.visCorrect, a.visible, a.hidCorrect, a.hidden)
+		fmt.Fprintf(&b, "| %s | %d | %d | %.1f | %d | %d | %d | %d/%d | %d/%d |\n", s, a.n, a.strict, 100*float64(a.strict)/float64(max(1, a.n)), a.correct, a.evid, a.ovf, a.visCorrect, a.visible, a.hidCorrect, a.hidden)
 	}
 	return b.String()
 }
@@ -250,6 +265,7 @@ func Regrade(recs []ReaderRecord, turns int) []ReaderRecord {
 		}
 		if f, ok := fm[r.Fact]; ok && !r.Overflow && !strings.HasPrefix(r.Answer, "error:") {
 			r.Correct = grade(r.Answer, f.AnswerKeys())
+			r.Strict = r.Correct && !Hedged(r.Answer)
 		}
 		out[i] = r
 	}
