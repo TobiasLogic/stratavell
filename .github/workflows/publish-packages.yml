@@ -85,4 +85,4 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@latest
-      - run: npm publish dist-npm/stratavell-*.tgz --access public --provenance
+      - run: npm stage publish dist-npm/stratavell-*.tgz --access public --provenance

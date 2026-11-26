@@ -6,7 +6,7 @@ A release is one tag, `vX.Y.Z`. Pushing it starts three workflows:
 |---|---|---|
 | `release.yml` | Linux, macOS and Windows archives with `SHA256SUMS`, as a **draft** GitHub release | nothing |
 | `publish-image.yml` | `ghcr.io/tobiaslogic/stratavell:X.Y.Z` and `:latest` (linux/amd64, linux/arm64); then the MCP Registry entry | the MCP step runs only when the repository variable `PUBLISH_MCP_REGISTRY` is `true` |
-| `publish-packages.yml` | `stratavell` on PyPI and `stratavell` on npm | the PyPI step runs only when `PUBLISH_PYPI` is `true`, and the npm step only when `PUBLISH_NPM` is `true` |
+| `publish-packages.yml` | `stratavell` on PyPI, and `stratavell` staged on npm for approval | the PyPI step runs only when `PUBLISH_PYPI` is `true`, and the npm step only when `PUBLISH_NPM` is `true` |
 
 Each workflow can be rerun for an existing tag from the Actions tab (`workflow_dispatch` with the tag).
 
@@ -45,6 +45,8 @@ npm:
    - repository `TobiasLogic/stratavell`
    - workflow `publish-packages.yml`
    - environment `npm`
+   - leave "Allow npm publish" unchecked, so CI can only stage a release
 3. Create a GitHub environment named `npm`, and set `PUBLISH_NPM` to `true`.
+4. Each release then appears under Staged Packages in the npm account settings. A maintainer approves it there with two-factor authentication before it goes live, so a compromised CI run cannot publish on its own.
 
 Until these variables are set, the publishing jobs are skipped instead of failing.
