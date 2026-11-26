@@ -141,9 +141,9 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 									r.Retrieved = true
 								}
 							}
-							q := fmt.Sprintf("Answer this question about the work session above, using only information present in it.\nQuestion: %s\nReply with only the exact value, identifier or short phrase that answers it.", f.Question)
+							q := fmt.Sprintf("Answer this question about the work session above, using only information present in it.\nQuestion: %s\nReply in one short sentence: give the exact value, identifier or phrase, and the reason only if the question asks why. If the session does not contain the answer, say you do not know.", f.Question)
 							t0 := time.Now()
-							res, err := cl.Ask(ctx, v.Context, extra, q, 120)
+							res, err := cl.Ask(ctx, v.Context, extra, q, 600)
 							r.Seconds = time.Since(t0).Seconds()
 							if err != nil {
 								r.Answer = "error: " + err.Error()
@@ -151,7 +151,7 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 								r.Answer = strings.TrimSpace(res.Text)
 								r.PromptTok = res.InputTokens
 								r.OutTok = res.OutputTokens
-								r.Correct = grade(r.Answer, f.Keys)
+								r.Correct = grade(r.Answer, f.AnswerKeys())
 							}
 						}
 						recs = append(recs, r)
@@ -221,4 +221,31 @@ func ReaderReport(recs []ReaderRecord, model string) string {
 		fmt.Fprintf(&b, "| %s | %d | %d | %.1f | %d | %d/%d | %d/%d |\n", s, a.n, a.correct, 100*float64(a.correct)/float64(max(1, a.n)), a.ovf, a.visCorrect, a.visible, a.hidCorrect, a.hidden)
 	}
 	return b.String()
+}
+
+func (f Fact) AnswerKeys() []string {
+	if len(f.Answer) > 0 {
+		return f.Answer
+	}
+	return f.Keys
+}
+
+func Regrade(recs []ReaderRecord, turns int) []ReaderRecord {
+	facts := map[uint64]map[string]Fact{}
+	out := make([]ReaderRecord, len(recs))
+	for i, r := range recs {
+		fm, ok := facts[r.Seed]
+		if !ok {
+			fm = map[string]Fact{}
+			for _, f := range Generate(r.Seed, turns).Facts {
+				fm[f.ID] = f
+			}
+			facts[r.Seed] = fm
+		}
+		if f, ok := fm[r.Fact]; ok && !r.Overflow && !strings.HasPrefix(r.Answer, "error:") {
+			r.Correct = grade(r.Answer, f.AnswerKeys())
+		}
+		out[i] = r
+	}
+	return out
 }

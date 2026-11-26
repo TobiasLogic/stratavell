@@ -281,7 +281,7 @@ func TestFailedSummarizerFallsBackDeterministically(t *testing.T) {
 
 func TestSummarizerTimeout(t *testing.T) {
 	pol := smallPolicy(16000)
-	pol.Compaction.JobTimeout = 20 * time.Millisecond
+	pol.Compaction.JobTimeout = engine.Duration(20 * time.Millisecond)
 	pol.Compaction.MaxAttempts = 1
 	slow := &summarize.Delayed{Inner: summarize.Extractive{}, Delay: time.Second}
 	e := openEngine(t, pol, manual(), withSummarizer(slow))
@@ -774,5 +774,21 @@ func TestSyncCompactionManyChunksInOneAssembly(t *testing.T) {
 	st, _ := a.Stats(ctx)
 	if st.FrontierNodes < 2 {
 		t.Fatalf("expected several synchronous summaries, got %d", st.FrontierNodes)
+	}
+}
+
+func TestDurationConfigRoundTrip(t *testing.T) {
+	p := engine.DefaultPolicy()
+	b, _ := json.Marshal(p)
+	if !strings.Contains(string(b), `"job_timeout":"1m30s"`) {
+		t.Fatalf("durations should serialize as strings: %s", b)
+	}
+	q, err := engine.ParsePolicy(b)
+	if err != nil || q.Compaction.JobTimeout != p.Compaction.JobTimeout {
+		t.Fatalf("round trip: %v", err)
+	}
+	r, err := engine.ParsePolicy([]byte(`{"config_version":2,"compaction":{"job_timeout":5000000000}}`))
+	if err != nil || r.Compaction.JobTimeout.D() != 5*time.Second {
+		t.Fatalf("numeric duration: %v %v", err, r.Compaction.JobTimeout)
 	}
 }

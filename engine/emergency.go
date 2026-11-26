@@ -232,7 +232,7 @@ func (a *Agent) syncCompact(ctx context.Context, total int) (int, error) {
 			break
 		}
 		j := a.leafSpec(c)
-		cctx, cancel := context.WithTimeout(ctx, a.pol.Compaction.JobTimeout)
+		cctx, cancel := context.WithTimeout(ctx, a.pol.Compaction.JobTimeout.D())
 		t0 := time.Now()
 		out, err := summ.Summarize(cctx, j.Input)
 		cancel()
@@ -263,7 +263,7 @@ func (a *Agent) syncCompact(ctx context.Context, total int) (int, error) {
 	}
 	if nodes := a.condenseCandidate(); len(nodes) >= 2 {
 		j := a.condenseSpec(nodes)
-		cctx, cancel := context.WithTimeout(ctx, a.pol.Compaction.JobTimeout)
+		cctx, cancel := context.WithTimeout(ctx, a.pol.Compaction.JobTimeout.D())
 		out, err := summ.Summarize(cctx, j.Input)
 		cancel()
 		var n *SummaryNode

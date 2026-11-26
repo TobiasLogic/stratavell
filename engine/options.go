@@ -61,31 +61,30 @@ type Masking struct {
 }
 
 type Compaction struct {
-	Enabled            bool          `json:"enabled"`
-	Async              bool          `json:"async"`
-	Workers            int           `json:"workers"`
-	MaxQueued          int           `json:"max_queued"`
-	MaxInflightAgent   int           `json:"max_inflight_per_agent"`
-	LeafChunkTokens    int           `json:"leaf_chunk_tokens"`
-	MinChunkTokens     int           `json:"min_chunk_tokens"`
-	SummarizerObsMax   int           `json:"summarizer_observation_max_tokens"`
-	JobTimeout         time.Duration `json:"job_timeout"`
-	MaxAttempts        int           `json:"max_attempts"`
-	RetryBackoff       time.Duration `json:"retry_backoff"`
-	MinReduction       float64       `json:"min_reduction"`
-	CondenseFanin      int           `json:"condense_fanin"`
-	CondenseMaxNodes   int           `json:"condense_max_nodes"`
-	PredictSafety      float64       `json:"predict_safety"`
-	EmergencyWait      time.Duration `json:"emergency_wait"`
-	UpgradePointers    bool          `json:"upgrade_pointers"`
-	PromptVersion      string        `json:"prompt_version"`
-	SummaryMaxTokens   int           `json:"summary_max_tokens"`
-	SummaryRatio       float64       `json:"summary_ratio"`
-	RatePerMinute      int           `json:"rate_per_minute"`
-	TokensPerMinute    int           `json:"tokens_per_minute"`
-	ForegroundReserve  float64       `json:"foreground_reserve"`
-	DeterministicFirst bool          `json:"deterministic_first"`
-	Emergency          bool          `json:"emergency"`
+	Enabled           bool     `json:"enabled"`
+	Async             bool     `json:"async"`
+	Workers           int      `json:"workers"`
+	MaxQueued         int      `json:"max_queued"`
+	MaxInflightAgent  int      `json:"max_inflight_per_agent"`
+	LeafChunkTokens   int      `json:"leaf_chunk_tokens"`
+	MinChunkTokens    int      `json:"min_chunk_tokens"`
+	SummarizerObsMax  int      `json:"summarizer_observation_max_tokens"`
+	JobTimeout        Duration `json:"job_timeout"`
+	MaxAttempts       int      `json:"max_attempts"`
+	RetryBackoff      Duration `json:"retry_backoff"`
+	MinReduction      float64  `json:"min_reduction"`
+	CondenseFanin     int      `json:"condense_fanin"`
+	CondenseMaxNodes  int      `json:"condense_max_nodes"`
+	PredictSafety     float64  `json:"predict_safety"`
+	EmergencyWait     Duration `json:"emergency_wait"`
+	UpgradePointers   bool     `json:"upgrade_pointers"`
+	PromptVersion     string   `json:"prompt_version"`
+	SummaryMaxTokens  int      `json:"summary_max_tokens"`
+	SummaryRatio      float64  `json:"summary_ratio"`
+	RatePerMinute     int      `json:"rate_per_minute"`
+	TokensPerMinute   int      `json:"tokens_per_minute"`
+	ForegroundReserve float64  `json:"foreground_reserve"`
+	Emergency         bool     `json:"emergency"`
 }
 
 type Retrieval struct {
@@ -104,10 +103,8 @@ type Retrieval struct {
 }
 
 type Cache struct {
-	Layout          Layout `json:"layout"`
-	Breakpoints     int    `json:"breakpoints"`
-	LookbackBlocks  int    `json:"lookback_blocks"`
-	CondenseBenefit bool   `json:"condense_cost_model"`
+	Layout      Layout `json:"layout"`
+	Breakpoints int    `json:"breakpoints"`
 }
 
 type Policy struct {
@@ -163,9 +160,9 @@ func DefaultPolicy() Policy {
 			LeafChunkTokens:  16000,
 			MinChunkTokens:   1500,
 			SummarizerObsMax: 1500,
-			JobTimeout:       90 * time.Second,
+			JobTimeout:       Duration(90 * time.Second),
 			MaxAttempts:      3,
-			RetryBackoff:     2 * time.Second,
+			RetryBackoff:     Duration(2 * time.Second),
 			MinReduction:     0.5,
 			CondenseFanin:    6,
 			CondenseMaxNodes: 12,
@@ -192,7 +189,7 @@ func DefaultPolicy() Policy {
 			MaxLimit:          25,
 			ArtifactMaxLength: 32768,
 		},
-		Cache:        Cache{Layout: LayoutStableTail, Breakpoints: 4, LookbackBlocks: 20, CondenseBenefit: true},
+		Cache:        Cache{Layout: LayoutStableTail, Breakpoints: 4},
 		TaskState:    true,
 		PinDirective: true,
 		PinMaxTokens: 800,
@@ -279,4 +276,30 @@ func ParsePolicy(data []byte) (Policy, error) {
 	}
 	p.Version = ConfigVersion
 	return p, p.Validate()
+}
+
+type Duration time.Duration
+
+func (d Duration) D() time.Duration { return time.Duration(d) }
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Duration(d).String())
+}
+
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	var s string
+	if json.Unmarshal(b, &s) == nil {
+		v, err := time.ParseDuration(s)
+		if err != nil {
+			return fmt.Errorf("engine: invalid duration %q: %w", s, err)
+		}
+		*d = Duration(v)
+		return nil
+	}
+	var n int64
+	if err := json.Unmarshal(b, &n); err != nil {
+		return fmt.Errorf("engine: duration must be a string such as \"90s\" or an integer of nanoseconds")
+	}
+	*d = Duration(n)
+	return nil
 }

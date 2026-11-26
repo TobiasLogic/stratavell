@@ -39,7 +39,7 @@ func basePolicy(window, maxOut int) engine.Policy {
 	p.Compaction.LeafChunkTokens = max(4000, window/8)
 	p.Compaction.MinChunkTokens = max(1000, window/50)
 	p.Compaction.SummaryMaxTokens = max(600, window/50)
-	p.Compaction.RetryBackoff = time.Millisecond
+	p.Compaction.RetryBackoff = engine.Duration(time.Millisecond)
 	return p
 }
 

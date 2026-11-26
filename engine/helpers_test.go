@@ -24,8 +24,8 @@ func smallPolicy(window int) engine.Policy {
 	p.Compaction.LeafChunkTokens = window / 8
 	p.Compaction.MinChunkTokens = window / 40
 	p.Compaction.SummaryMaxTokens = window / 40
-	p.Compaction.RetryBackoff = time.Millisecond
-	p.Compaction.JobTimeout = 2 * time.Second
+	p.Compaction.RetryBackoff = engine.Duration(time.Millisecond)
+	p.Compaction.JobTimeout = engine.Duration(2 * time.Second)
 	return p
 }
 

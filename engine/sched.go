@@ -272,7 +272,7 @@ func (s *scheduler) run(parent context.Context, j *jobSpec) bool {
 		return true
 	}
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(parent, s.cfg.JobTimeout)
+	ctx, cancel := context.WithTimeout(parent, s.cfg.JobTimeout.D())
 	defer cancel()
 	_ = e.markJob(ctx, j.ID, "running", "")
 	out, err := summ.Summarize(ctx, j.Input)
@@ -294,7 +294,7 @@ func (s *scheduler) run(parent context.Context, j *jobSpec) bool {
 		}
 		j.Attempts++
 		if j.Attempts < s.cfg.MaxAttempts && parent.Err() == nil {
-			back := s.cfg.RetryBackoff * time.Duration(1<<uint(j.Attempts-1))
+			back := s.cfg.RetryBackoff.D() * time.Duration(1<<uint(j.Attempts-1))
 			back += time.Duration(rand.Int64N(int64(back/4 + 1)))
 			j.notBefore = e.clock.Now().Add(back)
 			_ = e.markJob(context.Background(), j.ID, "queued", err.Error())

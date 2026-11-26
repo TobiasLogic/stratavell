@@ -17,6 +17,7 @@ type Fact struct {
 	Query    string   `json:"query"`
 	Turn     int      `json:"turn"`
 	Standing bool     `json:"standing"`
+	Answer   []string `json:"answer_keys,omitempty"`
 }
 
 type Step struct {
@@ -179,7 +180,7 @@ func Generate(seed uint64, turns int) *Scenario {
 	g.files[writer] = g.codeFile(writer, 400, fmt.Sprintf("func (w *Writer) %s(ctx context.Context, frames [][]byte) error {\n\treturn w.fsyncGroup(ctx, frames)\n}", batchFn))
 
 	g.fact(Fact{ID: "constraint_scope", Kind: "constraint", Question: "Which directory must never be modified in this task?", Keys: []string{"vendor/"}, Query: "never modify directory", Standing: true})
-	g.fact(Fact{ID: "constraint_api", Kind: "constraint", Question: "Which package's public API must stay unchanged?", Keys: []string{"package store"}, Query: "public API unchanged package", Standing: true})
+	g.fact(Fact{ID: "constraint_api", Kind: "constraint", Question: "Which package's public API must stay unchanged?", Keys: []string{"package store"}, Answer: []string{"store"}, Query: "public API unchanged package", Standing: true})
 	g.step("We are hardening the ledger service. Ground rules for the whole task: never modify anything under vendor/, and keep the public API of package store unchanged. Start by mapping the journal and store packages.", "I'll start by exploring the repository layout.", func(a *msg.Message, res *[]msg.Message) {
 		var b strings.Builder
 		for _, p := range g.order {
@@ -197,6 +198,7 @@ func Generate(seed uint64, turns int) *Scenario {
 	writerAt := turns / 10
 	errSeq := 0
 	errLine := ""
+	errMsg := ""
 	for t := 1; t < turns; t++ {
 		switch {
 		case t == writerAt:
@@ -245,7 +247,9 @@ func Generate(seed uint64, turns int) *Scenario {
 				code := 0
 				if g.r.IntN(3) > 0 {
 					errSeq++
-					errLine = fmt.Sprintf("journal_test.go:%d: replay mismatch after crash: expected %d frames, got %d (case %d)", 100+g.r.IntN(400), 10+g.r.IntN(50), g.r.IntN(10), errSeq)
+					line := 100 + g.r.IntN(400)
+					errMsg = fmt.Sprintf("replay mismatch after crash: expected %d frames, got %d (case %d)", 10+g.r.IntN(50), g.r.IntN(10), errSeq)
+					errLine = fmt.Sprintf("journal_test.go:%d: %s", line, errMsg)
 					failing = []string{fmt.Sprintf("TestReplayAfterCrash%d", errSeq%7)}
 					code = 1
 					g.fail = errSeq
@@ -258,7 +262,7 @@ func Generate(seed uint64, turns int) *Scenario {
 			}
 		})
 		if g.fail > 0 {
-			g.sc.live = map[string]*Fact{"error": {ID: fmt.Sprintf("error_current_%d", g.fail), Kind: "error", Question: "What is the exact assertion message of the currently failing test?", Keys: []string{errLine}, Query: "currently failing test replay mismatch"}}
+			g.sc.live = map[string]*Fact{"error": {ID: fmt.Sprintf("error_current_%d", g.fail), Kind: "error", Question: "What is the exact assertion message of the currently failing test?", Keys: []string{errLine}, Answer: []string{errMsg}, Query: "currently failing test replay mismatch"}}
 		} else {
 			g.sc.live = nil
 		}

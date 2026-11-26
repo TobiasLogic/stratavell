@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -34,8 +35,38 @@ func main() {
 	ollamaSum := flag.String("ollama-summarizer", "", "Ollama model used as the summarizer (native API, num_ctx set explicitly)")
 	orSum := flag.String("openrouter-summarizer", "", "OpenRouter model id used as the summarizer")
 	orReader := flag.String("openrouter-reader", "", "OpenRouter model id used as the reader for the end-to-end question test")
+	regrade := flag.String("regrade", "", "comma-separated reader.jsonl files to grade again with the current answer keys")
 	keyFile := flag.String("openrouter-key-file", filepath.Join(os.Getenv("HOME"), ".config", "palimpsest", "openrouter.env"), "file holding OPENROUTER_API_KEY=... (or just the key)")
 	flag.Parse()
+	if *regrade != "" {
+		var all []bench.ReaderRecord
+		for _, path := range strings.Split(*regrade, ",") {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+				var r bench.ReaderRecord
+				if json.Unmarshal([]byte(line), &r) == nil {
+					all = append(all, r)
+				}
+			}
+		}
+		re := bench.Regrade(all, *turns)
+		if err := os.MkdirAll(*out, 0o755); err == nil {
+			f, _ := os.Create(filepath.Join(*out, "reader.regraded.jsonl"))
+			enc := json.NewEncoder(f)
+			for _, r := range re {
+				enc.Encode(r)
+			}
+			f.Close()
+		}
+		rep := "## " + *title + "\n\n" + bench.ReaderReport(re, *reader)
+		os.WriteFile(filepath.Join(*out, "reader.md"), []byte(rep), 0o644)
+		fmt.Print(rep)
+		return
+	}
 	orKey := func() string {
 		if k := os.Getenv("OPENROUTER_API_KEY"); k != "" {
 			return k

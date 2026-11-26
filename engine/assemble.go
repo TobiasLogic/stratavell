@@ -176,7 +176,7 @@ func (a *Agent) Assemble(ctx context.Context, req AssembleRequest) (*Context, er
 		if a.pol.Compaction.EmergencyWait > 0 && len(a.leafJobs) > 0 {
 			w := time.Now()
 			a.mu.Unlock()
-			deadline := time.Now().Add(a.pol.Compaction.EmergencyWait)
+			deadline := time.Now().Add(a.pol.Compaction.EmergencyWait.D())
 			for time.Now().Before(deadline) {
 				a.mu.Lock()
 				done := len(a.leafJobs) == 0
