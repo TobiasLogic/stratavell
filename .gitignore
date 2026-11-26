@@ -1,0 +1,9 @@
+*.db
+*.db-wal
+*.db-shm
+/bin/
+/dist/
+/bench/out/tmp/
+/examples/rust/target/
+/examples/typescript/node_modules/
+__pycache__/
