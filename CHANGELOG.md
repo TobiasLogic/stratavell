@@ -2,18 +2,33 @@
 
 All notable changes are listed here. The project follows [Semantic Versioning](https://semver.org/). Until 1.0, minor releases may change the Go API, the HTTP API, the MCP tool set or the database schema; every such change is listed here with migration steps.
 
-## v0.1.1 (unreleased)
+## v0.1.1, 2026-11-26
+
+Patch release: search latency. No API, database schema or configuration changes.
 
 ### Search
 
-- Fixed term pruning. Before, a query with one or two rare words was refilled with the rarest remaining words even when they appeared in most chunks, so full-text search scored up to 75% of the corpus. Two-letter words such as `go` were also never counted as common.
-- A query that is a single file path now uses the exact path index and skips full-text search when that index has hits.
+- Fixed term pruning. Before, a query with one or two rare words was refilled with the rarest remaining words even when those appeared in most chunks, so full-text search scored up to 75% of the corpus.
+- Two-letter words such as `go` are now counted as common words when they are.
+- A query that is a single file path uses the exact path index and skips full-text search when that index has hits.
 - The stale-read check runs as one `EXISTS` query per search instead of one or two queries per candidate.
-- `Engine.Vacuum`, and so `stratavell vacuum`, merges FTS5 index segments first.
-- Search p95 in `TestSearchLatencyProfile`, same machine:
-  - 13.2k chunks: 33.7 ms to 6.5 ms
-  - 3.4k chunks: 9.4 ms to 3.1 ms
-- Seed-1 main, component-matched and ablation suites are identical to the published results in every deterministic field, and the golden smoke run is unchanged.
+- `Engine.Vacuum`, and so `stratavell vacuum`, merges FTS5 index segments first, so it takes slightly longer.
+- Measured on one generated 1,200-turn session with eight queries, with v0.1.0 and v0.1.1 on the same machine in the same session:
+  - p95 at 13.2k chunks: 35.8 ms to 6.5 ms, an 81.8% reduction (v0.1.0's documentation reported 33.7 ms from an earlier run)
+  - p95 at 3.4k chunks: 10.6 ms to 3.1 ms
+  - p95 at 13.2k chunks on a freshly reopened database (new engine and connections): 76.5 ms to 14.6 ms
+- Still pure Go, with no new dependencies.
+
+### Behavior change: common-term fallback
+
+- **Before:** when a query's rare words matched nothing, the full-text fallback still searched its common words. `value_42 compute` returned chunks that merely contained "value" or "compute".
+- **Now:** words in more than 20% of chunks are dropped whenever a rarer word is present, so a query whose rare words match nothing returns no full-text hits.
+- **Unchanged:** a query made only of common words still searches its one or two rarest words. Exact path, symbol and id lookups are unaffected.
+
+### Verification
+
+- Seed 1 of the 64k main, component-matched and ablation suites (26 strategy runs) is identical to the published results in every deterministic field, and `TestDeterministicSmoke` is unchanged.
+- New regression tests fail on v0.1.0 and pass on v0.1.1.
 
 ## v0.1.0 (Research Preview), 2026-11-26
 

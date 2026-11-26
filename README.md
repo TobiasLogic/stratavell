@@ -12,7 +12,7 @@ Summaries are produced in the background, and the request is laid out so that pr
 
 It runs fully locally as a Go library, an HTTP API over TCP or a Unix socket, an MCP server and a single static executable. It needs no external database, no embedding model and no API key.
 
-> **Research preview (v0.1.0).** The results below come from generated, fixed-trajectory workloads, reconstructed baselines and a simulated prompt-cache model. Real autonomous coding-task performance has not been evaluated yet. See [limitations](docs/limitations.md).
+> **Research preview (v0.1.1).** The results below come from generated, fixed-trajectory workloads, reconstructed baselines and a simulated prompt-cache model. Real autonomous coding-task performance has not been evaluated yet. See [limitations](docs/limitations.md).
 
 ## Why Stratavell?
 
@@ -95,10 +95,11 @@ Other results:
   |---|---|
   | assembly, 45k-token context | 1.35 ms mean |
   | engine time per benchmark turn | about 3 ms p95 |
-  | search, 3.4k indexed chunks | p95 3.1 ms (9.4 ms in v0.1.0) |
-  | search, 13.2k chunks | p95 6.5 ms (33.7 ms in v0.1.0) |
+  | search, 3.4k indexed chunks | p95 3.1 ms (v0.1.0: 10.6 ms) |
+  | search, 13.2k chunks | p95 6.5 ms (v0.1.0: 35.8 ms) |
   | appending a small event | 0.56 ms mean (fsync on every commit) |
 - **Tested window sizes:** 64k and 200k tokens.
+- **Search latency** comes from one generated 1,200-turn session and eight queries, with v0.1.0 and v0.1.1 measured on the same machine in the same session. It is not yet a broad query benchmark.
 
 **Real autonomous coding-task success has not been evaluated.** Instruction compliance was not measured either, only instruction visibility.
 

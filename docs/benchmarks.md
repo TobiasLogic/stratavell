@@ -356,7 +356,7 @@ Measured with `go test` micro-benchmarks and latency profiles (`engine/bench_tes
 | search, 1,200-turn session, 13.2k chunks | p50 2.78 ms, p95 6.47 ms, p99 6.91 ms (v0.1.0: p50 3.58, p95 33.73, p99 36.30) |
 | four concurrent agents, 150 turns each | append p95 9.29 ms, assemble p95 9.59 ms, no cross-agent hits |
 
-Search latency is from build dddc848 (v0.1.1); the v0.1.0 values are in parentheses. v0.1.0 missed the 20 ms target at 13k chunks. Two term-pruning bugs and a per-candidate stale-read check caused that, not SQLite speed. The fix and the measurements are in `docs/experiments.md`, "Search latency investigation". The fix leaves every deterministic benchmark field unchanged.
+Search latency is from build dddc848 (v0.1.1). The v0.1.0 values in parentheses are from the published v0.1.0 run. Rerun in the same session as the v0.1.1 measurement, v0.1.0 measured p95 10.6 ms at 3.4k chunks and 35.8 ms at 13.2k. The profile issues 200 searches over eight queries, so it is not a broad query benchmark. v0.1.0 missed the 20 ms target at 13k chunks. Two term-pruning bugs and a per-candidate stale-read check caused that, not SQLite speed. The fix and the measurements are in `docs/experiments.md`, "Search latency investigation". The fix leaves every deterministic benchmark field unchanged.
 
 ## Changes after external review
 
