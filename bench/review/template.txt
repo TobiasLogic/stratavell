@@ -8,6 +8,35 @@ Purpose: give an outside reviewer everything needed to check the claims and the 
 Deterministic results: build {{build}}. This is the second revision. An earlier version was reviewed; section 1 lists what changed in response. Every table is generated from the raw result files (bench/results/2026-11-26/) by bench/review/render.py. Nothing is copied by hand.
 
 
+0. KNOWN MEASUREMENT ERROR (found 2026-11-27)
+---------------------------------------------
+
+The check for whether a standing rule is visible looks for a short key anywhere in the assembled context. All three keys also appear in ordinary session text:
+- "vendor/": the file listing in the first turn
+- "package store": the first line of every Go file in package store
+- "go vet": the "go vet ./..." command and the assistant's acknowledgement
+
+A strategy that has lost a rule can therefore still be counted as showing it.
+
+Affected:
+- the "standing rules visible" column, for strategies that drop rules (the summary-based baselines)
+- "probes visible" for the API rule
+- the reader test's decision to skip retrieval (section 7.0)
+
+Not affected: G pins the rules verbatim, so its 100% stands. The error favors the baselines.
+
+Size, seed 1, 64k, with only the "package store" key replaced by the rule's own wording:
+- E: 18.1% -> 6.5%
+- F: 20.1% -> 7.0%
+- E + retrieval: 18.9% -> 7.0%
+- F + retrieval: 19.9% -> 7.0%
+- A, B, C, D, G and the other B variants: unchanged
+
+The other two keys are not corrected yet, so these figures may still be too high.
+
+Status: the tables below still show the original numbers. A rerun of every suite, with each rule keyed on its own sentence, is being prepared as a separate change.
+
+
 1. CHANGES SINCE THE FIRST REVIEW
 ---------------------------------
 
@@ -49,7 +78,7 @@ Completion rate is reported next to cost, and cost comparisons use only strategi
 
 I. A frozen-protocol QA run (v3) was committed before running (bench/review/protocol-reader-v3.md, commit 2343c4b). It tests G against the two component-matched baselines.
 - Result: parity.
-- It exposed a provenance gap in retrieval outputs, fixed afterwards and not re-measured (section 7.1).
+- It exposed a provenance gap in retrieval outputs, fixed afterwards and re-measured with three free readers in v4 (section 7.0).
 
 J. Absolute acceptance claims are softened to "no failure observed" where the evidence is tests, not proof.
 
@@ -188,14 +217,37 @@ Grading:
 - value recovered (lenient) = answer contains the key
 - evidence available = context or retrieval text contains key plus evidence
 
-7.1 v3, FROZEN PROTOCOL, component-matched, seed 1 (headline QA result)
+7.0 v4 and v4.1, FROZEN PROTOCOL, three free readers, seed 1
+
+Setup:
+- Same workload, strategies, probe points, retrieval policy, prompt and grader as v3.
+- Build 1b0788f, which includes the provenance fix.
+- Readers: free OpenRouter models, temperature 0, 1,500 output tokens, run 2026-11-26 (UTC).
+- Protocol bench/review/protocol-reader-v4.md was committed and pushed before the run.
+- The third v4 reader (inclusionAI Ling 3.2 Flash) was throttled by its provider and stopped after one unanswered question.
+- Protocol v4.1 (commit 1fced24) was committed before the candidates' pilot results were read. It replaced Ling with Recursive Flint, chosen from four free candidates by a fixed rule.
+- Grades are over answered questions; unanswered questions are counted separately.
+
+{{reader.v4}}
+
+Expectations stated before the run:
+
+{{reader.v4.expect}}
+
+Interpretation:
+- The provenance fix removed the config-value hedges that caused most of v3's strict misses. The readers differ from v3's, so this is consistent with the fix, not a controlled comparison.
+- Parity holds across three model families. Their answers differ in wording (any two readers gave identical answers on 16 to 32 of 99 questions).
+- The one shared miss (F, turn 151, the public-API rule) is a harness error, not a reader error. F's summaries had dropped the rule, but the visibility key "package store" matched the first line of a Go source file, so retrieval was skipped. Haiku missed the same question in v3. See section 0.
+- The test is now at its ceiling: every strategy is at or near 100% strict.
+
+7.1 v3, FROZEN PROTOCOL, component-matched, seed 1
 
 {{reader.v3}}
 
 Interpretation:
 - With matched retrieval, the three strategies are within two questions of each other (strict). G has no QA advantage once the baselines get retrieval.
 - Most strict failures are hedges on the two config-value questions. The retrieved text showed the value but not the file it came from, so the reader refused to confirm the file. Retrieval outputs did not carry file paths: a product flaw.
-- Fixed after v3: paths are now in search hits, event pages and injected evidence. NOT re-measured with a real model (budget). The v3 numbers stand as frozen.
+- Fixed after v3: paths are now in search hits, event pages and injected evidence. Re-measured in v4 (section 7.0). The v3 numbers stand as frozen.
 
 7.2 v2, extractive compaction, all strategies, seeds 1-2
 
@@ -275,10 +327,12 @@ bench/results/2026-11-26/*/probes.jsonl.gz, turns.jsonl.gz                      
 bench/results/2026-11-26/reader-v3/reader.jsonl                                     every v3 question, answer and the three grades
 bench/results/2026-11-26/reader-extractive/, reader-haiku-summaries/, reader-v1-superseded/
 bench/review/protocol-reader-v3.md                                                  the frozen protocol
+bench/results/2026-11-26/reader-v4/, reader-v4.1/                                   v4 and v4.1 answers per reader; reader-v4.1/pilot/ holds the selection pilot
+bench/review/protocol-reader-v4.md, protocol-reader-v4.1.md                         the v4 and v4.1 protocols
 bench/run.go (accounting and reconciliation), bench/cache.go (cache simulator), bench/reader.go (grading)
 docs/benchmarks.md, docs/experiments.md, docs/limitations.md, docs/research/
 
-Total real-model API spend: {{spend}} (OpenRouter, Claude Haiku 5.5).
+Total real-model API spend: {{spend}} (OpenRouter, Claude Haiku 5.5). The v4 and v4.1 readers were free models and cost $0.
 
 
 13. RELEASE BUILD CHECK (v0.1.0)

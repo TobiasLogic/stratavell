@@ -147,6 +147,86 @@ def reader(path, sep_md):
 READ_H = ["strategy", "questions", "grounded answer (strict)", "value recovered (lenient)", "evidence available", "overflowed", "empty answers"]
 
 
+READERS_V4 = [
+    ("reader-v4/nvidia_nemotron-3-ultra-550b-a55b_free", "NVIDIA Nemotron 3 Ultra"),
+    ("reader-v4/baidu_ernie-5.5-flash-preview_free", "Baidu ERNIE 5.5 Flash"),
+    ("reader-v4/inclusionai_ling-3.2-flash_free", "inclusionAI Ling 3.2 Flash (stopped)"),
+]
+STRATS_V4 = ["G-hybrid", "F-async-progressive+retrieval", "B-conventional+archive"]
+CONFIG_FACTS = ("value_retry", "value_port")
+
+
+def unanswered(r):
+    return r["answer"].startswith("error:")
+
+
+def readers_v4():
+    out = list(READERS_V4)
+    base = os.path.join(res, "reader-v4.1")
+    if os.path.isdir(base):
+        for d in sorted(os.listdir(base)):
+            label = os.path.join(base, d, "LABEL")
+            if os.path.exists(label):
+                out.append((os.path.join("reader-v4.1", d), open(label).read().strip()))
+    return out
+
+
+def reader_multi(sep_md):
+    rows = []
+    for rel, name in readers_v4():
+        path = os.path.join(res, rel, "reader.jsonl")
+        if not os.path.exists(path):
+            continue
+        recs = load(path)
+        for s in STRATS_V4:
+            rs = [r for r in recs if r["strategy"] == s]
+            label = LABEL.get(s, s) if sep_md else s
+            if not rs:
+                rows.append([name, label, 0, "-", "not reached", "-", "-"])
+                continue
+            ans = [r for r in rs if not unanswered(r)]
+            n = len(ans)
+            if n == 0:
+                rows.append([name, label, len(rs), len(rs), "no answers", "-", "-"])
+                continue
+            strict = sum(r["correct_strict"] for r in ans)
+            lenient = sum(r["correct"] for r in ans)
+            ev = sum(r["evidence_available"] for r in ans)
+            rows.append([name, label, len(rs), len(rs) - n, f"{strict}/{n}", f"{lenient}/{n}", f"{ev}/{n}"])
+    return rows
+
+
+READ4_H = ["reader", "strategy", "asked", "unanswered", "grounded answer (strict)", "value recovered (lenient)", "evidence available"]
+
+
+def expectations():
+    rows = []
+    for rel, name in readers_v4():
+        path = os.path.join(res, rel, "reader.jsonl")
+        if not os.path.exists(path):
+            continue
+        recs = load(path)
+        if any(s not in {r["strategy"] for r in recs} for s in STRATS_V4):
+            rows.append([name, "-", "-", "incomplete, not evaluated"])
+            continue
+        hed = []
+        strict = {}
+        for s in STRATS_V4:
+            rs = [r for r in recs if r["strategy"] == s and not unanswered(r)]
+            hed.append(sum(1 for r in rs if r["fact"] in CONFIG_FACTS and HEDGE.search(r["answer"])))
+            strict[s] = sum(r["correct_strict"] for r in rs)
+        gap = max(abs(strict[s] - strict["G-hybrid"]) for s in STRATS_V4)
+        e1 = "met" if max(hed) <= 1 else "not met"
+        e2 = "met" if gap <= 3 else "not met"
+        n_un = sum(unanswered(r) for r in recs)
+        status = "complete" if n_un <= 0.1 * len(recs) else f"incomplete ({n_un} unanswered)"
+        rows.append([name, f"{e1} ({' / '.join(str(h) for h in hed)})", f"{e2} (largest gap {gap})", status])
+    return rows
+
+
+EXP_H = ["reader", "E1: config-value hedges, G / F / B", "E2: strict gap from G", "status"]
+
+
 def hedged(paths):
     out = []
     for name, p in paths:
@@ -178,7 +258,11 @@ def build(template, out, fmt):
     for key, rel in [("reader.v2", "reader-extractive/reader.regraded.jsonl"), ("reader.haiku", "reader-haiku-summaries/reader.regraded.jsonl"), ("reader.v1", "reader-v1-superseded/reader.regraded.jsonl"), ("reader.v3", "reader-v3/reader.jsonl")]:
         rows = reader(os.path.join(res, rel), md_mode)
         text = text.replace("{{" + key + "}}", T(READ_H, rows) if rows else "(not run)")
-    hz = hedged([("v2 extractive", os.path.join(res, "reader-extractive/reader.regraded.jsonl")), ("Haiku summaries", os.path.join(res, "reader-haiku-summaries/reader.regraded.jsonl")), ("v3", os.path.join(res, "reader-v3/reader.jsonl"))])
+    rows = reader_multi(md_mode)
+    text = text.replace("{{reader.v4}}", T(READ4_H, rows) if rows else "(not run)")
+    rows = expectations()
+    text = text.replace("{{reader.v4.expect}}", T(EXP_H, rows) if rows else "(not run)")
+    hz = hedged([("v2 extractive", os.path.join(res, "reader-extractive/reader.regraded.jsonl")), ("Haiku summaries", os.path.join(res, "reader-haiku-summaries/reader.regraded.jsonl")), ("v3", os.path.join(res, "reader-v3/reader.jsonl"))] + [(name, os.path.join(res, rel, "reader.jsonl")) for rel, name in readers_v4()])
     text = text.replace("{{spend}}", sys.argv[2] if len(sys.argv) > 2 else "unknown")
     build_file = os.path.join(res, "BUILD")
     text = text.replace("{{build}}", open(build_file).read().strip() if os.path.exists(build_file) else "unknown")

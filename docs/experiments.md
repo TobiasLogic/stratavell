@@ -87,6 +87,26 @@ Costs per run are estimates, because runs overlapped and OpenRouter reports one 
 
 Running total reported by the OpenRouter key endpoint: $0.000004 after the key check, $1.35 when reader v1 finished (real-summary v1 still running), $2.03 and $2.24 during the real-summary v1 run, $3.30 when reader v2 finished, $4.12 after the real-summary run, and **$4.54 after reader v3**, against the key's $5 limit. The remaining credit was left unspent.
 
+### Free-model reader runs, 2026-11-27 (UTC+7)
+
+All on OpenRouter free endpoints, $0. Build 1b0788f for every run.
+
+| time | run | outcome |
+|---|---|---|
+| 00:10 to 00:29 | v4 pilot: 120 turns, G only, 9 questions per model; Nemotron 3 Ultra, Gemma 4 31B, ERNIE 5.5 Flash, Ling 3.2 Flash | Gemma returned HTTP 429 on every request and was dropped; the other three were kept; pilot answers are not results |
+| 00:31 to 00:43 | **reader test v4** (`bench/review/protocol-reader-v4.md`), NVIDIA Nemotron 3 Ultra | completed; strict 33, 32 and 33 of 33 (G, F + retrieval, B + archive); 0 unanswered |
+| 00:43 to 00:50 | reader test v4, Baidu ERNIE 5.5 Flash | completed; strict 33, 32 and 33; 0 unanswered |
+| 00:50 to about 00:59 | reader test v4, inclusionAI Ling 3.2 Flash | **stopped by hand** after 1 question, which was unanswered after 10 attempts and 371 s of upstream 429s; reported as incomplete |
+| 01:01:53 | protocol v4.1 committed (1fced24): replace the third reader, selection rule fixed | committed 29 s after the candidate pilot started and before any pilot answer had come back |
+| 01:01 to 01:33 | v4.1 pilot: Gemma 4 26B, Particle-1, Flint, LFM-3 1.7B | Gemma 2 of 2 and Particle 2 of 4 unanswered (both hit the 15-minute timeout); Flint 9 of 9 strict; LFM 6 of 9 (three answers were tool calls); Flint chosen by the rule |
+| 01:33 to 01:42 | **reader test v4.1**, Recursive Flint | completed; strict 33, 32 and 33; 0 unanswered |
+
+**Expectations:** E1 (at most 1 config-value hedge per strategy) and E2 (strict counts within 3 of G) were met for all three complete readers.
+
+**Stored errors:** the OpenRouter account's `user_id`, which appears in the provider's error bodies, is replaced with `user_redacted` in the stored answers. Nothing else in those files was changed.
+
+**The shared miss:** every reader missed the same question, F at turn 151 on the public-API rule. A local reproduction showed that the harness skipped retrieval there because of the visibility-key bug listed below.
+
 ## Grading changes, all applied to stored answers offline
 
 1. The failing-test question is graded on the assertion message without its `file:line` prefix. Readers that quoted only the message were being marked wrong.
@@ -114,3 +134,4 @@ Changes 1 and 2 were made after reading the v1 answers. All three apply to every
 | `TestGrade` | value grading accepted answers by accident | token-level matching |
 | external review | noa's in-band compression calls were priced with an approximation and left out of the cache-hit numerator, so its cost and hit rate disagreed | every request goes through the cache simulator; runs fail unless tokens and cost reconcile |
 | reader v3 | search hits and event pages did not show which file an archived observation came from, so a reader could not confirm where a retrieved value lives | paths in search hits, event pages and injected evidence; `TestRetrievalOutputsCarryProvenance` |
+| reader v4 (2026-11-27) | the three standing-rule keys (`vendor/`, `package store`, `go vet`) also match ordinary session text, so a lost rule could be counted as visible, and the reader test then skipped retrieval. This inflates the baselines' standing-rule numbers; G pins the rules and is unaffected. Seed 1 with only the API key corrected: E 18.1% to 6.5%, F 20.1% to 7.0% | not fixed yet; disclosed in `docs/benchmarks.md`; a full rerun with each rule keyed on its own sentence is being prepared |

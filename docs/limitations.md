@@ -8,10 +8,11 @@ Measured problems and design limits, most significant first.
 - The reader test appends retrieval results for G when a fact is not visible. It measures recoverability with a reasonable query, not whether a model would choose to search or pick that query.
 - Cache costs come from a simulator of the documented Anthropic rules (breakpoints, a 20-position lookback, minimum cacheable prefix, 5-minute TTL). Provider behavior can differ in ways the documentation does not describe.
 - Background summarizer latency in the deterministic runs is a model (0.8 s plus prefill at 4,000 tokens per second plus decode at 60 tokens per second), not a measurement.
-- The real-model runs used one reader and summarizer (Claude Haiku 5.5) and one or two seeds; the variance of those numbers is not known.
+- **The standing-rule numbers for the baselines are overstated.** The visibility keys for the three standing rules also match ordinary session text, such as the first line of Go files and a `go vet` command, so a baseline that lost a rule could still be counted as showing it. Stratavell's 100% is unaffected. Seed 1 with one key corrected brings async summaries from 20.1% to 7.0%. A corrected rerun is being prepared; see "Known measurement error" in `docs/benchmarks.md`.
+- The real-model summarizer runs used Claude Haiku 5.5 on one seed. The reader runs used Haiku (v1 to v3) and three free models from different labs (v4), on one or two seeds. The variance of those numbers is not known.
 - The thresholds (0.55, 0.70, 0.85) were not tuned. No threshold sweep was run.
 - Once the baselines get the same retrieval, Stratavell shows no question-answering advantage in the pre-registered run (28, 27 and 26 of 33 grounded answers). Its measured advantages are cost, standing-rule retention, current-failure recall and not blocking. General fact recovery comes from retrieval itself.
-- The file-provenance fix in retrieval outputs, found by that run, has not been re-measured with a real model.
+- The file-provenance fix in retrieval outputs, found by that run, was re-measured in v4 with three free readers: no config-value hedges remained, and all three strategies were at or near 100% strict. The test is now at its ceiling and no longer separates the strategies.
 - Task success on real coding tasks has not been measured. That needs an agent that actually solves tasks with each strategy, with independently executed tests and cost per resolved task.
 
 ## Engine

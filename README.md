@@ -78,6 +78,7 @@ The comparison below is against **component-matched** baselines: asynchronous an
 How to read the table:
 - **Facts recoverable:** a planted fact and its supporting evidence are in the context, or are found by one fixed retrieval query.
 - **Standing rules visible:** the user's earlier rules appear in the assembled context. That is visibility, not compliance.
+  - **Known error, found 2026-11-27:** the baselines' 21.9% and 22.0% are too high. The rule check also matched ordinary session text, such as the first line of Go files. With one of the three checks corrected, seed 1 drops to about 7%. Stratavell's 100% is unaffected. Details in [docs/benchmarks.md](docs/benchmarks.md).
 - **The main result:** at comparable fact recoverability, Stratavell costs about half as much as retrieval-enabled asynchronous progressive summarization (50% lower).
   - In the ablations, most of the saving comes from externalizing oversized tool outputs at ingestion, from batched (epoch) masking and from the cache-aware layout.
 
@@ -86,6 +87,7 @@ Other results:
   - Stratavell: 28
   - conventional compaction with a passive Stratavell archive: 27
   - async summaries with retrieval: 26
+- **QA after the provenance fix:** the same pre-registered test with three free readers from NVIDIA, Baidu and Recursive gave 33, 33 and 32 of 33 for those three strategies, identical for every reader. That is still a tie, now at the test's ceiling. The one miss traces to the measurement error above.
 - **200k window** (400 turns, 3 seeds):
   - Stratavell's simulated input cost was $10.44 per session, against $16.46 to $27.62 for conventional, sync and async compaction without retrieval.
   - No component-matched variants were run at this size.
