@@ -29,14 +29,14 @@ func main() {
 	sumModel := flag.String("summarizer-model", "", "model name for the real summarizer")
 	turnSec := flag.Float64("turn-seconds", 6, "simulated wall time of one agent turn")
 	title := flag.String("title", "", "report title")
-	reader := flag.String("reader-model", "", "Ollama model used as a reader for the end-to-end question test")
+	reader := flag.String("reader-model", "", "Ollama model used as the reader for retrieval-assisted question answering")
 	readerPoints := flag.Int("reader-points", 3, "probe points per seed for the reader test")
 	ollamaURL := flag.String("ollama", "http://127.0.0.1:11434", "Ollama base URL")
 	ollamaSum := flag.String("ollama-summarizer", "", "Ollama model used as the summarizer (native API, num_ctx set explicitly)")
 	orSum := flag.String("openrouter-summarizer", "", "OpenRouter model id used as the summarizer")
-	orReader := flag.String("openrouter-reader", "", "OpenRouter model id used as the reader for the end-to-end question test")
+	orReader := flag.String("openrouter-reader", "", "OpenRouter model id used as the reader for retrieval-assisted question answering")
 	regrade := flag.String("regrade", "", "comma-separated reader.jsonl files to grade again with the current answer keys")
-	keyFile := flag.String("openrouter-key-file", filepath.Join(os.Getenv("HOME"), ".config", "stratavell", "openrouter.env"), "file holding OPENROUTER_API_KEY=... (or just the key)")
+	keyFile := flag.String("openrouter-key-file", defaultKeyFile(), "file holding OPENROUTER_API_KEY=... (or just the key)")
 	flag.Parse()
 	if *regrade != "" {
 		var all []bench.ReaderRecord
@@ -195,4 +195,19 @@ func (r retrying) Complete(ctx context.Context, system, user string, maxTokens i
 		time.Sleep(time.Duration(2<<attempt) * time.Second)
 	}
 	return out, err
+}
+
+func defaultKeyFile() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "openrouter.env"
+	}
+	p := filepath.Join(dir, "stratavell", "openrouter.env")
+	if _, err := os.Stat(p); err != nil {
+		legacy := filepath.Join(dir, "palimpsest", "openrouter.env")
+		if _, err := os.Stat(legacy); err == nil {
+			return legacy
+		}
+	}
+	return p
 }
