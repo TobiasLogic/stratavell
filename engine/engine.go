@@ -397,3 +397,39 @@ func (a *Agent) Head() int64 {
 }
 
 func since(t time.Time) float64 { return float64(time.Since(t).Microseconds()) / 1000 }
+
+func (e *Engine) LookupSession(ctx context.Context, id string) (*Session, error) {
+	var n int
+	if err := e.db.R.QueryRowContext(ctx, "SELECT COUNT(*) FROM sessions WHERE id=?", id).Scan(&n); err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, fmt.Errorf("%w: session %s", ErrNotFound, id)
+	}
+	return e.OpenSession(ctx, id, SessionConfig{})
+}
+
+func (s *Session) LookupAgent(ctx context.Context, id string) (*Agent, error) {
+	if a := s.e.lookupAgent(s.id, id); a != nil {
+		return a, nil
+	}
+	var n int
+	if err := s.e.db.R.QueryRowContext(ctx, "SELECT COUNT(*) FROM agents WHERE session_id=? AND id=?", s.id, id).Scan(&n); err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, fmt.Errorf("%w: agent %s", ErrUnknownAgent, id)
+	}
+	return s.Agent(ctx, id)
+}
+
+func (e *Engine) ReleaseSession(id string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for k := range e.agents {
+		if k.session == id {
+			delete(e.agents, k)
+		}
+	}
+	delete(e.sess, id)
+}

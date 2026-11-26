@@ -58,6 +58,13 @@ func (a *Agent) HandleTool(ctx context.Context, name string, input json.RawMessa
 	window := int64(a.pol.Retrieval.DedupWindowTurns)
 	turn := a.turn
 	a.retr.seen[store.HashBytes([]byte(key))] = retrievalSeen{turn: turn}
+	if len(a.retr.seen) > 512 {
+		for k, v := range a.retr.seen {
+			if turn-v.turn > window {
+				delete(a.retr.seen, k)
+			}
+		}
+	}
 	a.mu.Unlock()
 	if name != "memory_stats" && name != "memory_update_task" {
 		if calls > a.pol.Retrieval.MaxCallsPerTurn {

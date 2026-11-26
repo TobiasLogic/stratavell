@@ -8,6 +8,9 @@ info:
     `Authorization: Bearer <token>` when the server was started with a token. Non-loopback TCP listeners
     refuse to start without one.
 
+    Sessions and agents are created only by POST /v1/sessions and POST /v1/sessions/{sid}/agents. Every other
+    endpoint returns 404 for an unknown session or agent.
+
     A host that intercepts its inference loop calls, per turn: append events, assemble, send the returned
     request to its model, report usage, append the assistant message and tool results. Memory tools that the
     model calls are executed with POST .../tools/{name}.

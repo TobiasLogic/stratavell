@@ -4,7 +4,7 @@ Research note for the asynchronous, losslessly retrievable context engine. Scope
 
 ## 0. Source and method
 
-- Repository: https://github.com/Autumn-27/norma (exists at the given URL). Cloned with `git clone --depth 1` into `/tmp/claude-1000/research-norma/norma-src` on 2026-11-26. HEAD: `d79faab3c2ae4dd27484f7f9934449edd3196bf5` ("Merge pull request #11 from adeljck/adaptive_think", 2026-11-24). GitHub reports 254 stars, created 2026-07-20, license Apache-2.0.
+- Repository: https://github.com/Autumn-27/norma (exists at the given URL). Cloned with `git clone --depth 1` into a scratch directory on 2026-11-26. HEAD: `d79faab3c2ae4dd27484f7f9934449edd3196bf5` ("Merge pull request #11 from adeljck/adaptive_think", 2026-11-24). GitHub reports 254 stars, created 2026-07-20, license Apache-2.0.
 - Nothing in the clone was built, run, installed or tested. Every behavioral claim below comes from reading code. Where a claim is an inference that a test run would settle, it is marked "inferred".
 - All file references are repo-relative with line numbers at that commit (for example `noa/compress.go:77-218`).
 - Upstream lineage of noa was checked with read-only GitHub API calls (`ranxianglei/acp-kernel` LICENSE and PROVENANCE.md); no upstream code was fetched or executed.

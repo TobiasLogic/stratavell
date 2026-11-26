@@ -193,7 +193,7 @@ type agentReq struct {
 }
 
 func (s *Server) session(r *http.Request) (*engine.Session, error) {
-	return s.E.OpenSession(r.Context(), r.PathValue("sid"), engine.SessionConfig{})
+	return s.E.LookupSession(r.Context(), r.PathValue("sid"))
 }
 
 func (s *Server) agent(r *http.Request) (*engine.Agent, error) {
@@ -201,7 +201,7 @@ func (s *Server) agent(r *http.Request) (*engine.Agent, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sess.Agent(r.Context(), r.PathValue("aid"))
+	return sess.LookupAgent(r.Context(), r.PathValue("aid"))
 }
 
 func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {

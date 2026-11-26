@@ -89,7 +89,11 @@ func TestHTTPFlow(t *testing.T) {
 	if code != 200 || !strings.Contains(out["text"].(string), "failure") {
 		t.Fatalf("task state tool %d %v", code, out)
 	}
+	if code, _ = call(t, ts, "GET", "/v1/sessions/nope/agents/main/stats", tok, nil); code != 404 {
+		t.Fatalf("unknown session should be 404, got %d", code)
+	}
 	call(t, ts, "POST", "/v1/sessions", tok, map[string]string{"id": "other"})
+	call(t, ts, "POST", "/v1/sessions/other/agents", tok, map[string]string{"id": "main"})
 	code, _ = call(t, ts, "GET", "/v1/sessions/other/agents/main/events/"+eid, tok, nil)
 	if code != 404 {
 		t.Fatalf("cross-session event visible: %d", code)
