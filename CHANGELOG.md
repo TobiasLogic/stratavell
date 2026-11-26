@@ -2,7 +2,7 @@
 
 All notable changes are listed here. The project follows [Semantic Versioning](https://semver.org/). Until 1.0, minor releases may change the Go API, the HTTP API, the MCP tool set or the database schema; every such change is listed here with migration steps.
 
-## v0.1.2 (unreleased)
+## v0.1.2, 2026-11-26
 
 Packaging release. The engine is unchanged from v0.1.1.
 
