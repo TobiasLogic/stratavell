@@ -108,7 +108,7 @@
     "probes": 78,
     "probe_by_kind": {
       "constraint": [
-        5,
+        0,
         28
       ],
       "decision": [
@@ -135,9 +135,9 @@
     "input_cost_usd": "1.8758",
     "total_cost_usd": "1.8833",
     "completion_rate": "1.0000",
-    "probe_grounded": "0.1026",
-    "probe_recoverable": "0.1026",
-    "standing_retention": "0.1844",
+    "probe_grounded": "0.0385",
+    "probe_recoverable": "0.0385",
+    "standing_retention": "0.0469",
     "exact_recovery": "1.0000"
   },
   {
@@ -182,9 +182,9 @@
     "input_cost_usd": "1.8004",
     "total_cost_usd": "1.8080",
     "completion_rate": "1.0000",
-    "probe_grounded": "0.0769",
+    "probe_grounded": "0.0256",
     "probe_recoverable": "0.9872",
-    "standing_retention": "0.2000",
+    "standing_retention": "0.0781",
     "exact_recovery": "1.0000"
   },
   {

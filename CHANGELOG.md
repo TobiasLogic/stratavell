@@ -2,6 +2,16 @@
 
 All notable changes are listed here. The project follows [Semantic Versioning](https://semver.org/). Until 1.0, minor releases may change the Go API, the HTTP API, the MCP tool set or the database schema; every such change is listed here with migration steps.
 
+## Unreleased
+
+### Benchmark
+
+- **Fixed standing-rule visibility keys.** The three standing rules were detected by short keys (`vendor/`, `package store`, `go vet`) that also match ordinary session text: the vendor file listing, the first line of Go files in package `store`, and the `go vet ./...` command.
+  - A strategy that had lost a rule could therefore still be counted as showing it, and the reader test then skipped retrieval.
+  - Each rule is now detected by its own sentence. The graded answers are unchanged.
+  - The deterministic suites were rerun. Only rule-visibility fields changed: standing-rule retention, and probe visibility, grounding and recoverability for those rules. Every token, cache and cost field is identical.
+  - `bench/testdata/smoke-golden.json` was regenerated for this change.
+
 ## v0.1.2, 2026-11-26
 
 Packaging release. The engine is unchanged from v0.1.1.

@@ -184,8 +184,8 @@ func Generate(seed uint64, turns int) *Scenario {
 	batchFn := "flush" + strings.Title(g.word()) + "Batch"
 	g.files[writer] = g.codeFile(writer, 400, fmt.Sprintf("func (w *Writer) %s(ctx context.Context, frames [][]byte) error {\n\treturn w.fsyncGroup(ctx, frames)\n}", batchFn))
 
-	g.fact(Fact{ID: "constraint_scope", Kind: "constraint", Question: "Which directory must never be modified in this task?", Keys: []string{"vendor/"}, Query: "never modify directory", Standing: true})
-	g.fact(Fact{ID: "constraint_api", Kind: "constraint", Question: "Which package's public API must stay unchanged?", Keys: []string{"package store"}, Answer: []string{"store"}, Query: "public API unchanged package", Standing: true})
+	g.fact(Fact{ID: "constraint_scope", Kind: "constraint", Question: "Which directory must never be modified in this task?", Keys: []string{"never modify anything under vendor/"}, Answer: []string{"vendor/"}, Query: "never modify directory", Standing: true})
+	g.fact(Fact{ID: "constraint_api", Kind: "constraint", Question: "Which package's public API must stay unchanged?", Keys: []string{"public API of package store"}, Answer: []string{"store"}, Query: "public API unchanged package", Standing: true})
 	g.step("We are hardening the ledger service. Ground rules for the whole task: never modify anything under vendor/, and keep the public API of package store unchanged. Start by mapping the journal and store packages.", "I'll start by exploring the repository layout.", func(a *msg.Message, res *[]msg.Message) {
 		var b strings.Builder
 		for _, p := range g.order {
@@ -228,7 +228,7 @@ func Generate(seed uint64, turns int) *Scenario {
 			})
 			continue
 		case t == processAt:
-			g.fact(Fact{ID: "process_vet", Kind: "constraint", Question: "What must be run before every commit, per the user's later instruction?", Keys: []string{"go vet"}, Query: "run before every commit", Standing: true})
+			g.fact(Fact{ID: "process_vet", Kind: "constraint", Question: "What must be run before every commit, per the user's later instruction?", Keys: []string{"go vet ./... before every commit"}, Answer: []string{"go vet"}, Query: "run before every commit", Standing: true})
 			g.step("New rule from now on: run go vet ./... before every commit, and paste its output.", "Understood, I'll run go vet before each commit.", func(a *msg.Message, res *[]msg.Message) {
 				g.run(a, res, "go vet ./...", "", 0)
 			})
