@@ -11,7 +11,7 @@ LABEL = {
     "D-masking": "D observation masking only",
     "E-sync-summary": "E sync progressive summaries",
     "F-async-progressive": "F async progressive summaries",
-    "G-hybrid": "G palimpsest",
+    "G-hybrid": "G Stratavell",
     "B-conventional+pins": "B + pinned user messages",
     "B-conventional+archive": "B + passive archive with retrieval",
     "E-sync-summary+retrieval": "E + retrieval",
@@ -191,4 +191,4 @@ def build(template, out, fmt):
 
 
 build(os.path.join(here, "benchmarks-template.md"), os.path.join(root, "docs/benchmarks.md"), "md")
-build(os.path.join(here, "template.txt"), os.path.join(root, "REVIEW_PACKET.txt"), "txt")
+build(os.path.join(here, "template.txt"), os.path.join(root, "docs/review/REVIEW_PACKET.txt"), "txt")

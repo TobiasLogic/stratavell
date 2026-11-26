@@ -1,6 +1,6 @@
 # Experiment log
 
-Every benchmark and model run made while building palimpsest, in order, including failed and superseded ones. Times are UTC+7 on 2026-11-26. Commit hashes refer to the build each run used. Raw outputs of the runs that the reports cite are in `bench/results/2026-11-26/`. Earlier runs are summarized here and their raw files were not kept.
+Every benchmark and model run made while building Stratavell (named palimpsest until the v0.1.0 rename; the benchmark tool was then called `palbench`), in order, including failed and superseded ones. Times are UTC+7 on 2026-11-26. Commit hashes refer to the build each run used. Raw outputs of the runs that the reports cite are in `bench/results/2026-11-26/`. Earlier runs are summarized here and their raw files were not kept.
 
 ## Research (no compute cost)
 
@@ -28,6 +28,16 @@ Four research passes read the primary sources and code listed in `docs/research/
 |---|---|---|
 | 83737b9 | four suites (main 64k, ablation 64k, main 200k, matched 64k) after the accounting fix | stopped before finishing: superseded by the provenance fix below; partial results showed noa's cost roughly doubling once its in-band calls went through the cache simulator |
 | 314ff5d | **final suites**: the four above, with reconciled accounting, evidence-grounded probes, component-matched baselines and retrieval provenance | completed; every run passed the token and cost reconciliation check; these are the tables in `docs/benchmarks.md` |
+
+### Release check for v0.1.0 (2026-11-26, evening)
+
+| build | run | outcome |
+|---|---|---|
+| rename working tree before 983d247, then again from a clean clone of df46f66 | seed 1 of the 64k main, matched and ablation suites, compared with `bench/results/2026-11-26/` by `scripts/compare-runs.py` | both times: 26 strategy runs, every deterministic field identical, only timing fields differ. Not stored separately, because the outputs equal the published ones |
+| 983d247 | `TestDeterministicSmoke` golden file created (120 turns, 32k window, five strategies) | identical across three repeats and at GOMAXPROCS 1, 2 and 16 |
+| 983d247 | `scripts/release-build.sh 0.1.0`, run twice | six platform archives, byte-identical SHA256SUMS across the two builds |
+
+No real-model run was made for the release, and no API credit was spent.
 
 ## Real-model runs
 

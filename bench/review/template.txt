@@ -1,5 +1,7 @@
-PALIMPSEST: REVIEW PACKET (REVISION 2)
+STRATAVELL: REVIEW PACKET (REVISION 2)
 =====================================
+
+The project was renamed from palimpsest to Stratavell for its v0.1.0 release. The results below were produced before the rename and are unchanged; section 13 records the check that the release build reproduces them.
 
 Purpose: give an outside reviewer everything needed to check the claims and the numbers in one file. Please be critical.
 
@@ -102,8 +104,8 @@ Strategies:
   D  observation masking only (last 10 observations)
   E  synchronous progressive DAG summaries (similar to APEC's PEC)
   F  asynchronous progressive summaries (similar to APEC)
-  G  palimpsest
-  Component-matched: B+pins, B+archive (passive palimpsest archive with retrieval), E+retrieval, F+retrieval
+  G  Stratavell
+  Component-matched: B+pins, B+archive (passive Stratavell archive with retrieval), E+retrieval, F+retrieval
 
 Summarizer:
 - Extractive and deterministic for all deterministic runs.
@@ -277,3 +279,12 @@ bench/run.go (accounting and reconciliation), bench/cache.go (cache simulator), 
 docs/benchmarks.md, docs/experiments.md, docs/limitations.md, docs/research/
 
 Total real-model API spend: {{spend}} (OpenRouter, Claude Haiku 5.5).
+
+
+13. RELEASE BUILD CHECK (v0.1.0)
+--------------------------------
+
+- After the rename and the release hardening, seed 1 of the 64k main, component-matched and ablation suites was rerun on the release build.
+- It was compared with bench/results/2026-11-26/ by scripts/compare-runs.py: 26 strategy runs, every deterministic field identical (tokens, cache components, costs, overflows, completion, probes, standing rules). Only wall-clock timing fields differ.
+- TestDeterministicSmoke pins a short deterministic run in bench/testdata/smoke-golden.json and runs in CI.
+- Not rerun: the 200k suite and the real-model runs.

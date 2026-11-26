@@ -23,7 +23,7 @@ import (
 	"github.com/TobiasLogic/stratavell/summarize"
 )
 
-const usage = `stratavell: lossless, asynchronous context management for LLM agents
+const usage = `stratavell: context management for long-running LLM agents (losslessly retrievable history, asynchronous compaction)
 
 usage: stratavell <command> [flags]
 

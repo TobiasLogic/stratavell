@@ -10,7 +10,7 @@ Measured problems and design limits, most significant first.
 - Background summarizer latency in the deterministic runs is a model (0.8 s plus prefill at 4,000 tokens per second plus decode at 60 tokens per second), not a measurement.
 - The real-model runs used one reader and summarizer (Claude Haiku 5.5) and one or two seeds; the variance of those numbers is not known.
 - The thresholds (0.55, 0.70, 0.85) were not tuned. No threshold sweep was run.
-- Once the baselines get the same retrieval, palimpsest shows no question-answering advantage in the pre-registered run (28, 27 and 26 of 33 grounded answers). Its measured advantages are cost, standing-rule retention, current-failure recall and not blocking. General fact recovery comes from retrieval itself.
+- Once the baselines get the same retrieval, Stratavell shows no question-answering advantage in the pre-registered run (28, 27 and 26 of 33 grounded answers). Its measured advantages are cost, standing-rule retention, current-failure recall and not blocking. General fact recovery comes from retrieval itself.
 - The file-provenance fix in retrieval outputs, found by that run, has not been re-measured with a real model.
 - Task success on real coding tasks has not been measured. That needs an agent that actually solves tasks with each strategy, with independently executed tests and cost per resolved task.
 
@@ -35,3 +35,24 @@ Measured problems and design limits, most significant first.
 - The Anthropic adapter was validated against the documented request shape and tested offline. No live Anthropic API call was made, because no Anthropic key was available. The OpenAI-compatible adapter was exercised live through OpenRouter.
 - There is no streaming adapter. Hosts that stream should assemble the final assistant message, including thinking signatures, before calling `Append`.
 - The code has no doc comments, by the author's style choice; the API is documented in `docs/`.
+- The Ollama adapter has no automated tests; it was used for one live local call.
+
+## Security and deployment
+
+- A bearer token gives access to every session in the database. There are no per-session credentials, roles or audit of reads. Use separate servers and databases for separate trust domains.
+- The HTTP server has no TLS. Remote access needs a TLS-terminating proxy.
+- The database is not encrypted at rest.
+- Labels on archived content ("data, not instructions") reduce prompt-injection risk from stored tool outputs, but do not remove it.
+- See `SECURITY.md` for the full threat model.
+
+## Platforms
+
+- Tested: Linux on amd64, with Go 1.26.11 (the minimum in `go.mod`) and 1.27.4.
+- Release binaries are cross-compiled for Linux, macOS and Windows on amd64 and arm64.
+- The macOS and Windows test runs exist only in CI. As of v0.1.0 they had not yet run, so macOS and Windows should be treated as untested.
+- The Windows CI job is marked experimental: Unix-socket and crash-test behavior there are unverified.
+
+## Project
+
+- The API is pre-1.0 and may change; see `docs/stability.md`.
+- The project was renamed from palimpsest for v0.1.0. Legacy environment variables and the legacy default database name still work, with warnings, and will be removed in a later release.

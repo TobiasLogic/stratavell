@@ -3,23 +3,41 @@
 ## Running
 
 ```
-palimpsest serve --db /var/lib/palimpsest/memory.db --socket $XDG_RUNTIME_DIR/palimpsest.sock
-palimpsest serve --addr 0.0.0.0:7077 --token-file /etc/palimpsest/token   # non-loopback needs a token
-palimpsest mcp --db ~/.local/share/palimpsest/memory.db --session my-project
+stratavell serve --db /var/lib/stratavell/memory.db --socket $XDG_RUNTIME_DIR/stratavell.sock
+stratavell serve --addr 0.0.0.0:7077 --token-file /etc/stratavell/token   # non-loopback needs a token
+stratavell mcp --db ~/.local/share/stratavell/memory.db --session my-project
 ```
 
-Summarizer choices: `--summarizer extractive` (default, no model), `ollama`, `openai` (any compatible endpoint, `--summarizer-url`), `anthropic`, `none`. API keys come from `PALIMPSEST_SUMMARIZER_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
+Summarizer choices: `--summarizer extractive` (default, no model), `ollama`, `openai` (any compatible endpoint, `--summarizer-url`), `anthropic`, `none`. API keys come from `STRATAVELL_SUMMARIZER_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
+
+Without `--db`, commands use `stratavell.db` in the working directory. `serve` and `mcp` create the file if it is missing. The other commands refuse to create a missing database, session or agent.
+
+## Environment variables
+
+| variable | used by | meaning |
+|---|---|---|
+| `STRATAVELL_DB` | every command | database path when `--db` is not given |
+| `STRATAVELL_TOKEN` | `serve` | bearer token required on every request except `/v1/health`; `--token-file` takes precedence |
+| `STRATAVELL_SUMMARIZER` | `serve`, `mcp` | `extractive`, `ollama`, `openai`, `anthropic` or `none` |
+| `STRATAVELL_SUMMARIZER_URL`, `STRATAVELL_SUMMARIZER_MODEL` | `serve`, `mcp` | endpoint and model of a model-backed summarizer |
+| `STRATAVELL_SUMMARIZER_KEY` | `serve`, `mcp` | API key for the summarizer; falls back to `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` |
+| `STRATAVELL_SESSION`, `STRATAVELL_AGENT` | `mcp` | the session and agent the MCP server is bound to |
+| `STRATAVELL_URL` | TypeScript and Rust examples | server address |
+| `STRATAVELL_TOKEN` | Python and TypeScript example clients | bearer token sent with each request |
+| `OPENROUTER_API_KEY` | `stratavell-bench` | only for the optional real-model runs; otherwise read from `stratavell/openrouter.env` under the user config directory |
+
+Each `STRATAVELL_*` variable is also read under its pre-0.1.0 name, `PALIMPSEST_*`, with a deprecation warning. The new name wins when both are set.
 
 ## Inspecting
 
 | command | shows |
 |---|---|
-| `palimpsest stats --session S --agent A` | generation, boundary, frontier size and tokens, archived events and tokens, compression ratio, pending jobs, calibration ratio, growth per turn, summarizer latency |
-| `palimpsest stats --engine` | counters, gauges, latency histograms (p50, p95, p99, max), database and WAL size, blob raw and stored bytes, write transactions, heap and goroutines |
-| `palimpsest inspect --session S --agent A` | sessions, agents, frontier nodes and task state |
-| `palimpsest search --session S --agent A query...` | search hits as the agent would see them |
-| `palimpsest show --session S --agent A ev_...` | one event, exactly as stored |
-| `palimpsest verify [--session S]` | hash, lineage and SQLite integrity checks; exits non-zero on problems |
+| `stratavell stats --session S --agent A` | generation, boundary, frontier size and tokens, archived events and tokens, compression ratio, pending jobs, calibration ratio, growth per turn, summarizer latency |
+| `stratavell stats --engine` | counters, gauges, latency histograms (p50, p95, p99, max), database and WAL size, blob raw and stored bytes, write transactions, heap and goroutines |
+| `stratavell inspect --session S --agent A` | sessions, agents, frontier nodes and task state |
+| `stratavell search --session S --agent A query...` | search hits as the agent would see them |
+| `stratavell show --session S --agent A ev_...` | one event, exactly as stored |
+| `stratavell verify [--session S]` | hash, lineage and SQLite integrity checks; exits non-zero on problems |
 
 The same data is available over HTTP (`/v1/stats`, `.../stats`, `.../verify`) and through the `memory_stats` tool. Metric names include:
 - `append_ms`, `assemble_ms`, `retrieval_ms`, `summarize_ms`, `emergency_ms` and `foreground_wait_ms` (histograms)
@@ -30,7 +48,7 @@ Payloads are never logged or exported as metrics.
 
 ## Retention and deletion
 
-- `palimpsest delete-session --session S` (or `DELETE /v1/sessions/S`) removes the session's events, summaries, task state, indexes, views, jobs, grants and metrics in one transaction. It then deletes blobs no other session references and records a content-free audit row in `deletions`. The command line version also checkpoints the WAL and vacuums the file so the bytes leave the disk; after an HTTP deletion run `palimpsest vacuum` when the server is idle. With `Store.SecureDelete` set, SQLite overwrites deleted content in place as well.
+- `stratavell delete-session --session S` (or `DELETE /v1/sessions/S`) removes the session's events, summaries, task state, indexes, views, jobs, grants and metrics in one transaction. It then deletes blobs no other session references and records a content-free audit row in `deletions`. The command line version also checkpoints the WAL and vacuums the file so the bytes leave the disk; after an HTTP deletion run `stratavell vacuum` when the server is idle. With `Options.Store.SecureDelete` set (Go SDK), SQLite overwrites deleted content in place as well.
 - `Agent.Purge(ctx, uptoSeq, RetentionPolicy{...})` removes payloads of events already covered by summaries (optionally only events older than a given age). Purged events keep their id, sequence and hash, and report `not found` on retrieval. `Verify` skips them.
 
 ## Memory use
@@ -39,7 +57,25 @@ The engine keeps each open agent's raw region, frontier and indexes of recent re
 
 ## Backup
 
-The database is one SQLite file plus its WAL. Back up with `sqlite3 memory.db ".backup copy.db"` or by copying after `palimpsest vacuum` while the server is stopped. An external artifact directory (`--artifacts`) must be backed up with it.
+The database is one SQLite file plus its WAL. Back up a live database from Go with `Engine.Backup(ctx, "copy.db")` (`VACUUM INTO`, refuses to overwrite), with `sqlite3 memory.db ".backup copy.db"`, or by copying the file after `stratavell vacuum` while the server is stopped. An external artifact directory (`--artifacts`) must be backed up with it.
+
+## Migrating from palimpsest
+
+Stratavell was called palimpsest before v0.1.0. The database schema did not change, so existing databases open as they are. Nothing is renamed, moved or deleted automatically.
+
+1. **Binary.** Install `stratavell` and replace `palimpsest` in scripts and service files. Replace `palbench` with `stratavell-bench`.
+2. **Go imports.** Replace `github.com/TobiasLogic/palimpsest` with `github.com/TobiasLogic/stratavell`.
+3. **Environment.** Rename `PALIMPSEST_*` variables to `STRATAVELL_*`. The old names keep working for now and print a warning.
+4. **Default database.** If you relied on the default `palimpsest.db` in the working directory, it is still used, with a warning, as long as no `stratavell.db` exists. To switch to the new name:
+
+   ```
+   stratavell migrate --dry-run
+   stratavell migrate
+   ```
+
+   `migrate` copies the database with `VACUUM INTO` and opens the copy. It verifies every session's hashes and lineage, and compares the event count with the source. It refuses to run if the target or its `-wal` or `-shm` file exists. The source file is left untouched: delete it yourself once you are satisfied. Use `--from` and `--to` for other paths, for example `stratavell migrate --from ~/.local/share/palimpsest/memory.db --to ~/.local/share/stratavell/memory.db`. Stop any server using the source database first.
+5. **MCP hosts.** Change the configured command from `palimpsest mcp ...` to `stratavell mcp ...`. The server now reports itself as `stratavell`, and the tool names are unchanged.
+6. **Benchmark key file.** `stratavell-bench` reads `stratavell/openrouter.env` under the user config directory, and falls back to the old `palimpsest/openrouter.env`.
 
 ## Compatibility and rollback
 

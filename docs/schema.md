@@ -27,7 +27,7 @@ Migrations live in `internal/store/schema.go`. Each is applied once, in a transa
 
 ## Integrity
 
-`palimpsest verify` (or `Engine.Verify`) checks:
+`stratavell verify` (or `Engine.Verify`) checks:
 
 - every retained event decodes, its blobs exist and match their hashes, and the canonical hash of the reconstructed message equals `content_hash`
 - sequence numbers per agent are contiguous and match `head_seq`

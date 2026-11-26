@@ -9,4 +9,4 @@ Each example appends a short exchange (a user instruction, a tool call, its resu
 | `typescript/` | HTTP with `fetch`, Node 22 or newer | `stratavell serve --db /tmp/demo.db` then `cd examples/typescript && node --experimental-strip-types example.ts` |
 | `rust/` | HTTP with `ureq` | `stratavell serve --db /tmp/demo.db` then `cd examples/rust && cargo run` |
 
-`examples/python/stratavell_client.py` and `examples/typescript/stratavell.ts` are small clients you can copy into a project. Set `STRATAVELL_TOKEN` when the server was started with a token, and `STRATAVELL_URL` to point the TypeScript and Rust examples at another address.
+`examples/python/stratavell_client.py` and `examples/typescript/stratavell.ts` are small clients you can copy into a project. The Python and TypeScript clients send `STRATAVELL_TOKEN` when it is set, for servers started with a token. `STRATAVELL_URL` points the TypeScript and Rust examples at another address. `scripts/examples-smoke.sh` starts a server and runs all four.

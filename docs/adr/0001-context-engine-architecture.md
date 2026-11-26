@@ -17,7 +17,7 @@ The research notes in `docs/research/` shaped the decision. The points that matt
 
 ## Decision
 
-Build palimpsest as a standalone Go engine that owns persistent session state and produces the model's context as a materialized view of that state.
+Build Stratavell as a standalone Go engine that owns persistent session state and produces the model's context as a materialized view of that state.
 
 Core choices:
 
@@ -25,7 +25,7 @@ Core choices:
 - **The context is a view** defined by a generation record: an ordered frontier of summary nodes covering a prefix of the stream, a raw region after it, and a mask cutoff. Views change only at generation commits. Within a generation, rendering is append-only, which keeps the cached prefix stable.
 - **Zero-inference reduction runs first.** Oversized tool outputs are externalized at ingestion (before the model first sees them) to a bounded preview with a structured digest and an archive reference. Exact duplicates and unchanged file re-reads are replaced by references. Old observations are masked in epochs, not on a rolling window. Active failure evidence is exempt from masking.
 - **Semantic compaction is progressive and asynchronous by default**, in the APEC style, but lossless: summary nodes form a DAG with ordered, exact source edges, and every summarized event stays retrievable by id. Jobs snapshot completed, tool-group-closed ranges and are committed with a compare-and-swap check against the current frontier. Results publish only inside `Assemble`, between inference requests.
-- **A deterministic emergency ladder guarantees the budget** without any model call: mask, archive old ranges as deterministic pointer nodes, condense summaries into pointer nodes, mask down to the last turn, archive recent ranges, then shorten the latest turn's observations. If protected content alone cannot fit, `Assemble` returns `ErrProtectedOverflow` instead of dropping it.
+- **A deterministic emergency ladder enforces the budget** without any model call: mask, archive old ranges as deterministic pointer nodes, condense summaries into pointer nodes, mask down to the last turn, archive recent ranges, then shorten the latest turn's observations. If protected content alone cannot fit, `Assemble` returns `ErrProtectedOverflow` instead of dropping it.
 - **Protected task state is separate from summaries.** User messages are pinned verbatim once they leave the raw region. Explicit constraints are always pinned. Failures, tests and modified files are extracted from tool results deterministically. Agent-written decisions carry model provenance. Summaries never create user-provenance items.
 - **Retrieval is local and bounded**: SQLite FTS5 (porter tokenizer, identifier subwords in an auxiliary column), symbol and path indexes, exact id lookup, reciprocal rank fusion with small reliability, staleness and recency priors. Embeddings are an optional interface and are off by default.
 - **The cache-aware layout puts dynamic content at the tail.** Summaries come first and are append-only. Pinned instructions and a task state snapshot follow and change only when the frontier changes. Raw history follows. Task state changes and retrieved evidence go into the final user message, after the last breakpoint. Breakpoints go on the system block, the last summary, the last history block and the previous turn's history block.

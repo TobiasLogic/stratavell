@@ -33,6 +33,7 @@ First public release. The project was developed under the working name palimpses
 - The Unix socket is created with mode 0600. An existing path is replaced only if it is a stale socket: a regular file, or a socket another process is listening on, is never removed.
 - Read-only CLI commands (`stats`, `inspect`, `search`, `show`, `verify`, `vacuum`, `delete-session`) refuse to create a missing database, session or agent.
 - `stratavell verify` checks event hashes, summary lineage and SQLite and FTS5 integrity.
+- The minimum Go version is 1.26.11. Earlier 1.26 releases have standard-library vulnerabilities (`net/http`, `crypto/x509`, `crypto/tls`) that the HTTP server can reach, according to `govulncheck`.
 
 ### Migrating from palimpsest
 

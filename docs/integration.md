@@ -1,13 +1,13 @@
 # Integration guide
 
-There are two ways to use palimpsest, and they give different guarantees.
+There are two ways to use Stratavell, and they control different things.
 
 | mode | what the host does | what the engine manages |
 |---|---|---|
 | **Full context interception** | routes every model request through `Assemble` and reports every message back | the whole context: compaction, masking, budget, cache layout, task state, retrieval |
 | **Passive memory (MCP)** | adds the MCP server to a host that keeps managing its own context | only what the model chooses to archive and retrieve; the host's context is not compacted or bounded by the engine |
 
-Full interception is the only mode that can guarantee the budget and protected constraints. Passive mode is useful for hosts you cannot change, such as a closed-source coding assistant: the model gets a lossless archive and exact retrieval, but compaction is still the host's.
+Full interception is the only mode in which the engine enforces the token budget and keeps protected constraints in the context. Passive mode is useful for hosts you cannot change, such as a closed-source coding assistant: the model gets a lossless archive and exact retrieval, but compaction is still the host's.
 
 ## Full interception in one loop
 
@@ -46,7 +46,7 @@ Set `Meta` on tool results when you know it: `Command`, `ExitCode`, `Paths`, `Co
 ### HTTP (any language)
 
 ```
-palimpsest serve --db memory.db --socket $XDG_RUNTIME_DIR/palimpsest.sock
+stratavell serve --db memory.db --socket $XDG_RUNTIME_DIR/stratavell.sock
 ```
 
 The same loop over HTTP:
@@ -63,8 +63,8 @@ POST /v1/sessions/task-42/agents/main/tools/memory_search   {"input": {"query": 
 
 The complete contract is `docs/openapi.yaml`. Clients:
 
-- `examples/python/palimpsest_client.py`: standard library only, TCP or Unix socket
-- `examples/typescript/palimpsest.ts`: fetch, Node 22 or newer
+- `examples/python/stratavell_client.py`: standard library only, TCP or Unix socket
+- `examples/typescript/stratavell.ts`: fetch, Node 22 or newer
 - `examples/rust/src/main.rs`: `ureq` and `serde_json`
 
 All three examples, and `examples/go`, were run against a live server.
@@ -120,7 +120,7 @@ text, _ := worker.Complete(ctx, engine.Completion{Summary: "...", Findings: []st
 ## Passive memory with MCP
 
 ```
-palimpsest mcp --db ~/.local/share/palimpsest/memory.db --session my-project --agent assistant
+stratavell mcp --db ~/.local/share/stratavell/memory.db --session my-project --agent assistant
 ```
 
 Register it as a stdio MCP server in the host. Tools exposed:

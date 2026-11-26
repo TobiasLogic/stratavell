@@ -1,6 +1,6 @@
 # Configuration reference
 
-A policy is JSON. `palimpsest config` prints the defaults. Pass a file with `--config` on the command line, `Options.Policy` in Go, or the `policy` field when creating a session over HTTP. A session stores the policy it was created with; reopening the session uses the stored policy unless a new one is given.
+A policy is JSON. `stratavell config` prints the defaults. Pass a file with `--config` on the command line, `Options.Policy` in Go, or the `policy` field when creating a session over HTTP. A session stores the policy it was created with; reopening the session uses the stored policy unless a new one is given.
 
 Unknown fields are ignored. Missing fields keep their defaults, so a policy file only needs the values you change. Durations are strings such as `"90s"` (integers are read as nanoseconds).
 

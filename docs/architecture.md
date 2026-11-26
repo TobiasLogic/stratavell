@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how palimpsest stores a session, turns it into a model request, and keeps that request inside the budget. The decision record is `docs/adr/0001-context-engine-architecture.md`.
+This document describes how Stratavell stores a session, turns it into a model request, and keeps that request inside the budget. The decision record is `docs/adr/0001-context-engine-architecture.md`.
 
 ## Packages
 
@@ -16,8 +16,8 @@ This document describes how palimpsest stores a session, turns it into a model r
 | `agentloop` | a minimal step function for hosts that want one |
 | `server` | HTTP API over TCP and Unix sockets |
 | `mcp` | MCP server over stdio |
-| `cmd/palimpsest` | standalone executable |
-| `bench`, `cmd/palbench` | workloads, baselines, cache simulator, reader test |
+| `cmd/stratavell` | standalone executable |
+| `bench`, `cmd/stratavell-bench` | workloads, baselines, cache simulator, reader test |
 
 The engine imports none of the adapters, the server, the MCP server or the benchmark code.
 
@@ -186,6 +186,6 @@ Loop control:
 ## Security notes
 
 - Archived content, summaries and retrieved evidence are wrapped in labeled blocks and described as data in the engine notice. The engine's own tag names are escaped when they appear inside tool output, summaries or user text placed in those blocks.
-- The HTTP server binds to loopback by default, refuses a non-loopback address without a bearer token, compares tokens in constant time, limits request bodies to 64 MiB and creates Unix sockets with mode 0600.
+- The HTTP server binds to loopback by default and refuses a non-loopback address without a bearer token. It compares tokens in constant time and limits request bodies to 64 MiB. Without a token it answers TCP requests only when they are addressed to a loopback host and carry no foreign `Origin`, which blocks DNS rebinding and cross-site requests. Unix sockets are created with mode 0600, and an existing path is replaced only when it is a stale socket. The full threat model is in `SECURITY.md`.
 - Metrics and logs never contain payloads.
 - Blob access requires a reference from an event the agent may see, so content-addressed deduplication across sessions does not expose content across sessions.

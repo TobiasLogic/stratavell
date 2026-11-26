@@ -1,12 +1,14 @@
 openapi: 3.1.0
 info:
-  title: palimpsest context engine API
+  title: Stratavell context engine API
   version: "1"
   description: |
-    Local HTTP API for the palimpsest context engine. The server listens on 127.0.0.1:7077 by default and
+    Local HTTP API for the Stratavell context engine. The server listens on 127.0.0.1:7077 by default and
     optionally on a Unix domain socket created with mode 0600. Every request except /v1/health needs
     `Authorization: Bearer <token>` when the server was started with a token. Non-loopback TCP listeners
-    refuse to start without one.
+    refuse to start without one. Without a token, TCP requests must be addressed to a loopback host
+    (localhost, 127.0.0.1 or [::1]) and must not carry a non-loopback Origin header; otherwise the server
+    answers 403 with code forbidden_host or forbidden_origin.
 
     Sessions and agents are created only by POST /v1/sessions and POST /v1/sessions/{sid}/agents. Every other
     endpoint returns 404 for an unknown session or agent.
