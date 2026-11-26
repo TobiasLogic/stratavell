@@ -69,3 +69,10 @@ func FuzzDigest(f *testing.F) {
 		SplitIdent(s)
 	})
 }
+
+func TestDigestPrefersAssertions(t *testing.T) {
+	d := DigestLog("--- FAIL: TestParse (0.01s)\n    parse_test.go:42: expected 3, got 4\nFAIL\nFAIL\tgithub.com/x\t0.1s\n", 3)
+	if len(d.Errors) == 0 || !strings.Contains(d.Errors[0].Text, "expected 3, got 4") {
+		t.Fatalf("assertion not first: %+v", d.Errors)
+	}
+}

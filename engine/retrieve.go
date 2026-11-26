@@ -150,6 +150,7 @@ func (a *Agent) Search(ctx context.Context, query string, f SearchFilters, limit
 		limit = a.pol.Retrieval.DefaultLimit
 	}
 	limit = min(limit, a.pol.Retrieval.MaxLimit)
+	a.e.idx.wait(250 * time.Millisecond)
 	lists, err := a.gather(ctx, query, f)
 	if err != nil {
 		return nil, err

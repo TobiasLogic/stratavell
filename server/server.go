@@ -604,6 +604,12 @@ func (s *Server) Serve(ctx context.Context, l Listeners) error {
 		lns = append(lns, ln)
 	}
 	if l.Socket != "" {
+		if len(l.Socket) > 100 {
+			for _, x := range lns {
+				x.Close()
+			}
+			return fmt.Errorf("server: unix socket path is %d bytes; most systems allow about 104, so use a shorter path such as $XDG_RUNTIME_DIR/palimpsest.sock", len(l.Socket))
+		}
 		_ = os.Remove(l.Socket)
 		ln, err := net.Listen("unix", l.Socket)
 		if err != nil {

@@ -27,6 +27,8 @@ type Line struct {
 var (
 	reError    = regexp.MustCompile(`(?i)(\berror\b|\bERR!|\bfatal\b|\bpanic:|\bexception\b|traceback \(most recent call last\)|\bFAIL\b|\bfailed\b|undefined reference|segmentation fault|\bassert(ion)?(error)?\b.*(fail|mismatch|expected))`)
 	reWarn     = regexp.MustCompile(`(?i)\bwarn(ing)?\b`)
+	reAssert   = regexp.MustCompile(`(?i)(\b(expected|want(ed)?|got|actual|mismatch|assert\w*)\b.*\b(got|want|but|actual|expected|to (be|equal))\b|[\w./-]+\.\w+:\d+(:\d+)?: .*\b(expected|mismatch|got|want|undefined|cannot|error)\b)`)
+	reBareFail = regexp.MustCompile(`^(FAIL\b.*|--- FAIL: .*|FAILED.*|ok\s+\S+.*)$`)
 	reFailTest = []*regexp.Regexp{
 		regexp.MustCompile(`^--- FAIL: (\S+)`),
 		regexp.MustCompile(`^FAILED (\S+::\S+)`),
@@ -46,6 +48,7 @@ var (
 
 func DigestLog(s string, maxErrors int) LogDigest {
 	d := LogDigest{Bytes: len(s)}
+	var primary, secondary, bare []Line
 	seenLoc := map[string]bool{}
 	seenErr := map[string]bool{}
 	n := 0
@@ -67,11 +70,22 @@ func DigestLog(s string, maxErrors int) LogDigest {
 				break
 			}
 		}
-		if reError.MatchString(t) {
+		tt := strings.TrimSpace(t)
+		if reAssert.MatchString(tt) {
 			key := normalizeErr(t)
-			if !seenErr[key] && len(d.Errors) < maxErrors {
+			if !seenErr[key] {
 				seenErr[key] = true
-				d.Errors = append(d.Errors, Line{N: n, Text: clip(t, 300)})
+				primary = append(primary, Line{N: n, Text: clip(tt, 300)})
+			}
+		} else if reError.MatchString(t) {
+			key := normalizeErr(t)
+			if !seenErr[key] {
+				seenErr[key] = true
+				if reBareFail.MatchString(tt) {
+					bare = append(bare, Line{N: n, Text: clip(tt, 300)})
+				} else {
+					secondary = append(secondary, Line{N: n, Text: clip(tt, 300)})
+				}
 			}
 		} else if reWarn.MatchString(t) {
 			d.Warnings++
@@ -87,6 +101,13 @@ func DigestLog(s string, maxErrors int) LogDigest {
 		}
 	}
 	d.Lines = n
+	for _, group := range [][]Line{primary, secondary, bare} {
+		for _, l := range group {
+			if len(d.Errors) < maxErrors {
+				d.Errors = append(d.Errors, l)
+			}
+		}
+	}
 	return d
 }
 
