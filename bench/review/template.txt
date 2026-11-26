@@ -219,8 +219,8 @@ Hedged answers that lenient grading accepts and strict grading rejects:
 - append a small event: 0.56 ms mean per event
 - append a 160 KB test log: 36 ms mean (51 ms with indexing inline)
 - assemble per turn: 1.35 ms (64k, 45k-token context), 0.74 ms (200k, 68k-token context)
-- search, 3.4k chunks: p50 2.33 ms, p95 9.44 ms, p99 11.42 ms
-- search, 13.2k chunks: p50 3.58 ms, p95 33.73 ms (misses the 20 ms target)
+- search, 3.4k chunks: p50 1.45 ms, p95 3.14 ms, p99 3.55 ms (v0.1.0: p95 9.44 ms)
+- search, 13.2k chunks: p50 2.78 ms, p95 6.47 ms, p99 6.91 ms (v0.1.0: p95 33.73 ms, which missed the 20 ms target; two term-pruning bugs and a per-candidate stale check were the cause; fixed in v0.1.1 with all deterministic benchmark fields unchanged)
 - 4 concurrent agents, 150 turns each: append p95 9.29 ms, assemble p95 9.59 ms, no cross-agent search hits
 
 

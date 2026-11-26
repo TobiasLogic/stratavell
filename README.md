@@ -95,8 +95,8 @@ Other results:
   |---|---|
   | assembly, 45k-token context | 1.35 ms mean |
   | engine time per benchmark turn | about 3 ms p95 |
-  | search, 3.4k indexed chunks | p95 9.4 ms |
-  | search, 13.2k chunks | p95 33.7 ms (misses the 20 ms target) |
+  | search, 3.4k indexed chunks | p95 3.1 ms (9.4 ms in v0.1.0) |
+  | search, 13.2k chunks | p95 6.5 ms (33.7 ms in v0.1.0) |
   | appending a small event | 0.56 ms mean (fsync on every commit) |
 - **Tested window sizes:** 64k and 200k tokens.
 
@@ -257,7 +257,7 @@ Read [docs/limitations.md](docs/limitations.md) before relying on the numbers. I
 - the baselines are reconstructions, not the original systems
 - costs are simulated
 - samples are small
-- lexical search p95 is 33.7 ms at 13k indexed chunks, above the 20 ms target
+- search latency has been measured only up to 13k indexed chunks and four concurrent agents
 - the API may change before 1.0
 
 ## Roadmap

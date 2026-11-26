@@ -6,7 +6,7 @@ v0.1.0 is a research preview. Its benchmarks measure what each strategy keeps av
 
 - **Real-world integrations.** Integrate with at least two open agent loops through full interception and publish the integration code. Today the only live loops are the examples and the benchmark harness.
 - **Concurrency at scale.** The current load test is four agents with 150 turns each. Test tens of concurrent agents on one database, long-running servers, and many idle sessions with `ReleaseSession`.
-- **Search latency.** Lexical search p95 is 33.7 ms at 13k indexed chunks. Options: a dedicated index per agent, cheaper OR-fallback scoring, or a cgo SQLite build as an option.
+- **Search at larger scale.** v0.1.1 brought p95 at 13k chunks from 33.7 ms to about 6.5 ms by fixing term pruning; see `docs/experiments.md`. Next: measure 100k chunks and more. If FTS5 becomes the limit, the candidates are an in-memory inverted index (a prototype took 4.8 ms worst case at 13k chunks) or an optional cgo SQLite build (1.85x on the same SQL).
 - **Live provider validation.** Exercise the Anthropic adapter against the live Messages API, including prompt-cache breakpoints and thinking-block preservation. Add tests for the Ollama adapter.
 
 ## Evaluation

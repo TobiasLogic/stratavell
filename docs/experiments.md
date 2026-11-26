@@ -39,6 +39,37 @@ Four research passes read the primary sources and code listed in `docs/research/
 
 No real-model run was made for the release, and no API credit was spent.
 
+### Search latency investigation (2026-11-26, night)
+
+The test behind the 33.7 ms p95 at 13.2k chunks was a 1,200-turn session. Each idea was measured on a saved copy of that corpus, with the engine's exact queries, on the same machine. No API credit was spent.
+
+| experiment | result |
+|---|---|
+| per-query breakdown | three queries made the tail. `pkg/mod1/file1.go` took 36 ms: 17 ms full-text, plus 19 ms in the stale-read check, one or two queries per candidate. `value_42 compute` took 27 ms and `HandleRequest compute value` 21 ms, almost all full-text. The other five took 1 to 4 ms. |
+| CPU profile of `Search` | BM25 scoring was about 42% of search time, the per-candidate stale check about 16%, and document-size lookups inside BM25 about 15% |
+| native C SQLite through cgo (mattn/go-sqlite3, the same SQLite 3.54.1) against pure-Go modernc, on the same SQL | 1.85x faster: the sum over 8 queries dropped from 66.8 to 36.2 ms, and the slowest query from 27.1 to 15.0 ms. Not adopted, because it gives up the no-cgo build. |
+| `PRAGMA mmap_size=256MB` | no effect: 66.8 to 65.9 ms |
+| FTS5 `optimize` (segment merge) | sum 66.8 to 59.2 ms, slowest query unchanged. Adopted as part of `Vacuum`. |
+| session token removed from the MATCH expression | sum 66.8 to 52.1 ms. Not adopted: the token is what keeps multi-session databases isolated inside FTS5. |
+| prototype in-memory inverted index in pure Go | sum 12.0 ms, slowest 4.8 ms, 11.5 MB heap, 0.6 s to build. Not adopted: the fixes below reached similar latency without a second index to keep crash-consistent. |
+| term frequencies of the slow queries | `value` (38.6% of chunks), `compute` (58.8%) and `go` (74.2%) were still in the queries, despite the 5% common-term rule. Two bugs: (1) the refill to three terms took the rarest remaining terms however common they were; (2) document frequency ignored two-letter words, so `go` looked like a 0% term. |
+| stale check as one EXISTS query against one JOIN plus DISTINCT | 0.61 ms against 13.8 ms for 40 candidates, with identical results |
+
+The fixes are dddc848:
+- term pruning refills only from terms in at most 20% of chunks, and keeps the two rarest only when nothing else is left
+- two-letter words are counted in document frequency
+- a query that is a single path skips full-text search when the exact path index has hits
+- the stale check is one EXISTS query per search
+- `Vacuum` merges FTS5 segments first
+
+`TestSearchLatencyProfile`:
+- 13.2k chunks: p95 35.8 ms (33.7 ms in the published run) became 6.2 to 6.5 ms
+- 3.4k chunks: p95 10.6 ms became 2.8 to 3.1 ms
+
+On a freshly reopened copy of the corpus, p95 over the eight queries went from 76.5 to 14.6 ms.
+
+Seed 1 of the 64k main, matched and ablation suites (26 strategy runs) on dddc848 is identical to `bench/results/2026-11-26/` in every deterministic field, including recoverability per fact kind and injected evidence. The golden smoke run is unchanged.
+
 ## Real-model runs
 
 Costs per run are estimates, because runs overlapped and OpenRouter reports one running total per key. The readings are listed below the table.

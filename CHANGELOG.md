@@ -2,6 +2,19 @@
 
 All notable changes are listed here. The project follows [Semantic Versioning](https://semver.org/). Until 1.0, minor releases may change the Go API, the HTTP API, the MCP tool set or the database schema; every such change is listed here with migration steps.
 
+## v0.1.1 (unreleased)
+
+### Search
+
+- Fixed term pruning. Before, a query with one or two rare words was refilled with the rarest remaining words even when they appeared in most chunks, so full-text search scored up to 75% of the corpus. Two-letter words such as `go` were also never counted as common.
+- A query that is a single file path now uses the exact path index and skips full-text search when that index has hits.
+- The stale-read check runs as one `EXISTS` query per search instead of one or two queries per candidate.
+- `Engine.Vacuum`, and so `stratavell vacuum`, merges FTS5 index segments first.
+- Search p95 in `TestSearchLatencyProfile`, same machine:
+  - 13.2k chunks: 33.7 ms to 6.5 ms
+  - 3.4k chunks: 9.4 ms to 3.1 ms
+- Seed-1 main, component-matched and ablation suites are identical to the published results in every deterministic field, and the golden smoke run is unchanged.
+
 ## v0.1.0 (Research Preview), 2026-11-26
 
 First public release. The project was developed under the working name palimpsest and renamed to Stratavell for this release.
