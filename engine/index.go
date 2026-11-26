@@ -145,6 +145,74 @@ func (ix *indexer) wait(timeout time.Duration) {
 
 func (e *Engine) WaitIndexed(timeout time.Duration) { e.idx.wait(timeout) }
 
+type dfStats struct {
+	mu     sync.Mutex
+	seeded bool
+	docs   int
+	df     map[string]int
+}
+
+func wordsOf(s string) map[string]bool {
+	out := map[string]bool{}
+	for _, w := range reQueryTok.FindAllString(s, -1) {
+		if len(w) >= 3 {
+			out[strings.ToLower(w)] = true
+		}
+		for _, sub := range textproc.SplitIdent(w) {
+			if len(sub) >= 3 {
+				out[sub] = true
+			}
+		}
+	}
+	return out
+}
+
+func (d *dfStats) add(chunks []string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.df == nil {
+		d.df = map[string]int{}
+	}
+	for _, c := range chunks {
+		d.docs++
+		for w := range wordsOf(c) {
+			d.df[w]++
+		}
+	}
+}
+
+func (e *Engine) ensureDF(ctx context.Context) {
+	e.df.mu.Lock()
+	seeded := e.df.seeded
+	e.df.seeded = true
+	e.df.mu.Unlock()
+	if seeded {
+		return
+	}
+	rows, err := e.db.R.QueryContext(ctx, "SELECT body FROM docs_fts ORDER BY rowid DESC LIMIT 3000")
+	if err != nil {
+		return
+	}
+	var bodies []string
+	for rows.Next() {
+		var b string
+		if rows.Scan(&b) == nil {
+			bodies = append(bodies, b)
+		}
+	}
+	rows.Close()
+	e.df.add(bodies)
+}
+
+func (e *Engine) dfRatio(term string) float64 {
+	e.df.mu.Lock()
+	defer e.df.mu.Unlock()
+	if e.df.docs < 200 {
+		return 0
+	}
+	return float64(e.df.df[term]) / float64(e.df.docs)
+}
+
 func chunkText(s string, size int) []string {
 	if len(s) <= size {
 		return []string{s}
@@ -262,6 +330,7 @@ func (e *Engine) indexEvent(ctx context.Context, id string) error {
 			e.metrics.inc("embedding_failures", 1)
 		}
 	}
+	e.df.add(chunks)
 	return e.db.Tx(ctx, func(tx *sql.Tx) error {
 		var done int
 		if err := tx.QueryRowContext(ctx, "SELECT indexed FROM events WHERE id=?", id).Scan(&done); err != nil {

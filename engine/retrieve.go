@@ -48,7 +48,7 @@ var (
 	stopwords  = map[string]bool{"the": true, "a": true, "an": true, "of": true, "to": true, "in": true, "and": true, "or": true, "is": true, "was": true, "what": true, "which": true, "for": true, "on": true, "did": true, "we": true, "it": true, "that": true, "this": true, "with": true, "how": true, "why": true, "where": true, "when": true, "be": true, "are": true, "do": true, "does": true, "i": true, "you": true, "me": true, "my": true, "our": true, "about": true, "from": true, "at": true, "by": true, "as": true, "if": true, "then": true, "there": true}
 )
 
-func ftsQuery(q string, max int) string {
+func ftsTerms(q string, max int) []string {
 	var terms []string
 	seen := map[string]bool{}
 	for _, t := range reQueryTok.FindAllString(q, -1) {
@@ -57,21 +57,76 @@ func ftsQuery(q string, max int) string {
 			continue
 		}
 		seen[lt] = true
-		terms = append(terms, `"`+lt+`"`)
+		terms = append(terms, lt)
 		for _, sub := range textproc.SplitIdent(t) {
 			if sub != lt && !seen[sub] && len(sub) > 2 && !stopwords[sub] {
 				seen[sub] = true
-				terms = append(terms, `"`+sub+`"`)
+				terms = append(terms, sub)
 			}
 		}
 		if len(terms) >= max {
 			break
 		}
 	}
+	return terms
+}
+
+func ftsQuery(q string, max int) string {
+	terms := ftsTerms(q, max)
 	if len(terms) == 0 {
 		return ""
 	}
-	return strings.Join(terms, " OR ")
+	return quoteOr(terms)
+}
+
+func quoteOr(terms []string) string {
+	q := make([]string, len(terms))
+	for i, t := range terms {
+		q[i] = `"` + t + `"`
+	}
+	return strings.Join(q, " OR ")
+}
+
+const commonTermRatio = 0.05
+
+func quoteAnd(terms []string) string {
+	q := make([]string, len(terms))
+	for i, t := range terms {
+		q[i] = `"` + t + `"`
+	}
+	return strings.Join(q, " AND ")
+}
+
+func (a *Agent) prunedTerms(ctx context.Context, q string) []string {
+	terms := ftsTerms(q, 24)
+	if len(terms) == 0 {
+		return nil
+	}
+	a.e.ensureDF(ctx)
+	type tr struct {
+		t string
+		r float64
+	}
+	var all []tr
+	var keep []string
+	for _, t := range terms {
+		r := a.e.dfRatio(t)
+		all = append(all, tr{t, r})
+		if r <= commonTermRatio {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) < min(3, len(all)) {
+		sort.Slice(all, func(i, j int) bool { return all[i].r < all[j].r })
+		keep = keep[:0]
+		for i := 0; i < len(all) && i < 3; i++ {
+			keep = append(keep, all[i].t)
+		}
+	}
+	if len(keep) < len(terms) {
+		a.e.metrics.inc("query_terms_pruned", float64(len(terms)-len(keep)))
+	}
+	return keep
 }
 
 type visibility struct {
@@ -140,6 +195,7 @@ type candidate struct {
 	rel     int
 	snippet string
 	score   float64
+	docID   int64
 }
 
 func (a *Agent) Search(ctx context.Context, query string, f SearchFilters, limit int) ([]SearchHit, error) {
@@ -176,27 +232,42 @@ func (a *Agent) gather(ctx context.Context, query string, f SearchFilters) (map[
 		return nil, err
 	}
 	lists := map[string][]candidate{}
-	if q := ftsQuery(query, 24); q != "" {
+	if keep := a.prunedTerms(ctx, query); len(keep) > 0 {
 		sid := sessionToken(a.s.id)
-		rows, err := a.e.db.R.QueryContext(ctx, `SELECT d.ref_kind, d.ref_id, d.agent_id, d.scope, d.seq, d.ts, d.tool, d.reliability,
-snippet(docs_fts, 0, '', '', ' ... ', ?), bm25(docs_fts, 1.0, 0.4, 0.0)
+		run := func(expr string) error {
+			rows, err := a.e.db.R.QueryContext(ctx, `SELECT d.ref_kind, d.ref_id, d.agent_id, d.scope, d.seq, d.ts, d.tool, d.reliability, d.id, bm25(docs_fts, 1.0, 0.4, 0.0)
 FROM docs_fts JOIN docs d ON d.id = docs_fts.rowid
-WHERE docs_fts MATCH ? ORDER BY bm25(docs_fts, 1.0, 0.4, 0.0) LIMIT 200`, a.pol.Retrieval.SnippetTokens, "sid:"+sid+" AND ("+q+")")
-		if err != nil {
-			return nil, fmt.Errorf("engine: fts query: %w", err)
+WHERE docs_fts MATCH ? ORDER BY bm25(docs_fts, 1.0, 0.4, 0.0) LIMIT 80`, "sid:"+sid+" AND ("+expr+")")
+			if err != nil {
+				return fmt.Errorf("engine: fts query: %w", err)
+			}
+			defer rows.Close()
+			seen := map[int64]bool{}
+			for _, c := range lists["fts"] {
+				seen[c.docID] = true
+			}
+			for rows.Next() {
+				var c candidate
+				if err := rows.Scan(&c.refKind, &c.refID, &c.agent, &c.scope, &c.seq, &c.ts, &c.tool, &c.rel, &c.docID, &c.score); err != nil {
+					return err
+				}
+				if seen[c.docID] || !vis.allows(a.s.id, c.agent, c.scope, c.refID) {
+					continue
+				}
+				lists["fts"] = append(lists["fts"], c)
+			}
+			return rows.Err()
 		}
-		for rows.Next() {
-			var c candidate
-			if err := rows.Scan(&c.refKind, &c.refID, &c.agent, &c.scope, &c.seq, &c.ts, &c.tool, &c.rel, &c.snippet, &c.score); err != nil {
-				rows.Close()
+		if len(keep) > 1 {
+			if err := run(quoteAnd(keep)); err != nil {
 				return nil, err
 			}
-			if !vis.allows(a.s.id, c.agent, c.scope, c.refID) {
-				continue
-			}
-			lists["fts"] = append(lists["fts"], c)
 		}
-		rows.Close()
+		if len(lists["fts"]) < 12 {
+			if err := run(quoteOr(keep)); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if err := a.symbolHits(ctx, query, vis, lists); err != nil {
 		return nil, err
@@ -268,7 +339,14 @@ func (a *Agent) rank(ctx context.Context, query string, f SearchFilters, limit i
 	if len(hits) > limit {
 		hits = hits[:limit]
 	}
+	terms := queryTerms(query)
 	for i := range hits {
+		if c := byID[hits[i].ID]; c != nil && c.docID > 0 {
+			var body string
+			if a.e.db.R.QueryRowContext(ctx, "SELECT body FROM docs_fts WHERE rowid=?", c.docID).Scan(&body) == nil {
+				hits[i].Snippet = makeSnippet(body, terms, 300)
+			}
+		}
 		if hits[i].Snippet == "" {
 			hits[i].Snippet = a.snippetFor(ctx, hits[i].ID, hits[i].Kind)
 		}
@@ -277,6 +355,58 @@ func (a *Agent) rank(ctx context.Context, query string, f SearchFilters, limit i
 		a.e.metrics.inc("retrieval_hits", 1)
 	}
 	return hits, nil
+}
+
+func queryTerms(q string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, t := range reQueryTok.FindAllString(q, 24) {
+		lt := strings.ToLower(t)
+		if len(lt) < 3 || stopwords[lt] || seen[lt] {
+			continue
+		}
+		seen[lt] = true
+		out = append(out, lt)
+	}
+	return out
+}
+
+func makeSnippet(body string, terms []string, width int) string {
+	lb := strings.ToLower(body)
+	best, bestScore := 0, -1
+	for _, t := range terms {
+		idx := strings.Index(lb, t)
+		if idx < 0 {
+			continue
+		}
+		lo := max(0, idx-width/3)
+		hi := min(len(lb), lo+width)
+		score := 0
+		for _, u := range terms {
+			if strings.Contains(lb[lo:hi], u) {
+				score++
+			}
+		}
+		if score > bestScore {
+			best, bestScore = lo, score
+		}
+	}
+	lo := best
+	hi := min(len(body), lo+width)
+	for lo > 0 && lo < len(body) && body[lo]&0xC0 == 0x80 {
+		lo--
+	}
+	for hi < len(body) && hi > lo && body[hi]&0xC0 == 0x80 {
+		hi--
+	}
+	out := strings.Join(strings.Fields(body[lo:hi]), " ")
+	if lo > 0 {
+		out = "... " + out
+	}
+	if hi < len(body) {
+		out += " ..."
+	}
+	return out
 }
 
 func provenanceOf(c *candidate) string {

@@ -47,6 +47,7 @@ type Engine struct {
 	artifacts  ArtifactStore
 	ranker     Ranker
 	trigger    Trigger
+	df         dfStats
 
 	mu     sync.Mutex
 	agents map[agentKey]*Agent
