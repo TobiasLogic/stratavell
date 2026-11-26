@@ -75,6 +75,7 @@ func TestCrashRecovery(t *testing.T) {
 	if testing.Short() {
 		t.Skip("spawns a child process")
 	}
+	t.Parallel()
 	for round, kills := range []int{150, 400, 900} {
 		path := filepath.Join(t.TempDir(), fmt.Sprintf("crash%d.db", round))
 		cmd := exec.Command(os.Args[0], "-test.run=^TestCrashRecoveryChild$", "-test.count=1")

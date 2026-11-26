@@ -17,6 +17,7 @@ import (
 )
 
 func TestExactRecoveryAfterRepeatedCompaction(t *testing.T) {
+	t.Parallel()
 	pol := smallPolicy(24000)
 	e := openEngine(t, pol, manual())
 	a := mustAgent(t, e, "s1", "main")
@@ -54,9 +55,11 @@ func TestExactRecoveryAfterRepeatedCompaction(t *testing.T) {
 }
 
 func TestNeverExceedsCapacityAndKeepsPairing(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []engine.MaskMode{engine.MaskEpoch, engine.MaskRolling, engine.MaskOff} {
 		for _, async := range []bool{true, false} {
 			t.Run(fmt.Sprintf("%s/async=%v", mode, async), func(t *testing.T) {
+				t.Parallel()
 				pol := smallPolicy(16000)
 				pol.Masking.Mode = mode
 				pol.Compaction.Async = async
@@ -94,6 +97,7 @@ func boolSeed(b bool) uint64 {
 }
 
 func TestConstraintsSurviveEveryAssembly(t *testing.T) {
+	t.Parallel()
 	pol := smallPolicy(16000)
 	e := openEngine(t, pol, manual())
 	a := mustAgent(t, e, "s", "a")
@@ -124,6 +128,7 @@ func TestConstraintsSurviveEveryAssembly(t *testing.T) {
 }
 
 func TestUserDirectivesSurviveCompaction(t *testing.T) {
+	t.Parallel()
 	pol := smallPolicy(16000)
 	e := openEngine(t, pol, manual())
 	a := mustAgent(t, e, "s", "a")
@@ -406,6 +411,7 @@ func TestSubagentIsolationAndHandoff(t *testing.T) {
 }
 
 func TestConcurrentAgents(t *testing.T) {
+	t.Parallel()
 	pol := smallPolicy(16000)
 	e := openEngine(t, pol)
 	ctx := context.Background()
@@ -506,6 +512,7 @@ func TestDeterministicReplayAfterRestart(t *testing.T) {
 }
 
 func TestPromptInjectionStaysData(t *testing.T) {
+	t.Parallel()
 	pol := smallPolicy(16000)
 	e := openEngine(t, pol, manual())
 	a := mustAgent(t, e, "s", "a")
@@ -715,6 +722,7 @@ func TestConfigMigration(t *testing.T) {
 }
 
 func TestThinkingBlocksNeverAltered(t *testing.T) {
+	t.Parallel()
 	pol := smallPolicy(16000)
 	e := openEngine(t, pol, manual())
 	a := mustAgent(t, e, "s", "a")
