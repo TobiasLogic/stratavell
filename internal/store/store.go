@@ -58,7 +58,12 @@ func dsn(path string, readOnly bool, o Options) string {
 	} else {
 		q.Add("_txlock", "immediate")
 	}
-	return "file:" + path + "?" + q.Encode()
+	return "file:" + escapePath(path) + "?" + q.Encode()
+}
+
+func escapePath(p string) string {
+	r := strings.NewReplacer("%", "%25", "?", "%3f", "#", "%23")
+	return r.Replace(p)
 }
 
 func Open(ctx context.Context, path string, o Options) (*DB, error) {
