@@ -58,17 +58,36 @@ func DigestLog(s string, maxErrors int) LogDigest {
 		if t == "" {
 			continue
 		}
-		for _, re := range reFailTest {
-			if m := re.FindStringSubmatch(t); m != nil {
-				d.FailedTests = appendUnique(d.FailedTests, m[1], 64)
-				break
+		lower := strings.ToLower(t)
+		if strings.Contains(t, "FAIL") || strings.Contains(t, "✕") {
+			for _, re := range reFailTest {
+				if m := re.FindStringSubmatch(t); m != nil {
+					d.FailedTests = appendUnique(d.FailedTests, m[1], 64)
+					break
+				}
 			}
 		}
-		for _, re := range rePassTest {
-			if re.MatchString(t) {
-				d.PassedTests++
-				break
+		if strings.Contains(t, "PASS") || strings.Contains(t, "ok") || strings.Contains(t, "✓") {
+			for _, re := range rePassTest {
+				if re.MatchString(t) {
+					d.PassedTests++
+					break
+				}
 			}
+		}
+		if strings.Contains(t, ":") && strings.Contains(t, ".") && len(seenLoc) < 32 {
+			for _, m := range reLocation.FindAllString(t, 4) {
+				if !seenLoc[m] && len(seenLoc) < 32 {
+					seenLoc[m] = true
+					d.Locations = append(d.Locations, m)
+				}
+			}
+		}
+		if !hasSignal(lower) {
+			if summaryHint(t) && reSummary.MatchString(strings.TrimSpace(t)) {
+				d.SummaryLine = clip(strings.TrimSpace(t), 200)
+			}
+			continue
 		}
 		tt := strings.TrimSpace(t)
 		if reAssert.MatchString(tt) {
@@ -90,13 +109,7 @@ func DigestLog(s string, maxErrors int) LogDigest {
 		} else if reWarn.MatchString(t) {
 			d.Warnings++
 		}
-		for _, m := range reLocation.FindAllString(t, 4) {
-			if !seenLoc[m] && len(seenLoc) < 32 {
-				seenLoc[m] = true
-				d.Locations = append(d.Locations, m)
-			}
-		}
-		if reSummary.MatchString(strings.TrimSpace(t)) {
+		if summaryHint(t) && reSummary.MatchString(strings.TrimSpace(t)) {
 			d.SummaryLine = clip(strings.TrimSpace(t), 200)
 		}
 	}
@@ -112,6 +125,34 @@ func DigestLog(s string, maxErrors int) LogDigest {
 }
 
 var reDigits = regexp.MustCompile(`\d+`)
+
+var signalWords = []string{"err", "fail", "panic", "exception", "fatal", "assert", "expected", "warn", "mismatch", "undefined", "cannot", "traceback", "segmentation", "want", "got ", "actual"}
+
+func hasSignal(lower string) bool {
+	for _, w := range signalWords {
+		if strings.Contains(lower, w) {
+			return true
+		}
+	}
+	return false
+}
+
+func summaryHint(t string) bool {
+	return strings.Contains(t, "ok") || strings.Contains(t, "FAIL") || strings.Contains(t, "passed") || strings.Contains(t, "failed") || strings.Contains(t, "Test") || strings.Contains(t, "test result") || strings.Contains(t, "Ran ") || strings.Contains(t, "BUILD") || strings.Contains(t, "error") || strings.Contains(t, "=====")
+}
+
+const scanCap = 64 << 10
+
+func capText(s string) string {
+	if len(s) <= scanCap {
+		return s
+	}
+	cut := scanCap
+	for cut > 0 && !isRuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
 
 func normalizeErr(s string) string {
 	return reDigits.ReplaceAllString(strings.TrimSpace(s), "#")
@@ -185,6 +226,7 @@ var (
 )
 
 func Symbols(text string, max int) []string {
+	text = capText(text)
 	set := map[string]bool{}
 	var out []string
 	add := func(s string) {
@@ -253,6 +295,7 @@ func SplitIdent(s string) []string {
 var rePath = regexp.MustCompile(`(?:^|[\s"'(\[=:])((?:\.{0,2}/)?(?:[A-Za-z0-9_\-.]+/)+[A-Za-z0-9_\-.]+\.[A-Za-z0-9]{1,8})\b`)
 
 func Paths(text string, max int) []string {
+	text = capText(text)
 	set := map[string]bool{}
 	var out []string
 	for _, m := range rePath.FindAllStringSubmatch(text, -1) {

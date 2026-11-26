@@ -188,3 +188,26 @@ func TestMultiAgentLoadProfile(t *testing.T) {
 	t.Logf("agents=%d turns=%d elapsed=%.1fs append p50=%.2fms p95=%.2fms p99=%.2fms assemble p50=%.2fms p95=%.2fms p99=%.2fms events=%d summaries_published=%.0f jobs=%.0f",
 		workers, turns, elapsed.Seconds(), q(ap, .5), q(ap, .95), q(ap, .99), q(as, .5), q(as, .95), q(as, .99), rep.Events, snap.Counters["summaries_published"], snap.Counters["jobs_scheduled"])
 }
+
+func BenchmarkAppendLargeOutput(b *testing.B) {
+	for _, syncIndex := range []bool{false, true} {
+		b.Run(fmt.Sprintf("sync_index=%v", syncIndex), func(b *testing.B) {
+			pol := smallPolicy(200000)
+			e := openEngine(b, pol, func(o *engine.Options) { o.SyncIndex = syncIndex })
+			a := mustAgent(b, e, "s", "a")
+			mustAppend(b, a, msg.Text(msg.RoleUser, "run the tests"))
+			sm := newSim(4)
+			logText := sm.log(3000, true)
+			b.SetBytes(int64(len(logText)))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				id := fmt.Sprintf("big_%d", i)
+				mustAppend(b, a, msg.Message{Role: msg.RoleAssistant, Parts: []msg.Part{{Type: msg.PartToolCall, ToolCallID: id, ToolName: "bash", Input: json.RawMessage(`{"command":"go test ./..."}`)}}})
+				code := 1
+				mustAppend(b, a, msg.ToolResult(id, "bash", logText+fmt.Sprint(i), true, msg.Meta{Command: "go test ./...", ExitCode: &code}))
+			}
+			b.StopTimer()
+			e.WaitIndexed(30 * time.Second)
+		})
+	}
+}
