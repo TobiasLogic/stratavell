@@ -29,6 +29,8 @@ type Config struct {
 	Prices      Prices
 	Latency     LatencyModel
 	Log         func(string, ...any)
+
+	ReaderMaxTokens int
 }
 
 func basePolicy(window, maxOut int) engine.Policy {

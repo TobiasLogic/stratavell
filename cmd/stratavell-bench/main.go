@@ -35,6 +35,8 @@ func main() {
 	ollamaSum := flag.String("ollama-summarizer", "", "Ollama model used as the summarizer (native API, num_ctx set explicitly)")
 	orSum := flag.String("openrouter-summarizer", "", "OpenRouter model id used as the summarizer")
 	orReader := flag.String("openrouter-reader", "", "OpenRouter model id used as the reader for retrieval-assisted question answering")
+	readerMax := flag.Int("reader-max-tokens", 600, "output token cap for each reader answer")
+	readerGap := flag.Duration("reader-min-interval", 0, "minimum time between reader requests, for rate-limited free models")
 	regrade := flag.String("regrade", "", "comma-separated reader.jsonl files to grade again with the current answer keys")
 	keyFile := flag.String("openrouter-key-file", defaultKeyFile(), "file holding OPENROUTER_API_KEY=... (or just the key)")
 	flag.Parse()
@@ -89,6 +91,7 @@ func main() {
 		return cl
 	}
 	cfg := bench.Config{Window: *window, MaxOutput: *maxOut, Turns: *turns, OutDir: *out, Summarizer: summarize.Extractive{}, SumName: "extractive (deterministic, no model)", TurnSeconds: *turnSec, Prices: bench.DefaultPrices(), Latency: bench.DefaultLatency()}
+	cfg.ReaderMaxTokens = *readerMax
 	cfg.Log = func(f string, a ...any) { fmt.Fprintf(os.Stderr, f+"\n", a...) }
 	for _, s := range strings.Split(*seeds, ",") {
 		v, err := strconv.ParseUint(strings.TrimSpace(s), 10, 64)
@@ -137,8 +140,12 @@ func main() {
 		readerName = *reader + " via Ollama, num_ctx 32768, temperature 0, seed 7"
 	}
 	if *orReader != "" {
+		last := time.Time{}
 		asker = bench.OpenAIAsker{C: orClient(*orReader)}
-		readerName = *orReader + " via OpenRouter, temperature 0"
+		if *readerGap > 0 {
+			asker = bench.NewPacedOpenAIAsker(orClient(*orReader), *readerGap, &last)
+		}
+		readerName = fmt.Sprintf("%s via OpenRouter, temperature 0, max %d output tokens", *orReader, *readerMax)
 	}
 	if asker != nil {
 		if err := os.MkdirAll(*out, 0o755); err != nil {

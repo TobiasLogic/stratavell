@@ -35,17 +35,31 @@ func (o OllamaAsker) Ask(ctx context.Context, cx *engine.Context, extra []string
 	return AskResult{Text: r.Text, InputTokens: r.InputTokens, OutputTokens: r.OutputTokens}, err
 }
 
-type OpenAIAsker struct{ C *openai.Client }
+type OpenAIAsker struct {
+	C           *openai.Client
+	MinInterval time.Duration
+	last        *time.Time
+}
+
+func NewPacedOpenAIAsker(c *openai.Client, gap time.Duration, last *time.Time) OpenAIAsker {
+	return OpenAIAsker{C: c, MinInterval: gap, last: last}
+}
 
 func (o OpenAIAsker) Ask(ctx context.Context, cx *engine.Context, extra []string, q string, n int) (AskResult, error) {
 	var r openai.AskResult
 	var err error
-	for attempt := 0; attempt < 4; attempt++ {
+	for attempt := 0; attempt < 10; attempt++ {
+		if o.last != nil && o.MinInterval > 0 {
+			if wait := o.MinInterval - time.Since(*o.last); wait > 0 {
+				time.Sleep(wait)
+			}
+			*o.last = time.Now()
+		}
 		r, err = o.C.Ask(ctx, cx, extra, q, n)
 		if err == nil {
 			break
 		}
-		time.Sleep(time.Duration(2<<attempt) * time.Second)
+		time.Sleep(min(time.Duration(2<<attempt)*time.Second, time.Minute))
 	}
 	return AskResult{Text: r.Text, InputTokens: r.InputTokens, OutputTokens: r.OutputTokens}, err
 }
@@ -157,7 +171,11 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 							}
 							q := fmt.Sprintf("Answer this question about the work session above, using only information present in it.\nQuestion: %s\nReply in one short sentence: give the exact value, identifier or phrase, and the reason only if the question asks why. If the session does not contain the answer, say you do not know.", f.Question)
 							t0 := time.Now()
-							res, err := cl.Ask(ctx, v.Context, extra, q, 600)
+							maxTok := c.ReaderMaxTokens
+							if maxTok <= 0 {
+								maxTok = 600
+							}
+							res, err := cl.Ask(ctx, v.Context, extra, q, maxTok)
 							r.Seconds = time.Since(t0).Seconds()
 							if err != nil {
 								r.Answer = "error: " + err.Error()
