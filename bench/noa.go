@@ -194,6 +194,7 @@ func (n *noa) Assemble(ctx context.Context, now time.Time) (View, error) {
 	v.ForegroundMS = fg
 	v.Tokens = total
 	v.ExtraCalls, v.ExtraInput, v.ExtraOutput = extraCalls, extraIn, extraOut
+	v.Context = cx
 	return v, err
 }
 

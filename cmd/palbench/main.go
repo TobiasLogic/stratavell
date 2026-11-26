@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TobiasLogic/palimpsest/adapters/ollama"
 	"github.com/TobiasLogic/palimpsest/adapters/openai"
 	"github.com/TobiasLogic/palimpsest/bench"
 	"github.com/TobiasLogic/palimpsest/engine"
@@ -27,7 +28,35 @@ func main() {
 	sumModel := flag.String("summarizer-model", "", "model name for the real summarizer")
 	turnSec := flag.Float64("turn-seconds", 6, "simulated wall time of one agent turn")
 	title := flag.String("title", "", "report title")
+	reader := flag.String("reader-model", "", "Ollama model used as a reader for the end-to-end question test")
+	readerPoints := flag.Int("reader-points", 3, "probe points per seed for the reader test")
+	ollamaURL := flag.String("ollama", "http://127.0.0.1:11434", "Ollama base URL")
+	ollamaSum := flag.String("ollama-summarizer", "", "Ollama model used as the summarizer (native API, num_ctx set explicitly)")
+	orSum := flag.String("openrouter-summarizer", "", "OpenRouter model id used as the summarizer")
+	orReader := flag.String("openrouter-reader", "", "OpenRouter model id used as the reader for the end-to-end question test")
+	keyFile := flag.String("openrouter-key-file", filepath.Join(os.Getenv("HOME"), ".config", "palimpsest", "openrouter.env"), "file holding OPENROUTER_API_KEY=... (or just the key)")
 	flag.Parse()
+	orKey := func() string {
+		if k := os.Getenv("OPENROUTER_API_KEY"); k != "" {
+			return k
+		}
+		b, err := os.ReadFile(*keyFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "palbench: no OpenRouter key: set OPENROUTER_API_KEY or create", *keyFile)
+			os.Exit(2)
+		}
+		k := strings.TrimSpace(string(b))
+		if i := strings.Index(k, "="); i >= 0 {
+			k = strings.Trim(strings.TrimSpace(k[i+1:]), `"'`)
+		}
+		return k
+	}
+	orClient := func(model string) *openai.Client {
+		cl := openai.NewClient("https://openrouter.ai/api/v1", model)
+		cl.APIKey = orKey()
+		cl.NoJSON = strings.HasPrefix(model, "anthropic/")
+		return cl
+	}
 	cfg := bench.Config{Window: *window, MaxOutput: *maxOut, Turns: *turns, OutDir: *out, Summarizer: summarize.Extractive{}, SumName: "extractive (deterministic, no model)", TurnSeconds: *turnSec, Prices: bench.DefaultPrices(), Latency: bench.DefaultLatency()}
 	cfg.Log = func(f string, a ...any) { fmt.Fprintf(os.Stderr, f+"\n", a...) }
 	for _, s := range strings.Split(*seeds, ",") {
@@ -56,7 +85,49 @@ func main() {
 		cfg.SumName = "LLM " + *sumModel + " via " + *sumURL
 		cfg.RealTiming = true
 	}
+	if *ollamaSum != "" {
+		cl := ollama.New(*ollamaURL, *ollamaSum, 16384)
+		cfg.Summarizer = summarize.LLM{Model: cl, MaxInput: 10000}
+		cfg.SumName = "Ollama " + *ollamaSum + " (num_ctx 16384, temperature 0)"
+		cfg.RealTiming = true
+	}
+	if *orSum != "" {
+		cfg.Summarizer = summarize.LLM{Model: retrying{orClient(*orSum)}, MaxInput: 16000}
+		cfg.SumName = "OpenRouter " + *orSum + " (temperature 0)"
+		cfg.RealTiming = true
+	}
 	var _ engine.Summarizer = cfg.Summarizer
+	var asker bench.Asker
+	readerName := ""
+	if *reader != "" {
+		asker = bench.OllamaAsker{C: ollama.New(*ollamaURL, *reader, 32768)}
+		readerName = *reader + " via Ollama, num_ctx 32768, temperature 0, seed 7"
+	}
+	if *orReader != "" {
+		asker = bench.OpenAIAsker{C: orClient(*orReader)}
+		readerName = *orReader + " via OpenRouter, temperature 0"
+	}
+	if asker != nil {
+		if err := os.MkdirAll(*out, 0o755); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		f, err := os.Create(filepath.Join(*out, "reader.jsonl"))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		recs, err := cfg.RunReader(context.Background(), asker, *readerPoints, f)
+		f.Close()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "palbench:", err)
+			os.Exit(1)
+		}
+		rep := "## " + *title + "\n\n" + bench.ReaderReport(recs, readerName)
+		os.WriteFile(filepath.Join(*out, "reader.md"), []byte(rep), 0o644)
+		fmt.Print(rep)
+		return
+	}
 	start := time.Now()
 	runs, err := cfg.Run(context.Background())
 	if err != nil {
@@ -73,4 +144,22 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 	}
 	fmt.Print(rep)
+}
+
+type retrying struct{ c *openai.Client }
+
+func (r retrying) Complete(ctx context.Context, system, user string, maxTokens int) (summarize.Completion, error) {
+	var out summarize.Completion
+	var err error
+	for attempt := 0; attempt < 4; attempt++ {
+		out, err = r.c.Complete(ctx, system, user, maxTokens)
+		if err == nil {
+			return out, nil
+		}
+		if ctx.Err() != nil {
+			return out, err
+		}
+		time.Sleep(time.Duration(2<<attempt) * time.Second)
+	}
+	return out, err
 }

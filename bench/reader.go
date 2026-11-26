@@ -1,0 +1,224 @@
+package bench
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/TobiasLogic/palimpsest/adapters/ollama"
+	"github.com/TobiasLogic/palimpsest/adapters/openai"
+	"github.com/TobiasLogic/palimpsest/engine"
+)
+
+type Asker interface {
+	Ask(ctx context.Context, cx *engine.Context, extra []string, question string, maxTokens int) (AskResult, error)
+}
+
+type AskResult struct {
+	Text         string
+	InputTokens  int
+	OutputTokens int
+}
+
+type OllamaAsker struct{ C *ollama.Client }
+
+func (o OllamaAsker) Ask(ctx context.Context, cx *engine.Context, extra []string, q string, n int) (AskResult, error) {
+	r, err := o.C.Ask(ctx, cx, extra, q, n)
+	return AskResult{Text: r.Text, InputTokens: r.InputTokens, OutputTokens: r.OutputTokens}, err
+}
+
+type OpenAIAsker struct{ C *openai.Client }
+
+func (o OpenAIAsker) Ask(ctx context.Context, cx *engine.Context, extra []string, q string, n int) (AskResult, error) {
+	var r openai.AskResult
+	var err error
+	for attempt := 0; attempt < 4; attempt++ {
+		r, err = o.C.Ask(ctx, cx, extra, q, n)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Duration(2<<attempt) * time.Second)
+	}
+	return AskResult{Text: r.Text, InputTokens: r.InputTokens, OutputTokens: r.OutputTokens}, err
+}
+
+type ReaderRecord struct {
+	Strategy  string  `json:"strategy"`
+	Seed      uint64  `json:"seed"`
+	Turn      int     `json:"turn"`
+	Fact      string  `json:"fact"`
+	Kind      string  `json:"kind"`
+	Visible   bool    `json:"visible"`
+	Retrieved bool    `json:"retrieval_added"`
+	Overflow  bool    `json:"overflow"`
+	Correct   bool    `json:"correct"`
+	Answer    string  `json:"answer"`
+	PromptTok int     `json:"prompt_tokens"`
+	OutTok    int     `json:"output_tokens"`
+	Seconds   float64 `json:"seconds"`
+}
+
+var reDigits = regexp.MustCompile(`\d+`)
+
+func grade(answer string, keys []string) bool {
+	la := strings.ToLower(answer)
+	for _, k := range keys {
+		lk := strings.ToLower(k)
+		if strings.Contains(la, lk) {
+			continue
+		}
+		if len(k) > 40 {
+			nums := reDigits.FindAllString(k, -1)
+			ok := len(nums) > 0
+			for _, n := range nums {
+				if !strings.Contains(la, n) {
+					ok = false
+				}
+			}
+			if ok {
+				continue
+			}
+		}
+		if strings.Contains(lk, " = ") {
+			parts := strings.SplitN(lk, " = ", 2)
+			if strings.Contains(la, parts[1]) && (strings.Contains(la, parts[0]) || len(strings.Fields(la)) <= 3) {
+				continue
+			}
+		}
+		return false
+	}
+	return true
+}
+
+func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Writer) ([]ReaderRecord, error) {
+	enc := json.NewEncoder(out)
+	var recs []ReaderRecord
+	for _, seed := range c.Seeds {
+		sc := Generate(seed, c.Turns)
+		var probeSteps []int
+		for t, s := range sc.Steps {
+			if s.Probe {
+				probeSteps = append(probeSteps, t)
+			}
+		}
+		chosen := map[int]bool{}
+		for i := 1; i <= points && len(probeSteps) > 0; i++ {
+			idx := len(probeSteps) * i / (points + 1)
+			chosen[probeSteps[min(idx, len(probeSteps)-1)]+1] = true
+		}
+		for _, name := range c.Strategies {
+			dir := c.OutDir
+			start := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+			st, err := c.make(ctx, name, dir, seed, start)
+			if err != nil {
+				return recs, err
+			}
+			for t, step := range sc.Steps {
+				now := start.Add(time.Duration(float64(t) * c.TurnSeconds * float64(time.Second)))
+				st.Tick(ctx, now)
+				if step.User != nil {
+					if err := st.Append(ctx, *step.User); err != nil {
+						return recs, err
+					}
+				}
+				v, err := st.Assemble(ctx, now)
+				if err != nil {
+					return recs, err
+				}
+				if chosen[t] {
+					for _, f := range sc.FactsAt(t - 1) {
+						r := ReaderRecord{Strategy: name, Seed: seed, Turn: t, Fact: f.ID, Kind: f.Kind, Overflow: v.Overflow}
+						if !v.Overflow {
+							r.Visible = containsAll(v.Text, f.Keys)
+							var extra []string
+							if es, ok := st.(*EngineStrategy); ok && !r.Visible {
+								if txt := es.RetrieveText(ctx, f.Query, 3000); txt != "" {
+									extra = append(extra, "Results of the memory tools for this question:\n"+txt)
+									r.Retrieved = true
+								}
+							}
+							q := fmt.Sprintf("Answer this question about the work session above, using only information present in it.\nQuestion: %s\nReply with only the exact value, identifier or short phrase that answers it.", f.Question)
+							t0 := time.Now()
+							res, err := cl.Ask(ctx, v.Context, extra, q, 120)
+							r.Seconds = time.Since(t0).Seconds()
+							if err != nil {
+								r.Answer = "error: " + err.Error()
+							} else {
+								r.Answer = strings.TrimSpace(res.Text)
+								r.PromptTok = res.InputTokens
+								r.OutTok = res.OutputTokens
+								r.Correct = grade(r.Answer, f.Keys)
+							}
+						}
+						recs = append(recs, r)
+						enc.Encode(r)
+						if c.Log != nil {
+							c.Log("reader %s t=%d %s visible=%v retr=%v correct=%v %.1fs prompt=%d answer=%q", name, t, f.ID, r.Visible, r.Retrieved, r.Correct, r.Seconds, r.PromptTok, clip(r.Answer, 80))
+						}
+					}
+				}
+				if err := st.Append(ctx, step.Assistant); err != nil {
+					return recs, err
+				}
+				for _, res := range step.Results {
+					if err := st.Append(ctx, res); err != nil {
+						return recs, err
+					}
+				}
+			}
+			st.Close()
+		}
+	}
+	return recs, nil
+}
+
+func clip(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
+}
+
+func ReaderReport(recs []ReaderRecord, model string) string {
+	type agg struct{ n, correct, visible, visCorrect, hidden, hidCorrect, ovf int }
+	by := map[string]*agg{}
+	var order []string
+	for _, r := range recs {
+		a, ok := by[r.Strategy]
+		if !ok {
+			a = &agg{}
+			by[r.Strategy] = a
+			order = append(order, r.Strategy)
+		}
+		a.n++
+		if r.Overflow {
+			a.ovf++
+		}
+		if r.Correct {
+			a.correct++
+		}
+		if r.Visible {
+			a.visible++
+			if r.Correct {
+				a.visCorrect++
+			}
+		} else if !r.Overflow {
+			a.hidden++
+			if r.Correct {
+				a.hidCorrect++
+			}
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Reader model: %s. Each row is one question asked at a probe point with that strategy's assembled context; overflowed requests count as wrong.\n\n", model)
+	b.WriteString("| strategy | questions | correct | accuracy % | overflowed | correct when fact visible | correct when not visible |\n|---|---|---|---|---|---|---|\n")
+	for _, s := range order {
+		a := by[s]
+		fmt.Fprintf(&b, "| %s | %d | %d | %.1f | %d | %d/%d | %d/%d |\n", s, a.n, a.correct, 100*float64(a.correct)/float64(max(1, a.n)), a.ovf, a.visCorrect, a.visible, a.hidCorrect, a.hidden)
+	}
+	return b.String()
+}

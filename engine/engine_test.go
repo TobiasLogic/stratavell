@@ -742,3 +742,37 @@ func TestThinkingBlocksNeverAltered(t *testing.T) {
 		e.RunJobs(ctx)
 	}
 }
+
+func TestSyncCompactionManyChunksInOneAssembly(t *testing.T) {
+	pol := smallPolicy(64000)
+	pol.Compaction.Async = false
+	e := openEngine(t, pol)
+	a := mustAgent(t, e, "s", "a")
+	ctx := context.Background()
+	sm := newSim(5)
+	for i := 0; i < 45; i++ {
+		tr := sm.turn(i)
+		if tr.user != nil {
+			mustAppend(t, a, *tr.user)
+		}
+		mustAppend(t, a, tr.assistant)
+		for _, r := range tr.results {
+			mustAppend(t, a, r)
+		}
+	}
+	c, err := a.Assemble(ctx, engine.AssembleRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Tokens > c.Capacity {
+		t.Fatalf("overflow %d > %d", c.Tokens, c.Capacity)
+	}
+	rep, _ := e.Verify(ctx, "s")
+	if len(rep.Problems) > 0 {
+		t.Fatal(rep.Problems)
+	}
+	st, _ := a.Stats(ctx)
+	if st.FrontierNodes < 2 {
+		t.Fatalf("expected several synchronous summaries, got %d", st.FrontierNodes)
+	}
+}

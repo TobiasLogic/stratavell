@@ -213,6 +213,8 @@ type Client struct {
 	APIKey  string
 	HTTP    *http.Client
 	Options Options
+	NoJSON  bool
+	Headers map[string]string
 }
 
 func NewClient(baseURL, model string) *Client {
@@ -244,6 +246,9 @@ func (c *Client) Send(ctx context.Context, req Request) (Response, error) {
 	if c.APIKey != "" {
 		hr.Header.Set("authorization", "Bearer "+c.APIKey)
 	}
+	for k, v := range c.Headers {
+		hr.Header.Set(k, v)
+	}
 	resp, err := c.HTTP.Do(hr)
 	if err != nil {
 		return Response{}, err
@@ -264,6 +269,38 @@ func (c *Client) Send(ctx context.Context, req Request) (Response, error) {
 	return out, json.Unmarshal(data, &out)
 }
 
+type AskResult struct {
+	Text         string
+	InputTokens  int
+	OutputTokens int
+	Duration     time.Duration
+}
+
+func (c *Client) Ask(ctx context.Context, cx *engine.Context, extra []string, question string, maxTokens int) (AskResult, error) {
+	req, err := Render(cx, c.Options)
+	if err != nil {
+		return AskResult{}, err
+	}
+	for _, e := range extra {
+		req.Messages = append(req.Messages, Message{Role: "user", Content: str(e)})
+	}
+	req.Messages = append(req.Messages, Message{Role: "user", Content: str(question)})
+	req.Tools = nil
+	req.MaxTokens = maxTokens
+	zero := 0.0
+	req.Temperature = &zero
+	start := time.Now()
+	resp, err := c.Send(ctx, req)
+	if err != nil {
+		return AskResult{}, err
+	}
+	out := AskResult{InputTokens: resp.Usage.PromptTokens, OutputTokens: resp.Usage.CompletionTokens, Duration: time.Since(start)}
+	if len(resp.Choices) > 0 && resp.Choices[0].Message.Content != nil {
+		out.Text = *resp.Choices[0].Message.Content
+	}
+	return out, nil
+}
+
 func (c *Client) Generate(ctx context.Context, cx *engine.Context) (msg.Message, msg.Usage, error) {
 	req, err := Render(cx, c.Options)
 	if err != nil {
@@ -278,8 +315,11 @@ func (c *Client) Generate(ctx context.Context, cx *engine.Context) (msg.Message,
 
 func (c *Client) Complete(ctx context.Context, system, user string, maxTokens int) (summarize.Completion, error) {
 	zero := 0.0
-	req := Request{Model: c.Options.Model, MaxTokens: maxTokens, Temperature: &zero, Seed: c.Options.Seed, ResponseFormat: json.RawMessage(`{"type":"json_object"}`),
+	req := Request{Model: c.Options.Model, MaxTokens: maxTokens, Temperature: &zero, Seed: c.Options.Seed,
 		Messages: []Message{{Role: "system", Content: str(system)}, {Role: "user", Content: str(user)}}}
+	if !c.NoJSON {
+		req.ResponseFormat = json.RawMessage(`{"type":"json_object"}`)
+	}
 	resp, err := c.Send(ctx, req)
 	if err != nil {
 		var ae *APIError

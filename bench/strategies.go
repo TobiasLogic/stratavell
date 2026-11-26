@@ -29,6 +29,7 @@ type View struct {
 	ExtraOutput  int
 	ToolTokens   int
 	Report       *engine.Report
+	Context      *engine.Context
 }
 
 type Strategy interface {
@@ -207,6 +208,7 @@ func (s *EngineStrategy) Assemble(ctx context.Context, now time.Time) (View, err
 	v.ForegroundMS = fg
 	v.EngineMS = el
 	v.Report = &cx.Report
+	v.Context = cx
 	return v, nil
 }
 
@@ -304,6 +306,37 @@ func (s *EngineStrategy) Retrieve(ctx context.Context, query string, keys []stri
 		}
 	}
 	return false, cost
+}
+
+func (s *EngineStrategy) RetrieveText(ctx context.Context, query string, budget int) string {
+	if !s.memory {
+		return ""
+	}
+	hits, err := s.a.Search(ctx, query, engine.SearchFilters{}, 5)
+	if err != nil || len(hits) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "[memory_search %q]\n", query)
+	for _, h := range hits {
+		fmt.Fprintf(&b, "- %s (%s): %s\n", h.ID, h.Provenance, h.Snippet)
+	}
+	for i, h := range hits {
+		if i >= 2 {
+			break
+		}
+		var text string
+		if h.Kind == "summary" {
+			text, _ = s.a.Expand(ctx, h.ID, 0, 0, budget/2)
+		} else if _, m, err := s.a.GetEvent(ctx, h.ID); err == nil {
+			text = m.PlainText()
+		}
+		if tokens.Estimate(text) > budget/2 {
+			text = text[:min(len(text), budget*2)]
+		}
+		fmt.Fprintf(&b, "[memory_get_event %s]\n%s\n", h.ID, text)
+	}
+	return b.String()
 }
 
 func containsAll(text string, keys []string) bool {
@@ -499,6 +532,7 @@ func (c *conventional) Assemble(ctx context.Context, now time.Time) (View, error
 	v, err := viewOf(cx)
 	v.ForegroundMS = fg
 	v.Tokens = c.total(c.msgs)
+	v.Context = cx
 	return v, err
 }
 

@@ -219,14 +219,15 @@ func (a *Agent) syncCompact(ctx context.Context, total int) (int, error) {
 	if to < from {
 		return 0, nil
 	}
-	chunks := a.chunksBetween(from, to, a.pol.Compaction.LeafChunkTokens, a.pol.Compaction.MinChunkTokens, nil)
 	need := total - int(a.pol.Thresholds.Target*float64(a.capacity()))
 	published := 0
 	freed := 0
-	for _, c := range chunks {
-		if freed >= need {
+	for freed < need {
+		chunks := a.chunksBetween(a.boundary+1, to, a.pol.Compaction.LeafChunkTokens, a.pol.Compaction.MinChunkTokens, nil)
+		if len(chunks) == 0 {
 			break
 		}
+		c := chunks[0]
 		if a.raw[c.lo].ev.Seq != a.boundary+1 {
 			break
 		}
