@@ -323,7 +323,7 @@ func (a *Agent) publishReady(ctx context.Context) (int, error) {
 			case r.job.Kind == jobLeaf && n.Lo == boundary+1:
 				frontier = append(frontier, n)
 				boundary = n.Hi
-			case r.job.Kind == jobLeaf && n.Hi <= boundary:
+			case r.job.Kind == jobLeaf && n.Lo <= boundary:
 				if i := findExact(frontier, n.Lo, n.Hi); i >= 0 && frontier[i].Kind == KindPointer && a.pol.Compaction.UpgradePointers {
 					ch.superseded = append(ch.superseded, frontier[i].ID)
 					frontier[i] = n
