@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/TobiasLogic/palimpsest/adapters/anthropic"
+	"github.com/TobiasLogic/palimpsest/adapters/ollama"
 	"github.com/TobiasLogic/palimpsest/adapters/openai"
 	"github.com/TobiasLogic/palimpsest/engine"
 	"github.com/TobiasLogic/palimpsest/mcp"
@@ -98,7 +99,7 @@ func (c *common) bind(fs *flag.FlagSet) {
 	}
 	fs.StringVar(&c.db, "db", def, "SQLite database path (env PALIMPSEST_DB)")
 	fs.StringVar(&c.config, "config", "", "policy JSON file (see 'palimpsest config')")
-	fs.StringVar(&c.summarizer, "summarizer", envOr("PALIMPSEST_SUMMARIZER", "extractive"), "extractive, openai, anthropic or none")
+	fs.StringVar(&c.summarizer, "summarizer", envOr("PALIMPSEST_SUMMARIZER", "extractive"), "extractive, ollama, openai, anthropic or none")
 	fs.StringVar(&c.sumURL, "summarizer-url", os.Getenv("PALIMPSEST_SUMMARIZER_URL"), "base URL for an OpenAI-compatible summarizer (for example http://127.0.0.1:11434/v1)")
 	fs.StringVar(&c.sumModel, "summarizer-model", os.Getenv("PALIMPSEST_SUMMARIZER_MODEL"), "summarizer model name")
 	fs.StringVar(&c.artifacts, "artifacts", "", "directory for an external artifact store (default: inside the database)")
@@ -133,6 +134,8 @@ func (c *common) open(ctx context.Context) (*engine.Engine, error) {
 			cl.APIKey = k
 		}
 		o.Summarizer = summarize.LLM{Model: cl}
+	case "ollama":
+		o.Summarizer = summarize.LLM{Model: ollama.New(c.sumURL, c.sumModel, 16384), MaxInput: 10000}
 	case "anthropic":
 		cl := anthropic.NewClient(c.sumModel)
 		if k := os.Getenv("PALIMPSEST_SUMMARIZER_KEY"); k != "" {

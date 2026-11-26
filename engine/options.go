@@ -95,7 +95,6 @@ type Retrieval struct {
 	DedupWindowTurns  int  `json:"dedup_window_turns"`
 	ChunkBytes        int  `json:"chunk_bytes"`
 	IndexMaxBytes     int  `json:"index_max_bytes"`
-	SnippetTokens     int  `json:"snippet_tokens"`
 	MaxResultTokens   int  `json:"max_result_tokens"`
 	DefaultLimit      int  `json:"default_limit"`
 	MaxLimit          int  `json:"max_limit"`
@@ -183,7 +182,6 @@ func DefaultPolicy() Policy {
 			DedupWindowTurns:  6,
 			ChunkBytes:        1600,
 			IndexMaxBytes:     2 << 20,
-			SnippetTokens:     24,
 			MaxResultTokens:   6000,
 			DefaultLimit:      8,
 			MaxLimit:          25,
