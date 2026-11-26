@@ -41,13 +41,13 @@ A real model (Claude Haiku 5.5) answering the planted questions from each strate
 
 | strategy | accuracy |
 |---|---|
-| palimpsest | 100% |
+| palimpsest | 100% (98% if hedged answers count as wrong) |
 | conventional compaction | 23% |
 | noa | 14% |
 | progressive summaries | 8% |
 | uncompressed, masking only | 0% (requests did not fit) |
 
-With Haiku 5.5 writing the summaries instead of the extractive summarizer, the progressive baselines reach 18% and palimpsest stays at 100%.
+With Haiku 5.5 writing the summaries instead of the extractive summarizer, the progressive baselines reach 18% and palimpsest 100% (88% strict). The strict misses are answers where the model saw a function's name in an archived preview but not its body, and said it could not confirm.
 
 These are simulated sessions with a cache cost simulator, not task success on real repositories. `docs/benchmarks.md` gives the method, all tables (including a 200k-token window and eleven ablations), the acceptance targets that were missed, and the reproduction commands. `docs/experiments.md` lists every run, including failed and superseded ones.
 

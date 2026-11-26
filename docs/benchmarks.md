@@ -133,7 +133,7 @@ Every component except deduplication earns its cost on this workload. Externaliz
 
 At four probe points per session, the reader is asked each planted question against the exact context the strategy assembled at that point. The reader is Claude Haiku 5.5 via OpenRouter, temperature 0, 600 output tokens. For G, when a fact is not visible, the results of the retrieval policy above are appended before the question. This emulates an agent that searches with a reasonable query; it does not test whether an agent would decide to search.
 
-Grading checks the answer against each fact's key (substring, or for long keys all numbers in order of appearance, or for `Name = Value` keys the value as a whole token).
+Grading checks the answer against each fact's key (substring, or for long keys all numbers in order of appearance, or for `Name = Value` keys the value as a whole token). This lenient grading credits a few answers that name the right value but say they cannot confirm it. Only G has such answers: 1 of 64 with extractive compaction and 4 of 33 with Haiku summaries. Counting them as wrong (strict grading), G scores 98.4% and 87.9% instead of 100%; no other strategy changes. In most of these cases the function name stays visible in an archived file preview while the body that would confirm it was archived. A real agent would fetch it with `memory_get_event`, but the test only adds retrieval when the fact is not visible at all. The answers are listed in `REVIEW_PACKET.txt`.
 
 ### With extractive compaction
 
@@ -177,7 +177,7 @@ A first reader run used a 120-token answer cap and a short-answer prompt. 56 ans
 | under 20 ms p95 lexical retrieval on a representative corpus | met at 3.4k chunks (9.4 ms), missed at 13.2k chunks (33.7 ms) | see performance |
 | at least 50% fewer unnecessary tool-output tokens | met at 64k, partly at 200k | tool tokens sent: G 3.52 M vs E 7.34 M (−52%) and B 7.44 M (−53%) at 64k; at 200k G 18.84 M vs E 25.84 M (−27%) and B 35.97 M (−48%) |
 | lower foreground compaction latency than existing compaction | met | G 0 s vs B 825 s (64k) and 298 s (200k), modeled |
-| no meaningful degradation in task success vs the strongest baseline | met on this workload | reader accuracy G 100% vs B 23%; this is not a measurement of task success on real repositories |
+| no meaningful degradation in task success vs the strongest baseline | met on this workload | reader accuracy G 100% (98.4% strict) vs B 23.4%; this is not a measurement of task success on real repositories |
 
 ## Performance
 

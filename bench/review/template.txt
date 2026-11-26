@@ -1,0 +1,269 @@
+PALIMPSEST: REVIEW PACKET
+=========================
+
+Purpose of this file: give an outside reviewer everything needed to check the claims, the numbers and the method behind them, in one place. Please be critical. The questions at the end are where I most want a second opinion.
+
+Project: palimpsest, a context-management engine for long-running LLM agents, written in Go.
+Repository state: local git, release build commit c6ff120 for the deterministic benchmarks, docs at commit 07b9b1c or later.
+Date of all runs: 2026-11-26.
+Everything below was produced by code in the repository. Tables were generated directly from the raw result files (bench/results/2026-11-26/*.jsonl), not copied by hand.
+
+
+1. WHAT THE ENGINE DOES (SHORT)
+-------------------------------
+
+- Every message, tool call and tool output goes into an append-only SQLite journal (WAL, fsync on commit). Large payloads go to content-addressed blobs in the same database. Each event has a SHA-256 of its canonical content.
+- The model's context is a view of that journal, rebuilt each turn:
+  - summaries of older ranges (a DAG whose leaves point at exact event ids)
+  - standing user instructions pinned verbatim
+  - a task-state snapshot (open failures, tests, modified files, decisions)
+  - the recent raw history
+  - small per-turn additions at the end (task-state changes, retrieved evidence)
+- Zero-model reductions run first:
+  - oversized tool outputs become previews with a log digest at ingestion
+  - exact duplicates and unchanged file re-reads become references
+  - old observations are masked in batches ("epochs"), not one turn at a time
+- Summaries are produced in the background and published only between model requests, with a compare-and-swap check against the current view.
+- A deterministic "emergency ladder" (mask, archive as pointer nodes, condense, shorten) guarantees the request fits the window without calling a model. If protected instructions alone cannot fit, it returns an error instead of dropping them.
+- The model gets memory tools (search, expand a summary, get an event exactly, get an artifact byte range, task state, lineage, stats). Search is FTS5 BM25 plus symbol, path and exact-id lookup, fused with reciprocal rank fusion.
+- Interfaces: Go SDK, HTTP API (also over a Unix socket), MCP server, CLI. Adapters exist for the Anthropic Messages API, OpenAI-compatible Chat Completions and Ollama.
+
+
+2. HOW IT WAS MEASURED
+----------------------
+
+2.1 Workload
+
+Generated coding sessions (bench/workload.go), one per seed:
+- Repository: a synthetic Go repo of 38 files, including a config file with planted constants and a large file with a planted function name.
+- Tool calls: one to three per turn:
+  - file reads, about 30% of turns
+  - whole-file writes, about 20%
+  - "go test" runs with large logs, about 30%; two thirds of them fail with a changing assertion
+  - grep outputs with up to 1,540 lines, about 20%
+- Planted facts:
+  - two user ground rules in the first message (never modify vendor/, keep the public API of package store unchanged)
+  - a later user process rule (run go vet before every commit)
+  - an architectural decision with a reason
+  - a rejected approach with a reason
+  - two config values
+  - a function name inside a big file
+  - the exact assertion message of the currently failing test, which changes over time
+- Size: one 300-turn session is {{RAW64}} million raw tokens (64k runs). One 400-turn session is {{RAW200}} million raw tokens (200k runs). That is far more than any window, so every strategy must compact repeatedly.
+- Probes: twelve probe points per session ask about every fact planted so far.
+
+The trajectory is fixed in advance (scripted agent). A strategy cannot change what the agent does, so these runs measure information availability and cost, not task success.
+
+2.2 Strategies compared
+
+A  uncompressed: no compaction; a request over the window counts as an overflow (failure).
+B  conventional compaction: at 90% of capacity, summarize everything except the last 8 messages into one summary, written from the previous summary plus the new history. Synchronous, no retrieval. Modeled on Claude Code and Norma's built-in compaction.
+C  noa: reimplementation of Norma's model-driven "noa" algorithm from reading its source. Nudges at 0.75 and 0.45 of the limit; a protected tail of 5 messages and 5,000 tokens; tiered blocks; truncation of old large outputs at 0.95. Compression is written in-band by the primary model and counted as extra primary calls.
+D  observation masking only: keep the last 10 observations, mask older ones (Complexity Trap style).
+E  synchronous progressive summarization: DAG summaries at the soft threshold, blocking (similar to APEC's PEC baseline).
+F  asynchronous progressive summarization: as E, but in background jobs (similar to APEC).
+G  palimpsest with everything on.
+
+All strategies within a run use the same summarizer:
+- main runs: an extractive, deterministic, no-model summarizer
+- real-summarizer run: Claude Haiku 5.5
+
+All strategies get the same system prompt, tools and cache simulator.
+
+2.3 Metrics
+
+- input_Mtok: total input tokens sent over the session, including C's extra in-band compression calls.
+- input_cost_usd: cache-simulated input cost using Sonnet 5.5 list prices from Anthropic's caching docs: $2.00 per Mtok uncached, $2.50 for 5-minute cache writes, $0.10 for cache reads. Output tokens are not priced.
+- The cache simulator follows the documented rules: entries written only at breakpoints (at most 4), a 20-position lookback, a 512-token minimum prefix and a 5-minute TTL. It is a simulator, not a provider bill.
+- Overflowed turns are not sent and cost nothing, so A, C and D look cheap partly because of failures. Do not compare their cost with the others.
+- fg_wait_s: foreground time blocked on summarization. Modeled for extractive runs as 0.8 s + input/4000 tok/s + output/60 tok/s; measured for real-model runs.
+- visible_%: planted facts present in the assembled context at probe time.
+- recoverable_%: visible, or found by a fixed retrieval policy (memory_search with a natural query, then memory_get_event on the top 3 hits, about 6k tokens budget). Only G and its ablations have retrieval tools.
+- standing_rules_%: share of turns on which all three user rules are visible.
+- engine_p95_ms: wall time inside the engine's Assemble call per turn.
+- exact_recovery_%: events that decode and hash-match their stored content hash at the end of the run.
+- Hardware: 8-core, 16-thread x86-64 laptop CPU, 16 GB RAM, NVMe SSD; Go 1.27.4, pure-Go SQLite 3.54.1.
+
+
+3. RESULTS: MAIN COMPARISON, 64K WINDOW
+---------------------------------------
+
+300 turns, 5 seeds, effective input capacity 53,700 tokens. Values are mean +/- sample standard deviation over seeds.
+
+{{MAIN64}}
+
+Planted-fact recovery by kind (recoverable / asked, summed over seeds):
+
+{{KIND64}}
+
+Per-seed input cost (to show spread):
+
+{{SEED64}}
+
+
+4. RESULTS: MAIN COMPARISON, 200K WINDOW
+----------------------------------------
+
+400 turns, 3 seeds, effective input capacity 179,700 tokens.
+
+{{MAIN200}}
+
+{{KIND200}}
+
+
+5. RESULTS: ABLATIONS OF G, 64K WINDOW
+--------------------------------------
+
+300 turns, 5 seeds. Each variant turns one component off.
+
+- G-no-masking: masking off
+- G-no-externalize: no previews for oversized outputs
+- G-no-dedupe: no duplicate or unchanged-read stubs
+- G-no-taskstate: no task-state block
+- G-no-pins: no pinned user directives
+- G-no-retrieval: no memory tools or auto-retrieval
+- G-rolling-mask: Complexity Trap-style rolling window instead of epochs
+- G-layout-spec: task state and evidence placed before the raw history (the layout originally proposed in the project brief)
+- G-sync: synchronous compaction
+
+{{ABL}}
+
+{{ABLKIND}}
+
+
+6. RESULTS: END-TO-END READER TEST WITH A REAL MODEL
+----------------------------------------------------
+
+At 4 probe points per session, a real model answers each planted question using exactly the context the strategy assembled at that point.
+- Reader: Claude Haiku 5.5 via OpenRouter, temperature 0, 600 output tokens.
+- Retrieval for G: when a fact is not visible, the results of the fixed retrieval policy (section 2.3) are appended before the question. This emulates an agent that searches with a reasonable query; it does not test whether an agent would decide to search, or which query it would pick.
+- Grading: substring match on the answer key. For long keys (the assertion message), all numbers in the key must appear. For "Name = Value" keys, the value must appear as a whole token.
+- Strict grading: the "strict" columns also count an answer as wrong if it contains "I don't know" or "not shown"/"not stated" while naming the right value.
+- Only G has such hedged-but-matching answers: 1 of 64 in 6.1 and 4 of 33 in 6.2. In most of them the function name stays visible in an archived file preview, but the function body showing fsync batching was archived. The model correctly says it cannot confirm. A real agent would call memory_get_event at that point; the test only adds retrieval when the fact is not visible at all. These answers are listed after 6.3.
+
+6.1 Extractive summarizer, 64k window, 300 turns, seeds 1 and 2
+
+{{RX}}
+
+By fact kind (correct / asked):
+
+{{RXK}}
+
+6.2 Claude Haiku 5.5 as the summarizer, 64k window, 300 turns, seed 1
+
+Only E, F and G were run, because of a $5 API budget.
+
+{{RH}}
+
+{{RHK}}
+
+6.3 Superseded first reader run (published for transparency)
+
+The first run used a 120-token answer cap and a "reply with only the exact value" prompt.
+- 56 answers came back empty: the model spent the whole cap on hidden reasoning.
+- The prompt also discouraged giving the "why" part of the decision question.
+
+After inspecting these answers I changed three things for the second run, applied identically to every strategy:
+- the cap, to 600 tokens
+- the prompt, which now asks for the reason when the question asks why
+- two answer keys: the assertion message without its file:line prefix, and "store" instead of "package store"
+
+The value grading rule was also tightened later: the value must appear as a whole token. That fixed one false positive, an "I do not know" answer that happened to contain the digit.
+
+The first run, graded with the final grader:
+
+{{RV}}
+
+Hedged answers that the lenient grader counts as correct (all strategies, both published runs):
+
+{{HEDGED}}
+
+Sample answers from the published run (first 3 per strategy):
+
+{{SAMPLES}}
+
+
+7. PERFORMANCE (ENGINE OVERHEAD)
+--------------------------------
+
+Same machine, fsync on every commit:
+
+- append a small event: 0.56 ms mean per event
+- append a 160 KB test log, background indexing (default): 36 ms mean (51 ms with indexing inline)
+- assemble, 64k window, 45k-token context: 1.35 ms mean
+- assemble, 200k window, 68k-token context: 0.74 ms mean
+- assemble per turn inside benchmark sessions (G): p95 2.94 ms (64k), 3.40 ms (200k)
+- search, 300-turn session, 3.4k indexed chunks: p50 2.33 ms, p95 9.44 ms, p99 11.42 ms
+- search, 1,200-turn session, 13.2k chunks: p50 3.58 ms, p95 33.73 ms, p99 36.30 ms
+- 4 agents running concurrently on one engine, 150 turns each: append p95 9.29 ms, assemble p95 9.59 ms, no cross-agent search hits, integrity check passed
+
+Earlier builds were slower: search p95 was 52 ms at 4.5k chunks, and benchmark-mode append p95 was 71 ms. After each optimization the deterministic benchmark results were re-checked. They stayed identical, except for 24 input tokens out of 7.4 million in one run.
+
+
+8. ACCEPTANCE TARGETS FROM THE PROJECT BRIEF
+--------------------------------------------
+
+- 100% exact recovery of committed, retained events: MET. Every engine run verified 100%. Tests also cover recovery after repeated compaction and after SIGKILL of a writer process.
+- 100% preservation of designated protected constraints: MET. Standing rules were visible on 100% of turns in every run with pins enabled.
+- Zero silent tool-call protocol corruption: MET. Every assembly validates tool-call pairing, and the provider adapters validate again.
+- Zero cross-agent or cross-session leakage: MET IN TESTS. The benchmarks are single-agent; isolation is covered by unit and integration tests and by the 4-agent load test.
+- Zero context-overflow requests in controlled tests: MET. There were 0 overflow turns in all 63 runs of G and its ablations.
+- No synchronous summarization in normal operation: MET. G's foreground wait was 0 s in every run.
+- Under 20 ms p95 overhead for small events: MET (see section 7).
+- Under 20 ms p95 lexical retrieval on a representative corpus: MET at 3.4k chunks (9.4 ms), MISSED at 13.2k chunks (33.7 ms).
+- At least 50% fewer unnecessary tool-output tokens: MET at 64k, PARTLY at 200k.
+  - 64k: G sends 52% fewer tool tokens than E and 53% fewer than B.
+  - 200k: 27% fewer than E and 48% fewer than B.
+  - Note that this counts all tool tokens sent, not "unnecessary" ones, which the brief did not define.
+- Lower foreground compaction latency than existing compaction: MET. G waits 0 s, B 825 s at 64k (modeled).
+- No meaningful degradation in task success versus the strongest baseline: MET ON THIS WORKLOAD ONLY. This is not task success on real repositories.
+
+
+9. THREATS TO VALIDITY AND THINGS I AM UNSURE ABOUT
+---------------------------------------------------
+
+- The workload is synthetic, and I designed both it and the engine. Several design choices directly target what the workload probes, and section 10 asks about this:
+  - pinning user messages
+  - retrieval by id
+  - tracking failures
+- The trajectory is fixed, so strategies cannot cause or avoid detours. Real task success could differ in either direction.
+- The retrieval policy in the "recoverable" metric and the reader test uses one hand-written natural query per fact. A real agent may search worse or better, or not at all.
+- Cache cost comes from a simulator of documented rules, not real billing. Output tokens are not priced.
+- Summarizer latency is modeled in the deterministic runs.
+- Baselines B, C and D are my reimplementations, not the original systems. C (noa) is model-driven in Norma; I simulated the model complying with every nudge immediately.
+- Small samples: 5 seeds (64k), 3 seeds (200k), 1 to 2 seeds for the real-model runs. No significance tests.
+- The extractive summarizer used in most runs is weak, which hurts B, C, E and F more than G. The Haiku-summary run (6.2) only partly addresses this, with one seed and only E, F and G.
+- The grading changes in 6.3 were made after seeing the first run's answers.
+- Lenient grading credits a few hedged G answers. With strict grading, G is 98.4% (6.1) and 87.9% (6.2) instead of 100%. The "visible" check only looks for the key string, so a fact can count as visible when only its name is present, without the evidence behind it.
+- The thresholds (0.55 / 0.70 / 0.85 of capacity) were not tuned or swept.
+- A, C and D look cheap in cost tables only because overflowed turns were never sent.
+
+
+10. QUESTIONS FOR THE REVIEWER
+------------------------------
+
+1. Is the workload unfair to any baseline? In particular, do the planted facts (early user rules, decisions, exact values, the current error) favor a design with pinning and exact retrieval more than real agent sessions would?
+2. Is baseline B (one rolling summary at 90%, keep the last 8 messages) a fair stand-in for "existing built-in compaction" in tools like Claude Code? What would make it stronger?
+3. Is it fair to give only G the retrieval step in the "recoverable" and reader metrics? The other strategies have no retrieval tools by design, but the comparison partly measures "has retrieval or not".
+4. Are the cost comparisons sound, given that A, C and D are excluded for overflowing, and that the cache simulator models only documented behavior?
+5. F (async) costs more than E (sync), and G-sync is cheaper than G. Does that match your understanding of asynchronous compaction (the APEC paper reports the same pattern)? Is "async buys latency, not tokens" the right conclusion?
+6. Do the grading changes in 6.3 look like legitimate fixes or like moving the goalposts? Should hedged answers that name the right value count (lenient) or not (strict)? Would you grade any answers differently? Raw answers are in reader.regraded.jsonl.
+7. What is the most important experiment missing before claiming this works for real agents? Candidates: a real agent loop on SWE-bench-style tasks, a threshold sweep, more seeds, stronger summarizers for the baselines.
+8. Is anything in sections 3 to 8 internally inconsistent or suspicious?
+
+
+11. WHERE THE RAW DATA IS
+-------------------------
+
+bench/results/2026-11-26/main64k/runs.jsonl, probes.jsonl.gz, turns.jsonl.gz   (per run, per probe, per turn)
+bench/results/2026-11-26/main200k/...
+bench/results/2026-11-26/ablation64k/...
+bench/results/2026-11-26/reader-extractive/reader.regraded.jsonl              (every question, answer and grade)
+bench/results/2026-11-26/reader-haiku-summaries/reader.regraded.jsonl
+bench/results/2026-11-26/reader-v1-superseded/reader.regraded.jsonl
+docs/benchmarks.md     method and results in prose
+docs/experiments.md    every run, including failed ones, costs and bugs found
+docs/limitations.md    known limitations
+docs/research/         notes on the papers and code the design builds on (APEC/CompactionBench, Complexity Trap, Benchmarks Are Surprisingly Compaction-Friendly, LCM/Volt, Context Mode, CMV, Norma/noa, Anthropic caching docs)
+
+Total real-model API spend: $4.12 (OpenRouter, Claude Haiku 5.5).
