@@ -47,10 +47,10 @@ Measured problems and design limits, most significant first.
 
 ## Platforms
 
-- Tested: Linux on amd64, with Go 1.26.11 (the minimum in `go.mod`) and 1.27.4.
-- Release binaries are cross-compiled for Linux, macOS and Windows on amd64 and arm64.
-- The macOS and Windows test runs exist only in CI. As of v0.1.0 they had not yet run, so macOS and Windows should be treated as untested.
-- The Windows CI job is marked experimental: Unix-socket and crash-test behavior there are unverified.
+- Tested locally on Linux amd64 with Go 1.26.11 (the minimum in `go.mod`) and 1.27.4, including the full race-detector run.
+- CI runs the test suite on GitHub-hosted Linux, macOS and Windows runners. The v0.1.0 run passed on Linux and macOS. On Windows every package passed except one store test that creates a directory named `c?d`, which Windows does not allow. That test now skips the name on Windows (after the tag).
+- The crash-recovery test is skipped in `-short` mode, so on macOS and Windows it has not run yet.
+- Release binaries are cross-compiled for Linux, macOS and Windows on amd64 and arm64. CI test runs cover Linux amd64, Windows amd64 and macOS arm64; the Linux arm64, Windows arm64 and macOS amd64 builds are not tested.
 
 ## Project
 

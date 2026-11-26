@@ -5,12 +5,17 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestPathsWithURICharacters(t *testing.T) {
 	base := t.TempDir()
-	for _, name := range []string{"a#b", "c?d", "e%20f", "plain"} {
+	names := []string{"a#b", "e%20f", "plain"}
+	if runtime.GOOS != "windows" {
+		names = append(names, "c?d")
+	}
+	for _, name := range names {
 		dir := filepath.Join(base, name)
 		db, err := Open(context.Background(), filepath.Join(dir, "x.db"), Options{})
 		if err != nil {
