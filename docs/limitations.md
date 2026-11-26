@@ -10,6 +10,9 @@ Measured problems and design limits, most significant first.
 - Background summarizer latency in the deterministic runs is a model (0.8 s plus prefill at 4,000 tokens per second plus decode at 60 tokens per second), not a measurement.
 - The real-model runs used one reader and summarizer (Claude Haiku 5.5) and one or two seeds; the variance of those numbers is not known.
 - The thresholds (0.55, 0.70, 0.85) were not tuned. No threshold sweep was run.
+- Once the baselines get the same retrieval, palimpsest shows no question-answering advantage in the pre-registered run (28, 27 and 26 of 33 grounded answers). Its measured advantages are cost, standing-rule retention, current-failure recall and not blocking. General fact recovery comes from retrieval itself.
+- The file-provenance fix in retrieval outputs, found by that run, has not been re-measured with a real model.
+- Task success on real coding tasks has not been measured. That needs an agent that actually solves tasks with each strategy, with independently executed tests and cost per resolved task.
 
 ## Engine
 

@@ -22,6 +22,13 @@ Four research passes read the primary sources and code listed in `docs/research/
 | 13:47 | c6ff120 | **final suites rerun on the release build** | all reported metrics identical to the 56cd6f8 run at two decimals; engine wall-clock p95 within noise; these artifacts are the ones in `bench/results/2026-11-26/` |
 | 14:00 | c6ff120 | latency profiles and micro-benchmarks | see `docs/benchmarks.md`, "Performance" |
 
+### After the external review (2026-11-26, afternoon)
+
+| build | run | outcome |
+|---|---|---|
+| 83737b9 | four suites (main 64k, ablation 64k, main 200k, matched 64k) after the accounting fix | stopped before finishing: superseded by the provenance fix below; partial results showed noa's cost roughly doubling once its in-band calls went through the cache simulator |
+| 314ff5d | **final suites**: the four above, with reconciled accounting, evidence-grounded probes, component-matched baselines and retrieval provenance | completed; every run passed the token and cost reconciliation check; these are the tables in `docs/benchmarks.md` |
+
 ## Real-model runs
 
 Costs per run are estimates, because runs overlapped and OpenRouter reports one running total per key. The readings are listed below the table.
@@ -35,7 +42,9 @@ Costs per run are estimates, because runs overlapped and OpenRouter reports one 
 | 11:10 | cd900f7 | OpenRouter, Haiku 5.5 reader | **reader test v2**, extractive compaction, A to G, seeds 1 and 2; 600-token cap, prompt asks for the reason when the question asks why | about $1.07 | completed; G 100%, B 23.4%, C 14.1%, E and F 7.8%, A and D 0% (all overflowed) |
 | 11:20 | 09ba4b4 | OpenRouter, Haiku 5.5 summarizer and reader | **real-summary reader test**, E, F, G, seed 1 | about $0.82 | completed; G 100%, E 18.2%, F 18.2% |
 
-Running total reported by the OpenRouter key endpoint: $0.000004 after the key check, $1.35 when reader v1 finished (real-summary v1 still running), $2.03 and $2.24 during the real-summary v1 run, $3.30 when reader v2 finished, and **$4.12 after the last run**, against the key's $5 limit.
+| 15:10 | 2343c4b | OpenRouter, Haiku 5.5 reader | **reader test v3, frozen protocol** (`bench/review/protocol-reader-v3.md`), G versus F + retrieval versus B + passive archive, seed 1 | about $0.42 | completed; strict 28/33 (G), 27/33 (B + archive), 26/33 (F + retrieval): parity under matched retrieval; most strict misses were hedges caused by retrieval outputs lacking file paths, fixed afterwards in 314ff5d and not re-measured |
+
+Running total reported by the OpenRouter key endpoint: $0.000004 after the key check, $1.35 when reader v1 finished (real-summary v1 still running), $2.03 and $2.24 during the real-summary v1 run, $3.30 when reader v2 finished, $4.12 after the real-summary run, and **$4.54 after reader v3**, against the key's $5 limit. The remaining credit was left unspent.
 
 ## Grading changes, all applied to stored answers offline
 
@@ -46,6 +55,8 @@ Running total reported by the OpenRouter key endpoint: $0.000004 after the key c
 4. While writing `REVIEW_PACKET.txt`, a sample answer showed that lenient grading credits hedged answers ("I don't know. The session shows `flushLedgerBatch` ... but nothing identifies it as performing fsync batching"). A strict count is now reported next to the lenient one. Only G is affected: 98.4% and 87.9% strict, against 100% lenient in both runs.
 
 Changes 1 and 2 were made after reading the v1 answers. All three apply to every strategy, and both the v1 and v2 runs are published with the final grader.
+
+5. After the external review, strict grading (no hedged answers) became the headline. "Evidence available" was added as a third dimension, and v3 reports all three under a protocol frozen before the run.
 
 ## Bugs found by tests and runs
 
@@ -60,3 +71,5 @@ Changes 1 and 2 were made after reading the v1 answers. All three apply to every
 | Go example | the failure digest picked bare `FAIL` lines over the assertion message | assertion-first digests |
 | examples | Unix socket paths over about 104 bytes fail with `bind: invalid argument` | the server explains the limit |
 | `TestGrade` | value grading accepted answers by accident | token-level matching |
+| external review | noa's in-band compression calls were priced with an approximation and left out of the cache-hit numerator, so its cost and hit rate disagreed | every request goes through the cache simulator; runs fail unless tokens and cost reconcile |
+| reader v3 | search hits and event pages did not show which file an archived observation came from, so a reader could not confirm where a retrieved value lives | paths in search hits, event pages and injected evidence; `TestRetrievalOutputsCarryProvenance` |

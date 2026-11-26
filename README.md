@@ -23,33 +23,30 @@ It is a Go library with an HTTP API, a Unix socket, an MCP server and a standalo
 
 ## Results
 
-On generated long coding sessions (300 turns, 2.9 to 3.2 million raw tokens each, 64k-token window, 5 seeds), compared with reimplementations of conventional compaction, Norma's noa, observation masking and APEC-style progressive summarization:
+On generated long coding sessions (300 turns, 2.9 to 3.2 million raw tokens each, 64k-token window, 5 seeds), against reimplementations of common strategies:
 
-| strategy | input cost per session | prompt cache hit | turns over the window | blocking summarization per session | planted facts recoverable | standing user rules kept |
-|---|---|---|---|---|---|---|
-| uncompressed | n/a | n/a | 294 of 300 | 0 | 0% | 1% |
-| conventional compaction | $11.42 | 49% | 56 | 825 s | 26% | 62% |
-| noa (model-driven) | n/a | 22% | 194 | 556 s | 10% | 29% |
-| observation masking only | n/a | 36% | 291 | 0 | 1% | 2% |
-| progressive summaries, sync | $11.41 | 50% | 0 | 323 s | 12% | 21% |
-| progressive summaries, async | $13.04 | 45% | 0 | 0 | 13% | 22% |
-| **palimpsest** | **$6.43** | **68%** | **0** | **0** | **100%** | **100%** |
+| strategy | requests that fit | input cost per session | planted facts recoverable | standing user rules kept | blocking per session |
+|---|---|---|---|---|---|
+| conventional compaction (proxy) | 81% | n/a | 26% | 62% | 825 s |
+| noa (reimplementation) | 35% | n/a | 10% | 29% | 556 s |
+| sync progressive summaries | 100% | $11.41 | 12% | 21% | 323 s |
+| async progressive summaries | 100% | $13.04 | 13% | 22% | 0 |
+| async summaries + retrieval | 100% | $12.88 | 97% | 22% | 0 |
+| **palimpsest** | **100%** | **$6.43** | **100%** | **100%** | **0** |
 
-"n/a": most of that strategy's requests did not fit the window, so its cost is not comparable.
+"n/a": not every request fit the window, so the cost is not comparable. Costs are simulated input costs at Claude Sonnet 5.5 prices, from a model of Anthropic's documented prompt-cache rules.
 
-A real model (Claude Haiku 5.5) answering the planted questions from each strategy's actual context:
+What the comparisons show:
 
-| strategy | accuracy |
-|---|---|
-| palimpsest | 100% (98% if hedged answers count as wrong) |
-| conventional compaction | 23% |
-| noa | 14% |
-| progressive summaries | 8% |
-| uncompressed, masking only | 0% (requests did not fit) |
+- **Retrieval drives recovery.** Giving the summary-based baselines the same retrieval tools brings their fact recovery close to palimpsest's.
+- **What stays palimpsest's own:**
+  - about half the input cost, mostly from keeping oversized tool outputs out of the context and from cache-aware ordering
+  - standing user rules kept verbatim
+  - the current failure kept in task state
+- **Question answering ends in a tie.** In a pre-registered question-answering run with a real model (Claude Haiku 5.5), palimpsest answered 28 of 33 questions with a grounded answer. The two component-matched baselines answered 27 and 26. That run also exposed missing file paths in retrieval output, which is now fixed but not re-measured.
+- **Task success on real coding tasks has not been evaluated yet.** The sessions are scripted, and the costs come from a simulator, not provider bills.
 
-With Haiku 5.5 writing the summaries instead of the extractive summarizer, the progressive baselines reach 18% and palimpsest 100% (88% strict). The strict misses are answers where the model saw a function's name in an archived preview but not its body, and said it could not confirm.
-
-These are simulated sessions with a cache cost simulator, not task success on real repositories. `docs/benchmarks.md` gives the method, all tables (including a 200k-token window and eleven ablations), the acceptance targets that were missed, and the reproduction commands. `docs/experiments.md` lists every run, including failed and superseded ones.
+Method, every table (200k window, component-matched baselines, eleven ablations, cost accounting), missed targets and an external review with the responses to it are in `docs/benchmarks.md`. `REVIEW_PACKET.txt` is the same material as one text file for outside review. `docs/experiments.md` lists every run, including failed and superseded ones.
 
 ## Quick start
 
@@ -116,4 +113,4 @@ Version 0.1.0, API v1. Tests cover:
 - deletion, configuration migration and deterministic replay
 - fuzzing of messages, digests, search queries and append/assemble sequences
 
-The Anthropic adapter is tested offline against the documented request shape; the OpenAI-compatible adapter was used live through OpenRouter.
+The Anthropic adapter is tested offline against the documented request shape; the OpenAI-compatible adapter was used live through OpenRouter. Isolation and protocol guarantees are backed by tests: no failures observed in the tested configurations, which is not a proof.

@@ -3,7 +3,7 @@ PALIMPSEST: REVIEW PACKET (REVISION 2)
 
 Purpose: give an outside reviewer everything needed to check the claims and the numbers in one file. Please be critical.
 
-This is the second revision. An earlier version was reviewed; section 1 lists what changed in response. Every table is generated from the raw result files (bench/results/2026-11-26/) by bench/review/render.py. Nothing is copied by hand.
+Deterministic results: build {{build}}. This is the second revision. An earlier version was reviewed; section 1 lists what changed in response. Every table is generated from the raw result files (bench/results/2026-11-26/) by bench/review/render.py. Nothing is copied by hand.
 
 
 1. CHANGES SINCE THE FIRST REVIEW
@@ -46,6 +46,8 @@ H. Total cost adds:
 Completion rate is reported next to cost, and cost comparisons use only strategies that completed every turn.
 
 I. A frozen-protocol QA run (v3) was committed before running (bench/review/protocol-reader-v3.md, commit 2343c4b). It tests G against the two component-matched baselines.
+- Result: parity.
+- It exposed a provenance gap in retrieval outputs, fixed afterwards and not re-measured (section 7.1).
 
 J. Absolute acceptance claims are softened to "no failure observed" where the evidence is tests, not proof.
 
@@ -188,6 +190,11 @@ Grading:
 
 {{reader.v3}}
 
+Interpretation:
+- With matched retrieval, the three strategies are within two questions of each other (strict). G has no QA advantage once the baselines get retrieval.
+- Most strict failures are hedges on the two config-value questions. The retrieved text showed the value but not the file it came from, so the reader refused to confirm the file. Retrieval outputs did not carry file paths: a product flaw.
+- Fixed after v3: paths are now in search hits, event pages and injected evidence. NOT re-measured with a real model (budget). The v3 numbers stand as frozen.
+
 7.2 v2, extractive compaction, all strategies, seeds 1-2
 
 {{reader.v2}}
@@ -246,7 +253,12 @@ Hedged answers that lenient grading accepts and strict grading rejects:
 ------------------------------
 
 1. Does the corrected accounting (section 4, accounting tables) now look consistent? Check that cache read + write + uncached = input Mtok, and that the costs follow from the prices in section 3.
-2. Does the component-matched comparison (section 5) support the conclusion that G's remaining advantages are cost, standing-rule retention, completion and no blocking, rather than recovery?
+2. Does the component-matched comparison (section 5) support this conclusion? Once baselines get retrieval, G's remaining advantages are:
+   - lower cost (about half of E or F plus retrieval)
+   - standing-rule retention (pins)
+   - recall of the current failure (task state)
+   - no blocking, compared with E
+   and not general fact recovery.
 3. Is the v3 frozen protocol sound? Is anything in its design favorable to G?
 4. The ablations suggest most efficiency comes from controlling what enters the context (externalization, masking cadence, cache layout) rather than better summaries. Is that a defensible central claim?
 5. What is the minimum real-agent experiment that would convince you? Please name concrete tasks, sample size, models, and the metrics to report.

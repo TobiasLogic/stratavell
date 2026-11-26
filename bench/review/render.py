@@ -180,6 +180,8 @@ def build(template, out, fmt):
         text = text.replace("{{" + key + "}}", T(READ_H, rows) if rows else "(not run)")
     hz = hedged([("v2 extractive", os.path.join(res, "reader-extractive/reader.regraded.jsonl")), ("Haiku summaries", os.path.join(res, "reader-haiku-summaries/reader.regraded.jsonl")), ("v3", os.path.join(res, "reader-v3/reader.jsonl"))])
     text = text.replace("{{spend}}", sys.argv[2] if len(sys.argv) > 2 else "unknown")
+    build_file = os.path.join(res, "BUILD")
+    text = text.replace("{{build}}", open(build_file).read().strip() if os.path.exists(build_file) else "unknown")
     text = text.replace("{{hedged}}", "\n".join(("- " if md_mode else "  ") + h for h in hz) if hz else "(none)")
     left = re.findall(r"\{\{[^}]+\}\}", text)
     if left:
