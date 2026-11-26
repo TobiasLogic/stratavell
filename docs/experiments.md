@@ -43,6 +43,8 @@ Running total reported by the OpenRouter key endpoint: $0.000004 after the key c
 2. The API-constraint question is graded on `store` instead of `package store`.
 3. `Name = Value` facts are graded on the value as a whole token. The earlier rule accepted any answer that contained the name and the digits anywhere. One E answer ("I do not know ... RetryLimit ...") had been counted correct by accident; it is now wrong.
 
+4. While writing `REVIEW_PACKET.txt`, a sample answer showed that lenient grading credits hedged answers ("I don't know. The session shows `flushLedgerBatch` ... but nothing identifies it as performing fsync batching"). A strict count is now reported next to the lenient one. Only G is affected: 98.4% and 87.9% strict, against 100% lenient in both runs.
+
 Changes 1 and 2 were made after reading the v1 answers. All three apply to every strategy, and both the v1 and v2 runs are published with the final grader.
 
 ## Bugs found by tests and runs
