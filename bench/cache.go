@@ -96,7 +96,11 @@ type Prices struct {
 }
 
 func DefaultPrices() Prices {
-	return Prices{Name: "Sonnet 5.5 input-side list prices from the prompt caching docs (fetched 2026-11-26); output tokens are reported, not priced", Input: 2.0, Write5m: 2.5, Read: 0.10, Output: 0, MinCache: 512}
+	return Prices{Name: "Claude Sonnet 5.5 list prices: $2 input, $2.50 5-minute cache write, $0.10 cache read, $10 output per Mtok", Input: 2.0, Write5m: 2.5, Read: 0.10, Output: 10.0, MinCache: 512}
+}
+
+func SummarizerPrices() Prices {
+	return Prices{Name: "Claude Haiku 5.5 list prices: $0.10 input, $0.50 output per Mtok", Input: 0.10, Write5m: 0.125, Read: 0.01, Output: 0.50, MinCache: 512}
 }
 
 func (p Prices) Cost(r CacheResult, output int) float64 {

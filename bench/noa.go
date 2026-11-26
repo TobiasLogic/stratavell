@@ -157,7 +157,12 @@ func (n *noa) Assemble(ctx context.Context, now time.Time) (View, error) {
 	case n.st.nudged && T-n.st.lastNudge >= 22500 && ctok >= 50000:
 		nudge = true
 	}
+	var preBlocks []CacheBlock
 	if nudge && lo >= 0 {
+		pre, _ := n.view(false)
+		if pv, err := viewOf(n.contextOf("", pre)); err == nil {
+			preBlocks = append(pv.Blocks, CacheBlock{Key: "user|noa compression request", Tokens: 120, Break: true})
+		}
 		chars := 0
 		for i := lo; i <= hi; i++ {
 			chars += len(n.st.raw[i].PlainText())
@@ -180,6 +185,10 @@ func (n *noa) Assemble(ctx context.Context, now time.Time) (View, error) {
 		n.escalate(ctx, 1, 5, &fg, &extraCalls, &extraIn, &extraOut, T)
 		n.escalate(ctx, 2, 10, &fg, &extraCalls, &extraIn, &extraOut, T)
 	}
+	var extraBlocks [][]CacheBlock
+	for i := 0; i < extraCalls && preBlocks != nil; i++ {
+		extraBlocks = append(extraBlocks, preBlocks)
+	}
 	view, total := n.view(false)
 	if float64(total) >= 0.95*L {
 		view, total = n.view(true)
@@ -187,13 +196,14 @@ func (n *noa) Assemble(ctx context.Context, now time.Time) (View, error) {
 	}
 	if total > n.capacity {
 		n.stats["overflows"]++
-		return View{Overflow: true, ForegroundMS: fg, ExtraCalls: extraCalls, ExtraInput: extraIn, ExtraOutput: extraOut}, nil
+		return View{Overflow: true, ForegroundMS: fg, ExtraCalls: extraCalls, ExtraInput: extraIn, ExtraOutput: extraOut, ExtraBlocks: extraBlocks}, nil
 	}
 	cx := n.contextOf("", view)
 	v, err := viewOf(cx)
 	v.ForegroundMS = fg
 	v.Tokens = total
 	v.ExtraCalls, v.ExtraInput, v.ExtraOutput = extraCalls, extraIn, extraOut
+	v.ExtraBlocks = extraBlocks
 	v.Context = cx
 	return v, err
 }

@@ -30,6 +30,7 @@ type View struct {
 	ToolTokens   int
 	Report       *engine.Report
 	Context      *engine.Context
+	ExtraBlocks  [][]CacheBlock
 }
 
 type Strategy interface {
@@ -395,6 +396,7 @@ type listStrategy struct {
 	stats    map[string]float64
 	noa      *noaState
 	n        int
+	memTools bool
 }
 
 func (l *listStrategy) Name() string { return l.name }
@@ -463,7 +465,11 @@ func safeStart(ms []msg.Message, from int) int {
 }
 
 func (l *listStrategy) contextOf(prefix string, msgs []msg.Message) *engine.Context {
-	cx := &engine.Context{System: []engine.SystemBlock{{Text: hostSystem}}, Tools: hostTools}
+	tools := hostTools
+	if l.memTools {
+		tools = append(append([]msg.ToolDef(nil), hostTools...), engine.MemoryTools()...)
+	}
+	cx := &engine.Context{System: []engine.SystemBlock{{Text: hostSystem}}, Tools: tools}
 	if prefix != "" {
 		cx.Messages = append(cx.Messages, engine.AMessage{Role: msg.RoleUser, Kind: "archive", Parts: []msg.Part{{Type: msg.PartText, Text: prefix}}})
 	}
@@ -481,13 +487,55 @@ func (l *listStrategy) contextOf(prefix string, msgs []msg.Message) *engine.Cont
 }
 
 func NewConventional(sum engine.Summarizer, capacity int, lat LatencyModel, real bool) Strategy {
-	return &conventional{listStrategy{name: "B-conventional", summ: &meteredSummarizer{inner: sum, lat: lat, real: real}, capacity: capacity, fixed: 900, stats: map[string]float64{}}}
+	return &conventional{listStrategy: listStrategy{name: "B-conventional", summ: &meteredSummarizer{inner: sum, lat: lat, real: real}, capacity: capacity, fixed: 900, stats: map[string]float64{}}}
 }
 
-type conventional struct{ listStrategy }
+type conventional struct {
+	listStrategy
+	pins    bool
+	pinned  []string
+	archive *EngineStrategy
+}
+
+func (c *conventional) Append(ctx context.Context, m msg.Message) error {
+	if c.archive != nil {
+		if err := c.archive.Append(ctx, m); err != nil {
+			return err
+		}
+	}
+	return c.listStrategy.Append(ctx, m)
+}
+
+func (c *conventional) Retrieve(ctx context.Context, q string, keys []string) (bool, int) {
+	if c.archive == nil {
+		return false, 0
+	}
+	return c.archive.Retrieve(ctx, q, keys)
+}
+
+func (c *conventional) RetrieveText(ctx context.Context, q string, budget int) string {
+	if c.archive == nil {
+		return ""
+	}
+	return c.archive.RetrieveText(ctx, q, budget)
+}
+
+func (c *conventional) Close() error {
+	if c.archive != nil {
+		return c.archive.Close()
+	}
+	return nil
+}
+
+func (c *conventional) pinText() string {
+	if len(c.pinned) == 0 {
+		return ""
+	}
+	return "\n\nStanding instructions from the user, repeated verbatim:\n- " + strings.Join(c.pinned, "\n- ")
+}
 
 func (c *conventional) total(msgs []msg.Message) int {
-	n := c.fixed + tokens.Estimate(c.summary)
+	n := c.fixed + tokens.Estimate(c.summary) + tokens.Estimate(c.pinText())
 	for _, m := range msgs {
 		n += msgTokens(m)
 	}
@@ -521,6 +569,13 @@ func (c *conventional) Assemble(ctx context.Context, now time.Time) (View, error
 		if err == nil {
 			c.summary = out.Text + factsBlock(out.Facts)
 		}
+		if c.pins {
+			for _, m := range head {
+				if m.Role == msg.RoleUser {
+					c.pinned = append(c.pinned, m.PlainText())
+				}
+			}
+		}
 		c.msgs = append([]msg.Message(nil), c.msgs[keep:]...)
 		c.stats["compactions"]++
 	}
@@ -540,7 +595,7 @@ func (c *conventional) summaryPrefix() string {
 	if c.summary == "" {
 		return ""
 	}
-	return "This session continues from an earlier conversation that was compacted. Summary:\n" + c.summary
+	return "This session continues from an earlier conversation that was compacted. Summary:\n" + c.summary + c.pinText()
 }
 
 func factsBlock(fs []engine.Fact) string {

@@ -103,6 +103,8 @@ func main() {
 		cfg.Strategies = bench.AllStrategies
 	case "ablation":
 		cfg.Strategies = append([]string{"G-hybrid"}, bench.Ablations...)
+	case "matched":
+		cfg.Strategies = append([]string{"B-conventional", "E-sync-summary", "F-async-progressive"}, bench.Matched...)
 	case "all":
 		cfg.Strategies = append(append([]string{}, bench.AllStrategies...), bench.Ablations...)
 	default:

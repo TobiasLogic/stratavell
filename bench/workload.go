@@ -18,6 +18,11 @@ type Fact struct {
 	Turn     int      `json:"turn"`
 	Standing bool     `json:"standing"`
 	Answer   []string `json:"answer_keys,omitempty"`
+	Evidence []string `json:"evidence_keys,omitempty"`
+}
+
+func (f Fact) GroundKeys() []string {
+	return append(append([]string(nil), f.Keys...), f.Evidence...)
 }
 
 type Step struct {
@@ -202,7 +207,7 @@ func Generate(seed uint64, turns int) *Scenario {
 	for t := 1; t < turns; t++ {
 		switch {
 		case t == writerAt:
-			g.fact(Fact{ID: "symbol_batch", Kind: "symbol", Question: "Which function in pkg/journal/writer.go performs fsync batching?", Keys: []string{batchFn}, Query: "writer.go fsync batching function"})
+			g.fact(Fact{ID: "symbol_batch", Kind: "symbol", Question: "Which function in pkg/journal/writer.go performs fsync batching?", Keys: []string{batchFn}, Evidence: []string{"w.fsyncGroup(ctx, frames)"}, Query: "writer.go fsync batching function"})
 			g.step("", "Reading the journal writer to understand fsync batching.", func(a *msg.Message, res *[]msg.Message) { g.read(a, res, writer) })
 			continue
 		case t == configAt:

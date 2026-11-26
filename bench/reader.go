@@ -24,6 +24,10 @@ type AskResult struct {
 	OutputTokens int
 }
 
+type retrievalTexter interface {
+	RetrieveText(ctx context.Context, query string, budget int) string
+}
+
 type OllamaAsker struct{ C *ollama.Client }
 
 func (o OllamaAsker) Ask(ctx context.Context, cx *engine.Context, extra []string, q string, n int) (AskResult, error) {
@@ -53,6 +57,7 @@ type ReaderRecord struct {
 	Fact      string  `json:"fact"`
 	Kind      string  `json:"kind"`
 	Visible   bool    `json:"visible"`
+	Grounded  bool    `json:"grounded"`
 	Retrieved bool    `json:"retrieval_added"`
 	Overflow  bool    `json:"overflow"`
 	Correct   bool    `json:"correct"`
@@ -134,9 +139,10 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 						r := ReaderRecord{Strategy: name, Seed: seed, Turn: t, Fact: f.ID, Kind: f.Kind, Overflow: v.Overflow}
 						if !v.Overflow {
 							r.Visible = containsAll(v.Text, f.Keys)
+							r.Grounded = containsAll(v.Text, f.GroundKeys())
 							var extra []string
-							if es, ok := st.(*EngineStrategy); ok && !r.Visible {
-								if txt := es.RetrieveText(ctx, f.Query, 3000); txt != "" {
+							if rt, ok := st.(retrievalTexter); ok && !r.Grounded {
+								if txt := rt.RetrieveText(ctx, f.Query, 3000); txt != "" {
 									extra = append(extra, "Results of the memory tools for this question:\n"+txt)
 									r.Retrieved = true
 								}

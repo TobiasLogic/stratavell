@@ -60,6 +60,8 @@ func bare(p engine.Policy) engine.Policy {
 
 var AllStrategies = []string{"A-uncompressed", "B-conventional", "C-noa", "D-masking", "E-sync-summary", "F-async-progressive", "G-hybrid"}
 
+var Matched = []string{"B-conventional+pins", "B-conventional+archive", "E-sync-summary+retrieval", "F-async-progressive+retrieval", "G-hybrid"}
+
 var Ablations = []string{"G-no-masking", "G-no-externalize", "G-no-dedupe", "G-no-taskstate", "G-no-pins", "G-no-taskstate-pins", "G-no-retrieval", "G-rolling-mask", "G-layout-spec", "G-sync"}
 
 func PolicyFor(name string, window, maxOut int) (engine.Policy, bool) {
@@ -83,6 +85,14 @@ func PolicyFor(name string, window, maxOut int) (engine.Policy, bool) {
 		p.Compaction.Enabled = true
 		p.Compaction.Emergency = true
 		p.Compaction.Async = true
+		return p, true
+	case "E-sync-summary+retrieval", "F-async-progressive+retrieval":
+		p := bare(b)
+		p.Compaction.Enabled = true
+		p.Compaction.Emergency = true
+		p.Compaction.Async = name == "F-async-progressive+retrieval"
+		p.Retrieval.Enabled = true
+		p.Retrieval.AutoInject = true
 		return p, true
 	case "G-hybrid":
 		return b, true
@@ -148,6 +158,7 @@ type ProbeRecord struct {
 	Fact      string `json:"fact"`
 	Kind      string `json:"kind"`
 	Visible   bool   `json:"visible"`
+	Grounded  bool   `json:"grounded"`
 	Retrieved bool   `json:"retrieved"`
 	Cost      int    `json:"retrieval_tokens"`
 }
@@ -173,6 +184,15 @@ type RunSummary struct {
 	ProbeVisible      float64            `json:"probe_visible"`
 	ProbeRecoverable  float64            `json:"probe_recoverable"`
 	Probes            int                `json:"probes"`
+	ProbeGrounded     float64            `json:"probe_grounded"`
+	CacheReadTokens   int64              `json:"cache_read_tokens"`
+	CacheWriteTokens  int64              `json:"cache_write_tokens"`
+	UncachedTokens    int64              `json:"uncached_tokens"`
+	ExtraOutput       int64              `json:"extra_primary_output_tokens"`
+	OutputCostUSD     float64            `json:"extra_output_cost_usd"`
+	SummarizerCostUSD float64            `json:"summarizer_cost_usd_at_haiku"`
+	TotalCostUSD      float64            `json:"total_cost_usd"`
+	CompletionRate    float64            `json:"completion_rate"`
 	StandingRetention float64            `json:"standing_retention"`
 	ExactRecovery     float64            `json:"exact_recovery"`
 	Extra             map[string]float64 `json:"extra"`
@@ -185,6 +205,22 @@ func (c *Config) make(ctx context.Context, name string, dir string, seed uint64,
 	switch name {
 	case "B-conventional":
 		return NewConventional(c.Summarizer, capacity, c.Latency, c.RealTiming), nil
+	case "B-conventional+pins", "B-conventional+archive":
+		cv := NewConventional(c.Summarizer, capacity, c.Latency, c.RealTiming).(*conventional)
+		cv.name = name
+		if name == "B-conventional+pins" {
+			cv.pins = true
+		} else {
+			ap := bare(basePolicy(c.Window, c.MaxOutput))
+			ap.Retrieval.Enabled = true
+			arc, err := NewEngineStrategy(ctx, EngineConfig{Name: name + "-archive", Policy: ap, Summarizer: c.Summarizer, Dir: dir, Seed: seed, Latency: c.Latency}, start)
+			if err != nil {
+				return nil, err
+			}
+			cv.archive = arc
+			cv.memTools = true
+		}
+		return cv, nil
 	case "C-noa":
 		return NewNoa(c.Summarizer, capacity, c.Latency, c.RealTiming), nil
 	}
@@ -222,21 +258,26 @@ func (c *Config) RunOne(ctx context.Context, name string, sc *Scenario, turnsOut
 	var engMS []float64
 	var ctxSum float64
 	var reads, totalIn int64
-	var visible, recoverable, probes, standing, standingOK int
+	var visible, grounded, recoverable, probes, standing, standingOK int
+	var tRead, tWrite, tUnc int64
 	wall := time.Now()
 	evaluate := func(turn int, v View) {
 		for _, f := range sc.FactsAt(turn) {
 			pr := ProbeRecord{Strategy: name, Seed: sc.Seed, Turn: turn, Fact: f.ID, Kind: f.Kind}
 			if !v.Overflow {
 				pr.Visible = containsAll(v.Text, f.Keys)
-				if !pr.Visible {
-					pr.Retrieved, pr.Cost = st.Retrieve(ctx, f.Query, f.Keys)
+				pr.Grounded = containsAll(v.Text, f.GroundKeys())
+				if !pr.Grounded {
+					pr.Retrieved, pr.Cost = st.Retrieve(ctx, f.Query, f.GroundKeys())
 				}
 			}
 			probes++
 			k := sum.ByKind[f.Kind]
 			k[1]++
-			if pr.Visible || pr.Retrieved {
+			if pr.Grounded {
+				grounded++
+			}
+			if pr.Grounded || pr.Retrieved {
 				k[0]++
 				recoverable++
 			}
@@ -274,13 +315,24 @@ func (c *Config) RunOne(ctx context.Context, name string, sc *Scenario, turnsOut
 			cr := sim.Request(now, v.Blocks)
 			tr.CacheRead, tr.CacheWrite, tr.Uncached = cr.Read, cr.Write, cr.Uncached
 			tr.CostUSD = c.Prices.Cost(cr, 0)
-			if v.ExtraCalls > 0 {
-				extra := CacheResult{Read: max(0, v.ExtraInput-2000*v.ExtraCalls), Uncached: min(v.ExtraInput, 2000*v.ExtraCalls)}
-				tr.CostUSD += c.Prices.Cost(extra, 0)
-				sum.ExtraCalls += v.ExtraCalls
-				sum.ExtraInput += int64(v.ExtraInput)
-				totalIn += int64(v.ExtraInput)
+			for _, eb := range v.ExtraBlocks {
+				ex := sim.Request(now, eb)
+				tr.CostUSD += c.Prices.Cost(ex, 0)
+				tr.CacheRead += ex.Read
+				tr.CacheWrite += ex.Write
+				tr.Uncached += ex.Uncached
+				reads += int64(ex.Read)
+				tRead += int64(ex.Read)
+				tWrite += int64(ex.Write)
+				tUnc += int64(ex.Uncached)
+				totalIn += int64(ex.Read + ex.Write + ex.Uncached)
+				sum.ExtraInput += int64(ex.Read + ex.Write + ex.Uncached)
 			}
+			sum.ExtraCalls += v.ExtraCalls
+			sum.ExtraOutput += int64(v.ExtraOutput)
+			tRead += int64(cr.Read)
+			tWrite += int64(cr.Write)
+			tUnc += int64(cr.Uncached)
 			reads += int64(cr.Read)
 			totalIn += int64(cr.Read + cr.Write + cr.Uncached)
 			sum.CostUSD += tr.CostUSD
@@ -326,6 +378,17 @@ func (c *Config) RunOne(ctx context.Context, name string, sc *Scenario, turnsOut
 	if totalIn > 0 {
 		sum.CacheHitRate = float64(reads) / float64(totalIn)
 	}
+	sum.CacheReadTokens, sum.CacheWriteTokens, sum.UncachedTokens = tRead, tWrite, tUnc
+	if tRead+tWrite+tUnc != totalIn {
+		return sum, fmt.Errorf("%s: token accounting does not reconcile: %d read + %d write + %d uncached != %d input", name, tRead, tWrite, tUnc, totalIn)
+	}
+	if want := c.Prices.Cost(CacheResult{Read: int(tRead), Write: int(tWrite), Uncached: int(tUnc)}, 0); math.Abs(want-sum.CostUSD) > 1e-6*math.Max(1, want) {
+		return sum, fmt.Errorf("%s: cost does not reconcile: %.6f from components, %.6f summed per request", name, want, sum.CostUSD)
+	}
+	sum.CompletionRate = float64(sum.Turns-sum.Overflows) / float64(sum.Turns)
+	if probes > 0 {
+		sum.ProbeGrounded = float64(grounded) / float64(probes)
+	}
 	served := sum.Turns - sum.Overflows
 	if served > 0 {
 		sum.MeanContext = ctxSum / float64(served)
@@ -340,6 +403,10 @@ func (c *Config) RunOne(ctx context.Context, name string, sc *Scenario, turnsOut
 		sum.StandingRetention = float64(standingOK) / float64(standing)
 	}
 	sum.Extra = st.Summary()
+	sum.OutputCostUSD = float64(sum.ExtraOutput) * c.Prices.Output / 1e6
+	sp := SummarizerPrices()
+	sum.SummarizerCostUSD = (sum.Extra["summarizer_input_tokens"]*sp.Input + sum.Extra["summarizer_output_tokens"]*sp.Output) / 1e6
+	sum.TotalCostUSD = sum.CostUSD + sum.OutputCostUSD + sum.SummarizerCostUSD
 	sum.ExactRecovery = -1
 	if es, ok := st.(*EngineStrategy); ok {
 		rep, err := es.e.Verify(ctx, "bench")
@@ -443,12 +510,15 @@ func Report(cfg Config, runs []RunSummary, title string) string {
 		add("sumtok", (r.Extra["summarizer_input_tokens"]+r.Extra["summarizer_output_tokens"])/1e6)
 		add("exact", r.ExactRecovery*100)
 		add("extra", float64(r.ExtraCalls))
+		add("total", r.TotalCostUSD)
+		add("compl", r.CompletionRate*100)
+		add("ground", r.ProbeGrounded*100)
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "## %s\n\n", title)
 	fmt.Fprintf(&b, "Window %d tokens (effective input capacity %d), %d turns per session, %d seeds, summarizer %s, %.0f s simulated per turn.\n\n", cfg.Window, basePolicy(cfg.Window, cfg.MaxOutput).EffectiveCapacity(), cfg.Turns, len(cfg.Seeds), cfg.SumName, cfg.TurnSeconds)
-	b.WriteString("| strategy | input Mtok | input cost $ | cache hit % | max ctx k | mean ctx k | overflow turns | fg wait s | probes visible % | probes recoverable % | standing rules % | tool Mtok sent | summarizer Mtok | extra primary calls | engine p95 ms | exact recovery % |\n")
-	b.WriteString("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("| strategy | completion % | input Mtok | input cost $ | total cost $ | cache hit % | max ctx k | mean ctx k | overflow turns | fg wait s | probes visible % | probes grounded % | probes recoverable % | standing rules % | tool Mtok sent | summarizer Mtok | extra primary calls | engine p95 ms | exact recovery % |\n")
+	b.WriteString("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	f := func(a *agg, k string, prec int) string {
 		m, s := meanStd(a.vals[k])
 		if a.n > 1 && s > 0 {
@@ -462,7 +532,7 @@ func Report(cfg Config, runs []RunSummary, title string) string {
 		if m, _ := meanStd(a.vals["exact"]); m < 0 {
 			exact = "n/a"
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", name, f(a, "in", 2), f(a, "cost", 2), f(a, "hit", 1), f(a, "max", 1), f(a, "mean", 1), f(a, "ovf", 0), f(a, "fg", 1), f(a, "vis", 1), f(a, "rec", 1), f(a, "stand", 1), f(a, "tool", 2), f(a, "sumtok", 2), f(a, "extra", 0), f(a, "p95", 2), exact)
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", name, f(a, "compl", 1), f(a, "in", 2), f(a, "cost", 2), f(a, "total", 2), f(a, "hit", 1), f(a, "max", 1), f(a, "mean", 1), f(a, "ovf", 0), f(a, "fg", 1), f(a, "vis", 1), f(a, "ground", 1), f(a, "rec", 1), f(a, "stand", 1), f(a, "tool", 2), f(a, "sumtok", 2), f(a, "extra", 0), f(a, "p95", 2), exact)
 	}
 	b.WriteString("\nProbe recovery by fact kind (recoverable / asked, summed over seeds):\n\n| strategy | ")
 	kinds := []string{"constraint", "decision", "rejected", "value", "symbol", "error"}
