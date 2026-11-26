@@ -13,7 +13,8 @@ Measured problems and design limits, most significant first.
 
 ## Engine
 
-- **Lexical search slows with corpus size.** On the pure-Go SQLite build, p95 is 8.8 ms at 3.4k chunks and 33 ms at 13.2k chunks. The cost is BM25 scoring on the OR fallback. A cgo SQLite build or a chunk-recency cap would help; neither is implemented.
+- **Lexical search slows with corpus size.** On the pure-Go SQLite build, p95 is 9.4 ms at 3.4k chunks and 33.7 ms at 13.2k chunks. The cost is BM25 scoring on the OR fallback. A cgo SQLite build or a chunk-recency cap would help; neither is implemented.
+- **Large tool outputs take tens of milliseconds to ingest.** A 160 KB test log takes about 36 ms to append, mostly regex work for the digest and path extraction. Small events take under 1 ms.
 - **The metadata store is SQLite only.** `ArtifactStore` moves blob bytes elsewhere, but events, indexes and lineage stay in SQLite. With an external artifact store, a blob written just before a rolled-back transaction is left behind as an orphan file, because garbage collection only knows about blobs that have database rows.
 - **Token counting is an estimate.** Usage reports from the provider calibrate it upward only. Anthropic documents about 30% more tokens per text on its newer tokenizer, and the default estimator is conservative for code and logs but has not been checked against every tokenizer. `Tokenizer` is pluggable.
 - **Thinking blocks are dropped from rewritten turns.** When masking or summarization changes anything before an assistant turn, that turn's thinking blocks are no longer sent. This follows the provider rules, but the model loses its earlier reasoning for those turns. Server-side context editing, which keeps thinking valid, is not used.

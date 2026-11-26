@@ -67,13 +67,13 @@ Values are mean ± sample standard deviation over seeds. The hardware was an 8-c
 
 | strategy | input Mtok | input cost $ | cache hit % | max ctx k | overflow turns | fg wait s | probes visible % | probes recoverable % | standing rules % | tool Mtok sent | engine p95 ms | exact recovery % |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| A uncompressed | 0.12 ± 0.06 | 0.12 | 57.3 | 44.2 | 294 ± 2 | 0 | 0.0 | 0.0 | 1.4 | 0.12 | 0.22 | 100 |
+| A uncompressed | 0.12 ± 0.06 | 0.12 | 57.3 | 44.2 | 294 ± 2 | 0 | 0.0 | 0.0 | 1.4 | 0.12 | 0.25 | 100 |
 | B conventional | 8.61 ± 0.37 | 11.42 ± 0.67 | 48.9 | 53.3 | 56 ± 10 | 824.9 ± 32.2 | 26.4 ± 6.8 | 26.4 ± 6.8 | 61.5 | 7.44 | n/a | n/a |
 | C noa | 7.32 ± 1.55 | 5.67 ± 0.75 | 22.1 | 53.5 | 194 ± 21 | 555.5 ± 133.9 | 10.3 ± 5.0 | 10.3 ± 5.0 | 29.0 | 2.64 | n/a | n/a |
-| D masking only | 0.30 ± 0.16 | 0.56 | 36.2 | 48.8 | 291 ± 3 | 0 | 0.7 | 0.7 | 2.4 | 0.24 | 1.36 | 100 |
-| E sync summary | 8.75 ± 0.07 | 11.41 ± 0.49 | 49.9 | 45.6 | 0 | 322.5 ± 23.5 | 12.1 ± 3.0 | 12.1 ± 3.0 | 21.1 | 7.34 | 11.13 | 100 |
-| F async progressive | 9.18 ± 0.05 | 13.04 ± 0.43 | 45.0 | 45.5 | 0 | 0 | 12.9 ± 2.8 | 12.9 ± 2.8 | 22.2 | 7.71 | 7.49 | 100 |
-| G palimpsest | 7.45 ± 0.03 | 6.43 ± 0.21 | 68.1 ± 1.2 | 36.1 | 0 | 0 | 49.5 ± 1.7 | 100.0 | 100.0 | 3.52 | 2.66 ± 0.32 | 100 |
+| D masking only | 0.30 ± 0.16 | 0.56 | 36.2 | 48.8 | 291 ± 3 | 0 | 0.7 | 0.7 | 2.4 | 0.24 | 1.44 | 100 |
+| E sync summary | 8.75 ± 0.07 | 11.41 ± 0.49 | 49.9 | 45.6 | 0 | 322.5 ± 23.5 | 12.1 ± 3.0 | 12.1 ± 3.0 | 21.1 | 7.34 | 11.97 | 100 |
+| F async progressive | 9.18 ± 0.05 | 13.04 ± 0.43 | 45.0 | 45.5 | 0 | 0 | 12.9 ± 2.8 | 12.9 ± 2.8 | 22.2 | 7.71 | 7.79 | 100 |
+| G palimpsest | 7.45 ± 0.03 | 6.43 ± 0.21 | 68.1 ± 1.2 | 36.1 | 0 | 0 | 49.5 ± 1.7 | 100.0 | 100.0 | 3.52 | 2.94 ± 0.90 | 100 |
 
 Recovery by fact kind, recoverable over asked, summed over seeds:
 
@@ -99,13 +99,13 @@ Observations:
 
 | strategy | input Mtok | input cost $ | cache hit % | max ctx k | overflow turns | fg wait s | probes visible % | probes recoverable % | standing rules % | tool Mtok sent | engine p95 ms |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| A uncompressed | 1.91 ± 0.62 | 0.60 | 90.3 | 173.5 | 379 ± 4 | 0 | 0.0 | 0.0 | 3.9 | 1.76 | 0.28 |
+| A uncompressed | 1.91 ± 0.62 | 0.60 | 90.3 | 173.5 | 379 ± 4 | 0 | 0.0 | 0.0 | 3.9 | 1.76 | 0.29 |
 | B conventional | 38.73 ± 1.19 | 16.46 ± 1.10 | 86.5 | 161.4 | 0 | 298.3 ± 34.7 | 36.0 | 36.0 | 75.9 | 35.97 | n/a |
 | C noa | 43.98 ± 2.62 | 30.90 ± 2.79 | 60.2 | 176.1 | 6 ± 2 | 726.3 ± 120.5 | 36.3 | 36.3 | 79.8 | 30.91 | n/a |
-| D masking only | 17.82 ± 2.42 | 44.02 ± 6.29 | 1.3 | 179.1 | 253 ± 23 | 0 | 11.0 | 11.0 | 30.5 | 11.39 | 1.75 |
-| E sync summary | 32.77 ± 0.61 | 17.82 ± 0.35 | 81.5 | 150.9 | 0 | 382.9 ± 23.0 | 41.9 ± 7.5 | 41.9 ± 7.5 | 79.5 | 25.84 | 16.45 |
-| F async progressive | 39.54 ± 0.55 | 27.62 ± 0.80 | 75.0 | 152.5 | 0 | 0 | 47.4 ± 6.3 | 47.4 ± 6.3 | 78.1 | 32.43 | 4.47 |
-| G palimpsest | 30.59 ± 0.80 | 10.44 ± 0.32 | 89.9 ± 0.2 | 124.2 | 0 | 0 | 56.8 ± 2.2 | 100.0 | 100.0 | 18.84 | 3.04 ± 0.51 |
+| D masking only | 17.82 ± 2.42 | 44.02 ± 6.29 | 1.3 | 179.1 | 253 ± 23 | 0 | 11.0 | 11.0 | 30.5 | 11.39 | 1.77 |
+| E sync summary | 32.77 ± 0.61 | 17.82 ± 0.35 | 81.5 | 150.9 | 0 | 382.9 ± 23.0 | 41.9 ± 7.5 | 41.9 ± 7.5 | 79.5 | 25.84 | 16.42 |
+| F async progressive | 39.54 ± 0.55 | 27.62 ± 0.80 | 75.0 | 152.5 | 0 | 0 | 47.4 ± 6.3 | 47.4 ± 6.3 | 78.1 | 32.43 | 4.23 |
+| G palimpsest | 30.59 ± 0.80 | 10.44 ± 0.32 | 89.9 ± 0.2 | 124.2 | 0 | 0 | 56.8 ± 2.2 | 100.0 | 100.0 | 18.84 | 3.40 ± 0.04 |
 
 With a larger window every summarizing strategy keeps more facts visible. B stops overflowing and C overflows on only 6 turns. A first overflows at turns 16 to 24 and D at turns 57 to 80. G is still 37% cheaper than B, 41% cheaper than E and 62% cheaper than F. It recovers every planted fact and keeps every standing rule. D's rolling mask moves every turn, which drops its cache hit rate to 1.3% and makes it the most expensive strategy here.
 
@@ -115,17 +115,17 @@ With a larger window every summarizing strategy keeps more facts visible. B stop
 
 | variant | input cost $ | cache hit % | probes recoverable % | standing rules % | tool Mtok sent | fg wait s | engine p95 ms | what changes |
 |---|---|---|---|---|---|---|---|---|
-| G | 6.43 ± 0.21 | 68.1 | 100.0 | 100.0 | 3.52 | 0 | 2.46 | |
-| no masking | 7.22 ± 0.18 | 64.8 | 100.0 | 100.0 | 3.79 | 0 | 2.74 | +12% cost |
-| no externalization | 13.12 ± 0.54 | 41.4 | 100.0 | 100.0 | 6.58 | 0 | 8.57 | +104% cost, +87% tool tokens |
-| no dedupe or unchanged-read stubs | 6.61 ± 0.28 | 67.4 | 100.0 | 100.0 | 3.57 | 0 | 2.68 | +3% cost |
-| no task state block | 5.96 ± 0.22 | 69.7 | 98.8 | 100.0 | 3.55 | 0 | 2.07 | −7% cost, misses 5 of 31 current-error probes |
-| no pinned directives | 6.26 ± 0.21 | 68.8 | 100.0 | 77.0 | 3.53 | 0 | 2.65 | −3% cost, standing rules drop to 77% |
-| no task state, no pins | 5.80 ± 0.21 | 70.4 | 98.8 | 80.9 | 3.56 | 0 | 1.91 | −10% cost, both losses |
-| no retrieval tools | 6.30 ± 0.33 | 67.7 | 49.7 | 100.0 | 3.57 | 0 | 2.20 | −2% cost, recoverable facts halve |
-| rolling masking | 9.58 ± 0.38 | 51.2 | 100.0 | 100.0 | 3.63 | 0 | 2.64 | +49% cost from cache breaks |
-| layout from the brief (task state before history) | 11.05 ± 0.27 | 42.2 | 100.0 | 100.0 | 3.50 | 0 | 2.63 | +72% cost from cache breaks |
-| synchronous compaction | 5.37 ± 0.16 | 74.2 | 100.0 | 100.0 | 3.40 | 427.6 ± 18.4 | 13.90 | −16% cost, 7 minutes of blocking per session |
+| G | 6.43 ± 0.21 | 68.1 | 100.0 | 100.0 | 3.52 | 0 | 2.72 | |
+| no masking | 7.22 ± 0.18 | 64.8 | 100.0 | 100.0 | 3.79 | 0 | 2.78 | +12% cost |
+| no externalization | 13.12 ± 0.54 | 41.4 | 100.0 | 100.0 | 6.58 | 0 | 8.43 | +104% cost, +87% tool tokens |
+| no dedupe or unchanged-read stubs | 6.61 ± 0.28 | 67.4 | 100.0 | 100.0 | 3.57 | 0 | 2.67 | +3% cost |
+| no task state block | 5.96 ± 0.22 | 69.7 | 98.8 | 100.0 | 3.55 | 0 | 2.02 | −7% cost, misses 5 of 31 current-error probes |
+| no pinned directives | 6.26 ± 0.21 | 68.8 | 100.0 | 77.0 | 3.53 | 0 | 2.75 | −3% cost, standing rules drop to 77% |
+| no task state, no pins | 5.80 ± 0.21 | 70.4 | 98.8 | 80.9 | 3.56 | 0 | 1.84 | −10% cost, both losses |
+| no retrieval tools | 6.30 ± 0.33 | 67.7 | 49.7 | 100.0 | 3.57 | 0 | 2.06 | −2% cost, recoverable facts halve |
+| rolling masking | 9.58 ± 0.38 | 51.2 | 100.0 | 100.0 | 3.63 | 0 | 2.43 | +49% cost from cache breaks |
+| layout from the brief (task state before history) | 11.05 ± 0.27 | 42.2 | 100.0 | 100.0 | 3.50 | 0 | 2.51 | +72% cost from cache breaks |
+| synchronous compaction | 5.37 ± 0.16 | 74.2 | 100.0 | 100.0 | 3.40 | 427.6 ± 18.4 | 14.13 | −16% cost, 7 minutes of blocking per session |
 
 Every component except deduplication earns its cost on this workload. Externalizing oversized outputs at ingestion is the largest single saving. Masking in epochs instead of a rolling window, and keeping dynamic blocks out of the cached prefix, together account for most of the remaining cost difference. Synchronous compaction is cheaper and blocks the foreground; the asynchronous default trades about 16% more input cost for zero summarization wait. Hosts that are cost-bound rather than latency-bound can set `compaction.async` to false.
 
@@ -173,15 +173,37 @@ A first reader run used a 120-token answer cap and a short-answer prompt. 56 ans
 | zero cross-agent or cross-session leakage | met in tests | `TestCrossSessionIsolation`, `TestSubagentIsolationAndHandoff`, `TestHTTPFlow`; the benchmarks are single-agent |
 | zero known context-overflow requests in controlled tests | met | 0 overflow turns in all 63 runs of G and its ablations; capacity checked in property tests across masking modes and sync and async compaction |
 | no synchronous summarization in normal operation | met | G foreground wait 0 s in every run; sync mode exists only when configured |
-| under 20 ms p95 incremental overhead for small events | met | see performance below |
-| under 20 ms p95 lexical retrieval on a representative corpus | met at 3.4k chunks, missed at 13k chunks | see performance below |
+| under 20 ms p95 incremental overhead for small events | met | append 0.56 ms per small event; assemble p95 2.9 to 3.4 ms; 9.6 ms with four agents at once (see performance) |
+| under 20 ms p95 lexical retrieval on a representative corpus | met at 3.4k chunks (9.4 ms), missed at 13.2k chunks (33.7 ms) | see performance |
 | at least 50% fewer unnecessary tool-output tokens | met at 64k, partly at 200k | tool tokens sent: G 3.52 M vs E 7.34 M (−52%) and B 7.44 M (−53%) at 64k; at 200k G 18.84 M vs E 25.84 M (−27%) and B 35.97 M (−48%) |
 | lower foreground compaction latency than existing compaction | met | G 0 s vs B 825 s (64k) and 298 s (200k), modeled |
 | no meaningful degradation in task success vs the strongest baseline | met on this workload | reader accuracy G 100% vs B 23%; this is not a measurement of task success on real repositories |
 
 ## Performance
 
-PERFORMANCE_SECTION
+Measured on the same machine with `go test` micro-benchmarks and latency profiles (`engine/bench_test.go`), `synchronous=FULL` (an fsync on every commit), after a warm-up session. Commands are in "Reproducing".
+
+| operation | measurement |
+|---|---|
+| append a small event (assistant tool call or short tool result) | 0.56 ms mean per event |
+| append a 160 KB test log, background indexing (default) | 36 ms mean |
+| append a 160 KB test log, indexing inline | 51 ms mean |
+| assemble, 64k window, 45k-token context, 93 messages | 1.35 ms mean |
+| assemble, 200k window, 68k-token context | 0.74 ms mean |
+| assemble per turn inside the benchmark sessions (G) | p95 2.94 ms (64k), 3.40 ms (200k) |
+| search, representative session (300 turns, 3.4k indexed chunks) | p50 2.33 ms, p95 9.44 ms, p99 11.42 ms |
+| search, long session (1,200 turns, 13.2k indexed chunks) | p50 3.58 ms, p95 33.73 ms, p99 36.30 ms |
+| four agents running concurrently, 150 turns each, one engine | append p95 9.29 ms, assemble p95 9.59 ms, no cross-agent hits, integrity verified |
+
+Against the targets:
+
+- **Incremental overhead for ordinary small events: met.** Append is under 1 ms and assembly is under 3.5 ms at p95, both including SQLite commits with fsync.
+- **Large tool outputs cost tens of milliseconds:** about 36 ms for a 160 KB log. The cost is the regex passes for the log digest and path extraction, after the optimizations recorded in `docs/experiments.md` (from 73 ms). This runs once per output, between tool execution and the next request.
+- **Lexical retrieval: met for the representative corpus, missed for long sessions.** At 13k chunks the p95 is 34 ms. The OR fallback query scores every matching chunk with BM25 in pure-Go SQLite. A cgo SQLite build, a recency cap on candidates, or a cheaper first-pass ranking would be the next steps.
+
+Earlier builds missed the overhead targets by wide margins: search p95 52 ms at 4.5k chunks because FTS5 `snippet()` ran on every candidate, and append p95 71 ms in the benchmark because of regex digests. Each fix was checked to leave the benchmark results unchanged (`docs/experiments.md`).
+
+CPU profiles are produced with `-cpuprofile` on any of the benchmarks above. The SQLite file is 24 MB after a 300-turn session at 64k and 32 MB after a 400-turn session at 200k. That covers 7 and 10 MB of raw content respectively, plus compressed blobs, FTS5 indexes with identifier subwords, summaries and per-turn view records.
 
 ## Reproducing
 
@@ -193,6 +215,7 @@ go build -o bin/palbench ./cmd/palbench
 OPENROUTER_API_KEY=... ./bin/palbench -window 64000 -turns 300 -seeds 1,2 -strategies G-hybrid -openrouter-reader anthropic/claude-haiku-5.5 -reader-points 4 -out out/reader-G
 go test ./engine -run '^$' -bench . -benchtime 300x
 go test ./engine -run TestSearchLatencyProfile -v
+go test ./engine -run TestMultiAgentLoadProfile -v
 ```
 
 The deterministic runs give identical results on the same build. The workload, ids and clock are seeded, and the summarizer is deterministic. Engine latency varies with the machine.

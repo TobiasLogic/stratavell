@@ -57,7 +57,12 @@ The full schema is in `docs/schema.md`.
 
 1. Validates the message shape and steps a copy of the tool-pairing state. Orphan results, unanswered calls and duplicate call ids are rejected.
 2. Infers the content type (file read, file write, command, test, search, retrieval) from metadata and tool names, and pulls the command and paths from the tool call input.
-3. Computes derived metadata: a log digest for command and test output (assertion lines first, then other error lines, failing test names, locations, summary line), a file hash for reads, and a preview if the output is over `max_observation_tokens`.
+3. Computes derived metadata:
+   - a log digest for command and test output (assertion lines first, then other error lines, failing test names, locations, summary line)
+   - code symbols for file contents and messages (for command output, the failing test names stand in for symbols)
+   - paths from the first 64 KB
+   - a file hash for reads
+   - a preview if the output is over `max_observation_tokens`
 4. Writes blobs, the event, blob references, path and symbol rows, and task items in one transaction, then advances the agent head.
 5. Updates in-memory state, queues the event for indexing, and asks the scheduler whether background compaction should start.
 

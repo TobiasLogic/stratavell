@@ -16,7 +16,11 @@ Four research passes read the primary sources and code listed in `docs/research/
 | 10:25 | e1afa7d | full suites rerun | completed; G cost $8.01 at 64k, engine p95 8.0 ± 12.1 ms with spikes on turns with a new user message; superseded by the final runs |
 | 10:40 | 8532d05 | search latency profile | p95 search 52 ms at 4.5k chunks before the fix (FTS5 `snippet()` on every candidate); after snippets only for final hits, df-based pruning and AND-first queries: p95 8.8 ms at 3.4k chunks, 33 ms at 13.2k chunks |
 | 10:50 | 8532d05 plus changes | smoke5 to smoke7: task state and breakpoint ablations, 300 turns, seeds 1 and 2 | found that the task state block cost 29% of input money in the tail; a snapshot in the cached prefix plus a tail delta cut that, and moving the archive breakpoint onto the last summary cut G from $7.79 to $6.35 |
-| 11:02 | 56cd6f8 | **final suites**: 64k main (5 seeds), 64k ablation (11 variants, 5 seeds), 200k main (3 seeds) | completed; these are the numbers in `docs/benchmarks.md` |
+| 11:02 | 56cd6f8 | final suites: 64k main (5 seeds), 64k ablation (11 variants, 5 seeds), 200k main (3 seeds) | completed |
+| 13:11 | 0dc39e9 | `go test -race ./...` | all packages passed, no races reported; the engine package took 1,987 s under the race detector |
+| 13:30 | 1479e22 onward | append profiling | a 160 KB log took 73 ms to append with inline indexing; keyword prefilters for digest regexes, no code-symbol scan for command output, prefix checks for pass lines and tighter location hints brought the benchmark-mode append p95 from 71 ms to 25 ms; G's seed-1 results were compared after each change: identical except 24 input tokens out of 7.4 million (auto-injected evidence ranked slightly differently once log symbols were dropped) |
+| 13:47 | c6ff120 | **final suites rerun on the release build** | all reported metrics identical to the 56cd6f8 run at two decimals; engine wall-clock p95 within noise; these artifacts are the ones in `bench/results/2026-11-26/` |
+| 14:00 | c6ff120 | latency profiles and micro-benchmarks | see `docs/benchmarks.md`, "Performance" |
 
 ## Real-model runs
 
