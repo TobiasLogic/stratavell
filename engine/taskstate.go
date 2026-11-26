@@ -445,3 +445,38 @@ func (a *Agent) renderTaskState(items []TaskItem, budget int) (string, int) {
 	b.WriteString("</task_state>")
 	return b.String(), a.e.count(b.String())
 }
+
+func (a *Agent) renderTaskDelta(items []TaskItem, since int64, budget int) (string, int) {
+	var lines []string
+	used := 0
+	omitted := 0
+	for i := len(items) - 1; i >= 0; i-- {
+		t := items[i]
+		if t.CreatedAt <= since || t.Kind == kindConstraint || t.Kind == kindDirective {
+			continue
+		}
+		line := fmt.Sprintf("- %s [%s %s] %s", t.Kind, t.Provenance, t.Status, textproc.Clip(strings.ReplaceAll(t.Text, "\n", " "), 300))
+		if t.Status == statusConflict {
+			line += " (CONFLICT: check provenance)"
+		}
+		lt := a.e.count(line) + 1
+		if used+lt > budget {
+			omitted++
+			continue
+		}
+		lines = append(lines, line)
+		used += lt
+	}
+	if len(lines) == 0 {
+		return "", 0
+	}
+	for i, j := 0, len(lines)-1; i < j; i, j = i+1, j-1 {
+		lines[i], lines[j] = lines[j], lines[i]
+	}
+	s := "<task_state_changes note=\"task state updates since the snapshot in the archive block; newest last\">\n" + strings.Join(lines, "\n")
+	if omitted > 0 {
+		s += fmt.Sprintf("\n(%d older changes omitted; memory_get_task_state returns all)", omitted)
+	}
+	s += "\n</task_state_changes>"
+	return s, a.e.count(s) + 4
+}

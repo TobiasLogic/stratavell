@@ -149,14 +149,12 @@ func (a *Agent) Append(ctx context.Context, m msg.Message) (EventRef, error) {
 		if err := a.writeEvent(ctx, tx, plan); err != nil {
 			return err
 		}
-		if a.pol.TaskState {
-			w, err := a.extractTaskState(ctx, tx, plan)
-			if err != nil {
-				return err
-			}
-			items = w
+		w, err := a.extractTaskState(ctx, tx, plan)
+		if err != nil {
+			return err
 		}
-		_, err := tx.ExecContext(ctx, "UPDATE agents SET head_seq=? WHERE session_id=? AND id=?", plan.ev.Seq, a.s.id, a.id)
+		items = w
+		_, err = tx.ExecContext(ctx, "UPDATE agents SET head_seq=? WHERE session_id=? AND id=?", plan.ev.Seq, a.s.id, a.id)
 		return err
 	})
 	if err != nil {

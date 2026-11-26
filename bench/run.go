@@ -60,7 +60,7 @@ func bare(p engine.Policy) engine.Policy {
 
 var AllStrategies = []string{"A-uncompressed", "B-conventional", "C-noa", "D-masking", "E-sync-summary", "F-async-progressive", "G-hybrid"}
 
-var Ablations = []string{"G-no-masking", "G-no-externalize", "G-no-dedupe", "G-no-taskstate", "G-no-retrieval", "G-rolling-mask", "G-layout-spec", "G-sync"}
+var Ablations = []string{"G-no-masking", "G-no-externalize", "G-no-dedupe", "G-no-taskstate", "G-no-pins", "G-no-taskstate-pins", "G-no-retrieval", "G-rolling-mask", "G-layout-spec", "G-sync"}
 
 func PolicyFor(name string, window, maxOut int) (engine.Policy, bool) {
 	b := basePolicy(window, maxOut)
@@ -97,6 +97,12 @@ func PolicyFor(name string, window, maxOut int) (engine.Policy, bool) {
 		b.Masking.UnchangedReads = false
 		return b, true
 	case "G-no-taskstate":
+		b.TaskState = false
+		return b, true
+	case "G-no-pins":
+		b.PinDirective = false
+		return b, true
+	case "G-no-taskstate-pins":
 		b.TaskState = false
 		b.PinDirective = false
 		return b, true

@@ -94,6 +94,8 @@ type parts struct {
 	evid      string
 	evidTok   int
 	total     int
+	snap      string
+	snapTok   int
 }
 
 func (e *Engine) toolTokens(ts []msg.ToolDef) int {
@@ -280,7 +282,13 @@ func (a *Agent) measure(ctx context.Context, fixed int, req AssembleRequest) (pa
 			return p, err
 		}
 		budget := max(400, int(a.pol.Budget.TaskStateFraction*float64(a.capacity())))
-		p.task, p.taskTok = a.renderTaskState(items, budget)
+		if a.pol.Cache.Layout == LayoutSpec || a.taskSnap == "" {
+			p.task, p.taskTok = a.renderTaskState(items, budget)
+		} else {
+			p.snap, p.snapTok = a.taskSnap, a.taskSnapTok
+			p.task, p.taskTok = a.renderTaskDelta(items, a.taskSnapAt, budget/2)
+			p.taskTok += p.snapTok
+		}
 	}
 	p.hist = a.renderRaw()
 	for _, r := range p.hist {
@@ -372,6 +380,9 @@ func (a *Agent) build(system []SystemBlock, tools []msg.ToolDef, p parts, rep *R
 	if p.pinned != "" {
 		prefix = append(prefix, msg.Part{Type: msg.PartText, Text: p.pinned})
 	}
+	if p.snap != "" {
+		prefix = append(prefix, msg.Part{Type: msg.PartText, Text: p.snap})
+	}
 	if a.pol.Cache.Layout == LayoutSpec && p.task != "" {
 		prefix = append(prefix, msg.Part{Type: msg.PartText, Text: p.task})
 	}
@@ -383,11 +394,11 @@ func (a *Agent) build(system []SystemBlock, tools []msg.ToolDef, p parts, rep *R
 		pm := AMessage{Role: msg.RoleUser, Parts: prefix, Kind: "archive"}
 		out.Messages = append(out.Messages, pm)
 		bpPart := len(prefix) - 1
-		if a.pol.Cache.Layout == LayoutSpec {
+		if sumEnd >= 0 {
 			bpPart = sumEnd
-			if p.pinned != "" {
-				bpPart = sumEnd + 1
-			}
+		}
+		if a.pol.Cache.Layout == LayoutSpec && sumEnd >= 0 && p.pinned != "" {
+			bpPart = sumEnd + 1
 		}
 		if bpPart >= 0 {
 			out.Breakpoints = append(out.Breakpoints, Breakpoint{Message: 0, Part: bpPart, Label: "archive"})

@@ -14,7 +14,7 @@ import (
 )
 
 func sanitizeArchiveText(s string) string {
-	r := strings.NewReplacer("</archive", "<\\/archive", "<archive", "<\\archive", "</standing_instructions", "<\\/standing_instructions", "<standing_instructions", "<\\standing_instructions", "</task_state", "<\\/task_state", "<task_state", "<\\task_state", "</retrieved_evidence", "<\\/retrieved_evidence", "<retrieved_evidence", "<\\retrieved_evidence")
+	r := strings.NewReplacer("</archive", "<\\/archive", "<archive", "<\\archive", "</standing_instructions", "<\\/standing_instructions", "<standing_instructions", "<\\standing_instructions", "</task_state", "<\\/task_state", "<task_state", "<\\task_state", "</task_state_changes", "<\\/task_state_changes", "</retrieved_evidence", "<\\/retrieved_evidence", "<retrieved_evidence", "<\\retrieved_evidence")
 	return r.Replace(s)
 }
 

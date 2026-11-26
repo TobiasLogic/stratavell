@@ -245,6 +245,15 @@ func (a *Agent) commitView(ctx context.Context, ch publishChange) error {
 	if err != nil {
 		return err
 	}
+	sameFrontier := len(ch.frontier) == len(a.frontier)
+	if sameFrontier {
+		for i := range ch.frontier {
+			if ch.frontier[i].ID != a.frontier[i].ID {
+				sameFrontier = false
+				break
+			}
+		}
+	}
 	a.gen = gen
 	a.frontier = ch.frontier
 	if ch.boundary > a.boundary {
@@ -257,7 +266,30 @@ func (a *Agent) commitView(ctx context.Context, ch publishChange) error {
 	a.boundary = ch.boundary
 	a.maskSeq = ch.maskSeq
 	a.e.metrics.inc("generations", 1)
+	if sameFrontier && a.pinnedInit {
+		return a.refreshExempt(ctx)
+	}
 	return a.refreshPinned(ctx)
+}
+
+func (a *Agent) refreshExempt(ctx context.Context) error {
+	items, err := a.e.liveTaskItems(ctx, a.e.db.R, a.s.id, a.id, []string{kindFailure})
+	if err != nil {
+		return err
+	}
+	kept := a.pinned[:0:0]
+	for _, p := range a.pinned {
+		if p.exemptEvent == "" {
+			kept = append(kept, p)
+		}
+	}
+	for _, ti := range items {
+		if ti.Status == statusOpen && ti.SourceEvent != "" {
+			kept = append(kept, pinItem{taskID: ti.ID, exemptEvent: ti.SourceEvent})
+		}
+	}
+	a.pinned = kept
+	return nil
 }
 
 func (a *Agent) publishReady(ctx context.Context) (int, error) {
@@ -388,13 +420,20 @@ func maxI64(a, b int64) int64 {
 }
 
 func (a *Agent) refreshPinned(ctx context.Context) error {
-	if !a.pol.PinDirective && !a.pol.TaskState {
-		a.pinned = nil
-		return nil
-	}
-	items, err := a.e.liveTaskItems(ctx, a.e.db.R, a.s.id, a.id, []string{kindConstraint, kindDirective, kindFailure})
+	all, err := a.e.liveTaskItems(ctx, a.e.db.R, a.s.id, a.id, nil)
 	if err != nil {
 		return err
+	}
+	a.taskSnap, a.taskSnapTok, a.taskSnapAt = "", 0, a.e.now()
+	if a.pol.TaskState && a.pol.Cache.Layout != LayoutSpec && a.gen > 0 {
+		budget := max(400, int(a.pol.Budget.TaskStateFraction*float64(a.capacity())))
+		a.taskSnap, a.taskSnapTok = a.renderTaskState(all, budget)
+	}
+	var items []TaskItem
+	for _, t := range all {
+		if t.Kind == kindConstraint || t.Kind == kindDirective || t.Kind == kindFailure {
+			items = append(items, t)
+		}
 	}
 	visible := map[string]bool{}
 	for _, it := range a.raw {
@@ -421,6 +460,7 @@ func (a *Agent) refreshPinned(ctx context.Context) error {
 	}
 	sort.SliceStable(pins, func(i, j int) bool { return pins[i].seq < pins[j].seq })
 	a.pinned = pins
+	a.pinnedInit = true
 	return nil
 }
 

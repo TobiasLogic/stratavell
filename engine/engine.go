@@ -354,6 +354,10 @@ type Agent struct {
 	waitMS        float64
 	squeeze       bool
 	emergencyMask int64
+	taskSnap      string
+	taskSnapTok   int
+	taskSnapAt    int64
+	pinnedInit    bool
 }
 
 func newAgent(s *Session, id string, pol Policy) *Agent {
