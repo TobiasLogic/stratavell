@@ -252,7 +252,11 @@ func (a *Agent) planAppend(m msg.Message) (*appendPlan, error) {
 		paths = append(paths, textproc.Paths(text, 16)...)
 	}
 	ev.Paths = dedupeStrings(paths)
-	if ev.ContentType != msg.CTRetrieval {
+	switch ev.ContentType {
+	case msg.CTRetrieval:
+	case msg.CTCommand, msg.CTTest, msg.CTSearch:
+		ev.Symbols = nil
+	default:
 		ev.Symbols = textproc.Symbols(text, 48)
 	}
 	if m.Role == msg.RoleTool {
@@ -264,6 +268,9 @@ func (a *Agent) planAppend(m msg.Message) (*appendPlan, error) {
 		if ev.ContentType == msg.CTCommand || ev.ContentType == msg.CTTest || ev.IsError || lines > 40 {
 			d := textproc.DigestLog(text, a.pol.Masking.DigestErrors)
 			meta.Digest = &d
+			if ev.ContentType == msg.CTCommand || ev.ContentType == msg.CTTest || ev.ContentType == msg.CTSearch {
+				ev.Symbols = dedupeStrings(append(append([]string(nil), d.FailedTests...), ev.Symbols...))
+			}
 		}
 		if ev.ContentType == msg.CTFileRead {
 			fh := m.Meta.FileHash

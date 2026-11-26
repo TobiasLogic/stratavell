@@ -36,12 +36,6 @@ var (
 		regexp.MustCompile(`^test (\S+) \.\.\. FAILED`),
 		regexp.MustCompile(`^\s*FAIL\s+(\S+\.(?:test|spec)\.[jt]sx?)`),
 	}
-	rePassTest = []*regexp.Regexp{
-		regexp.MustCompile(`^--- PASS: `),
-		regexp.MustCompile(`^test \S+ \.\.\. ok`),
-		regexp.MustCompile(` PASSED`),
-		regexp.MustCompile(`^\s*✓ `),
-	}
 	reLocation = regexp.MustCompile(`([A-Za-z0-9_\-./]+\.(?:go|py|js|ts|tsx|jsx|rs|java|c|cc|cpp|h|hpp|rb|php|cs|kt|swift|scala|lua|sh|yaml|yml|json|toml)):(\d+)(?::(\d+))?`)
 	reSummary  = regexp.MustCompile(`(?i)^(ok\s+\S+|FAIL\s+\S+|=+ .*(passed|failed|error).* =+|Tests?:\s+.*|test result: .*|\d+ (passed|failed).*|Ran \d+ tests? in .*|BUILD (SUCCESS|FAILED).*)`)
 )
@@ -67,15 +61,10 @@ func DigestLog(s string, maxErrors int) LogDigest {
 				}
 			}
 		}
-		if strings.Contains(t, "PASS") || strings.Contains(t, "ok") || strings.Contains(t, "✓") {
-			for _, re := range rePassTest {
-				if re.MatchString(t) {
-					d.PassedTests++
-					break
-				}
-			}
+		if isPassLine(t) {
+			d.PassedTests++
 		}
-		if strings.Contains(t, ":") && strings.Contains(t, ".") && len(seenLoc) < 32 {
+		if len(seenLoc) < 32 && hasLocHint(t) {
 			for _, m := range reLocation.FindAllString(t, 4) {
 				if !seenLoc[m] && len(seenLoc) < 32 {
 					seenLoc[m] = true
@@ -137,8 +126,39 @@ func hasSignal(lower string) bool {
 	return false
 }
 
+func isPassLine(t string) bool {
+	if strings.HasPrefix(t, "--- PASS: ") || strings.Contains(t, " PASSED") {
+		return true
+	}
+	if strings.HasPrefix(t, "test ") && strings.HasSuffix(strings.TrimSpace(t), "... ok") {
+		return true
+	}
+	return strings.HasPrefix(strings.TrimLeft(t, " \t"), "✓ ")
+}
+
 func summaryHint(t string) bool {
-	return strings.Contains(t, "ok") || strings.Contains(t, "FAIL") || strings.Contains(t, "passed") || strings.Contains(t, "failed") || strings.Contains(t, "Test") || strings.Contains(t, "test result") || strings.Contains(t, "Ran ") || strings.Contains(t, "BUILD") || strings.Contains(t, "error") || strings.Contains(t, "=====")
+	x := strings.TrimSpace(t)
+	if x == "" {
+		return false
+	}
+	switch x[0] {
+	case 'o', 'F', 'T', 't', 'R', 'B', '=':
+	default:
+		return x[0] >= '0' && x[0] <= '9' && (strings.Contains(x, "passed") || strings.Contains(x, "failed"))
+	}
+	return strings.HasPrefix(x, "ok") || strings.HasPrefix(x, "FAIL") || strings.HasPrefix(x, "Test") || strings.HasPrefix(x, "test result") || strings.HasPrefix(x, "Ran ") || strings.HasPrefix(x, "BUILD") || strings.HasPrefix(x, "=")
+}
+
+func hasLocHint(t string) bool {
+	for i := 1; i+1 < len(t); i++ {
+		if t[i] == ':' && t[i+1] >= '0' && t[i+1] <= '9' {
+			c := t[i-1]
+			if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 const scanCap = 64 << 10
