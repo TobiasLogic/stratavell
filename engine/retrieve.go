@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -27,18 +28,19 @@ type SearchFilters struct {
 }
 
 type SearchHit struct {
-	ID         string  `json:"id"`
-	Kind       string  `json:"kind"`
-	Agent      string  `json:"agent"`
-	Seq        int64   `json:"seq"`
-	Role       string  `json:"role,omitempty"`
-	Tool       string  `json:"tool,omitempty"`
-	Snippet    string  `json:"snippet"`
-	Score      float64 `json:"score"`
-	Provenance string  `json:"provenance"`
-	InContext  bool    `json:"in_context"`
-	Stale      bool    `json:"stale,omitempty"`
-	Tokens     int     `json:"tokens"`
+	ID         string   `json:"id"`
+	Kind       string   `json:"kind"`
+	Agent      string   `json:"agent"`
+	Seq        int64    `json:"seq"`
+	Role       string   `json:"role,omitempty"`
+	Tool       string   `json:"tool,omitempty"`
+	Snippet    string   `json:"snippet"`
+	Score      float64  `json:"score"`
+	Provenance string   `json:"provenance"`
+	InContext  bool     `json:"in_context"`
+	Stale      bool     `json:"stale,omitempty"`
+	Tokens     int      `json:"tokens"`
+	Paths      []string `json:"paths,omitempty"`
 }
 
 var (
@@ -341,6 +343,17 @@ func (a *Agent) rank(ctx context.Context, query string, f SearchFilters, limit i
 	}
 	terms := queryTerms(query)
 	for i := range hits {
+		if hits[i].Kind == "event" {
+			var pj string
+			if a.e.db.R.QueryRowContext(ctx, "SELECT paths FROM events WHERE id=?", hits[i].ID).Scan(&pj) == nil {
+				var ps []string
+				_ = json.Unmarshal([]byte(pj), &ps)
+				if len(ps) > 3 {
+					ps = ps[:3]
+				}
+				hits[i].Paths = ps
+			}
+		}
 		if c := byID[hits[i].ID]; c != nil && c.docID > 0 {
 			var body string
 			if a.e.db.R.QueryRowContext(ctx, "SELECT body FROM docs_fts WHERE rowid=?", c.docID).Scan(&body) == nil {

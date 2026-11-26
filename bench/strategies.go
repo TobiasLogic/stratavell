@@ -320,7 +320,11 @@ func (s *EngineStrategy) RetrieveText(ctx context.Context, query string, budget 
 	var b strings.Builder
 	fmt.Fprintf(&b, "[memory_search %q]\n", query)
 	for _, h := range hits {
-		fmt.Fprintf(&b, "- %s (%s): %s\n", h.ID, h.Provenance, h.Snippet)
+		where := ""
+		if len(h.Paths) > 0 {
+			where = ", path " + strings.Join(h.Paths, ", ")
+		}
+		fmt.Fprintf(&b, "- %s (%s%s): %s\n", h.ID, h.Provenance, where, h.Snippet)
 	}
 	for i, h := range hits {
 		if i >= 2 {
@@ -329,13 +333,13 @@ func (s *EngineStrategy) RetrieveText(ctx context.Context, query string, budget 
 		var text string
 		if h.Kind == "summary" {
 			text, _ = s.a.Expand(ctx, h.ID, 0, 0, budget/2)
-		} else if _, m, err := s.a.GetEvent(ctx, h.ID); err == nil {
-			text = m.PlainText()
+		} else if t, err := s.a.ReadEvent(ctx, h.ID, 0); err == nil {
+			text = t
 		}
 		if tokens.Estimate(text) > budget/2 {
 			text = text[:min(len(text), budget*2)]
 		}
-		fmt.Fprintf(&b, "[memory_get_event %s]\n%s\n", h.ID, text)
+		fmt.Fprintf(&b, "%s\n", text)
 	}
 	return b.String()
 }

@@ -792,3 +792,20 @@ func TestDurationConfigRoundTrip(t *testing.T) {
 		t.Fatalf("numeric duration: %v %v", err, r.Compaction.JobTimeout)
 	}
 }
+
+func TestRetrievalOutputsCarryProvenance(t *testing.T) {
+	e := openEngine(t, smallPolicy(16000))
+	a := mustAgent(t, e, "s", "a")
+	ctx := context.Background()
+	mustAppend(t, a, msg.Text(msg.RoleUser, "check config"))
+	mustAppend(t, a, msg.Message{Role: msg.RoleAssistant, Parts: []msg.Part{{Type: msg.PartToolCall, ToolCallID: "r", ToolName: "read_file", Input: json.RawMessage(`{"path":"pkg/api/config.go"}`)}}})
+	ref := mustAppend(t, a, msg.ToolResult("r", "read_file", "package api\n\nconst (\n\tRetryLimit = 7\n)\n", false, msg.Meta{ContentType: msg.CTFileRead, Paths: []string{"pkg/api/config.go"}}))
+	out := a.HandleTool(ctx, "memory_search", json.RawMessage(`{"query":"RetryLimit"}`))
+	if !strings.Contains(out.Text, "path pkg/api/config.go") {
+		t.Fatalf("search hit lacks its file: %s", out.Text)
+	}
+	page, err := a.ReadEvent(ctx, ref.ID, 0)
+	if err != nil || !strings.Contains(page, "path pkg/api/config.go") || !strings.Contains(page, "RetryLimit = 7") {
+		t.Fatalf("event page lacks provenance: %v %s", err, page)
+	}
+}

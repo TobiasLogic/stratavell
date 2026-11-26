@@ -53,7 +53,11 @@ func (a *Agent) refreshEvidence(ctx context.Context, req AssembleRequest) error 
 		if h.InContext || h.ID == last.ev.ID || n >= a.pol.Retrieval.AutoInjectHits {
 			continue
 		}
-		line := fmt.Sprintf("- %s (%s, seq %d, %s): %s\n", h.ID, h.Kind, h.Seq, h.Provenance, h.Snippet)
+		where := ""
+		if len(h.Paths) > 0 {
+			where = ", path " + strings.Join(h.Paths, ", ")
+		}
+		line := fmt.Sprintf("- %s (%s, seq %d, %s%s): %s\n", h.ID, h.Kind, h.Seq, h.Provenance, where, h.Snippet)
 		if a.e.count(b.String()+line) > budget {
 			break
 		}
