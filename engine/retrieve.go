@@ -89,7 +89,10 @@ func quoteOr(terms []string) string {
 	return strings.Join(q, " OR ")
 }
 
-const commonTermRatio = 0.05
+const (
+	commonTermRatio   = 0.05
+	moderateTermRatio = 0.20
+)
 
 func quoteAnd(terms []string) string {
 	q := make([]string, len(terms))
@@ -118,10 +121,17 @@ func (a *Agent) prunedTerms(ctx context.Context, q string) []string {
 			keep = append(keep, t)
 		}
 	}
-	if len(keep) < min(3, len(all)) {
-		sort.Slice(all, func(i, j int) bool { return all[i].r < all[j].r })
-		keep = keep[:0]
-		for i := 0; i < len(all) && i < 3; i++ {
+	sort.SliceStable(all, func(i, j int) bool { return all[i].r < all[j].r })
+	for _, x := range all {
+		if len(keep) >= min(3, len(all)) {
+			break
+		}
+		if x.r > commonTermRatio && x.r <= moderateTermRatio {
+			keep = append(keep, x.t)
+		}
+	}
+	if len(keep) == 0 {
+		for i := 0; i < len(all) && i < 2; i++ {
 			keep = append(keep, all[i].t)
 		}
 	}
@@ -234,7 +244,14 @@ func (a *Agent) gather(ctx context.Context, query string, f SearchFilters) (map[
 		return nil, err
 	}
 	lists := map[string][]candidate{}
-	if keep := a.prunedTerms(ctx, query); len(keep) > 0 {
+	pathOnly := false
+	if q := strings.TrimSpace(query); q != "" && strings.ContainsAny(q, "/.") && rePathTok.FindString(q) == q {
+		if err := a.pathHits(ctx, q, f.Path, vis, lists); err != nil {
+			return nil, err
+		}
+		pathOnly = len(lists["path"]) > 0
+	}
+	if keep := a.prunedTerms(ctx, query); len(keep) > 0 && !pathOnly {
 		sid := sessionToken(a.s.id)
 		run := func(expr string) error {
 			rows, err := a.e.db.R.QueryContext(ctx, `SELECT d.ref_kind, d.ref_id, d.agent_id, d.scope, d.seq, d.ts, d.tool, d.reliability, d.id, bm25(docs_fts, 1.0, 0.4, 0.0)
@@ -274,8 +291,10 @@ WHERE docs_fts MATCH ? ORDER BY bm25(docs_fts, 1.0, 0.4, 0.0) LIMIT 80`, "sid:"+
 	if err := a.symbolHits(ctx, query, vis, lists); err != nil {
 		return nil, err
 	}
-	if err := a.pathHits(ctx, query, f.Path, vis, lists); err != nil {
-		return nil, err
+	if !pathOnly {
+		if err := a.pathHits(ctx, query, f.Path, vis, lists); err != nil {
+			return nil, err
+		}
 	}
 	for _, id := range reIDTok.FindAllString(query, 8) {
 		if c, ok := a.idCandidate(ctx, id, vis); ok {
@@ -309,12 +328,13 @@ func (a *Agent) rank(ctx context.Context, query string, f SearchFilters, limit i
 			clists[name] = append(clists[name], Candidate{List: name, Rank: rank, RefKind: c.refKind, RefID: c.refID, Agent: c.agent, Seq: c.seq, TS: c.ts, Tool: c.tool, Reliability: c.rel, OwnAgent: c.agent == a.id, HeadSeq: head})
 		}
 	}
-	stale := map[string]bool{}
-	for id, c := range byID {
-		if c.refKind == "event" && c.agent == a.id && looksLikeRead(c.tool) && a.isStale(c) {
-			stale[id] = true
+	var reads []*candidate
+	for _, c := range byID {
+		if c.refKind == "event" && c.agent == a.id && looksLikeRead(c.tool) {
+			reads = append(reads, c)
 		}
 	}
+	stale := a.staleSet(ctx, reads)
 	for name, l := range clists {
 		for i := range l {
 			l[i].Stale = stale[l[i].RefID]
@@ -630,21 +650,32 @@ func (a *Agent) inContextSetLocked() map[string]bool {
 	return out
 }
 
-func (a *Agent) isStale(c *candidate) bool {
-	if c.refKind != "event" || c.agent != a.id {
-		return false
+func (a *Agent) staleSet(ctx context.Context, cands []*candidate) map[string]bool {
+	out := map[string]bool{}
+	if len(cands) == 0 {
+		return out
 	}
-	var ct string
-	var paths string
-	if err := a.e.db.R.QueryRow("SELECT content_type, paths FROM events WHERE id=?", c.refID).Scan(&ct, &paths); err != nil {
-		return false
+	args := []any{string(msg.CTFileRead)}
+	marks := make([]string, len(cands))
+	for i, c := range cands {
+		marks[i] = "?"
+		args = append(args, c.refID)
 	}
-	if ct != string(msg.CTFileRead) {
-		return false
+	args = append(args, a.s.id)
+	rows, err := a.e.db.R.QueryContext(ctx, `SELECT ev.id FROM events ev
+WHERE ev.content_type = ? AND ev.id IN (`+strings.Join(marks, ",")+`)
+AND EXISTS (SELECT 1 FROM paths r JOIN paths w ON w.session_id = ? AND w.path = r.path AND w.seq > ev.seq AND w.op = 'write' WHERE r.event_id = ev.id AND r.op = 'read')`, args...)
+	if err != nil {
+		return out
 	}
-	var n int
-	_ = a.e.db.R.QueryRow("SELECT COUNT(*) FROM paths p WHERE p.session_id=? AND p.op='write' AND p.seq > ? AND p.path IN (SELECT path FROM paths WHERE event_id=? AND op='read')", a.s.id, c.seq, c.refID).Scan(&n)
-	return n > 0
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil {
+			out[id] = true
+		}
+	}
+	return out
 }
 
 func (a *Agent) snippetFor(ctx context.Context, id, kind string) string {

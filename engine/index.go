@@ -155,7 +155,7 @@ type dfStats struct {
 func wordsOf(s string) map[string]bool {
 	out := map[string]bool{}
 	for _, w := range reQueryTok.FindAllString(s, -1) {
-		if len(w) >= 3 {
+		if len(w) >= 2 {
 			out[strings.ToLower(w)] = true
 		}
 		for _, sub := range textproc.SplitIdent(w) {

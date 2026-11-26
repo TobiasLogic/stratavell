@@ -450,7 +450,15 @@ func DefaultBlobPolicy() BlobPolicy { return store.DefaultBlobPolicy() }
 
 func (e *Engine) Checkpoint(ctx context.Context) error { return e.db.Checkpoint(ctx) }
 
-func (e *Engine) Vacuum(ctx context.Context) error { return e.db.Vacuum(ctx) }
+func (e *Engine) Vacuum(ctx context.Context) error {
+	if err := e.db.Tx(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, "INSERT INTO docs_fts(docs_fts) VALUES('optimize')")
+		return err
+	}); err != nil {
+		return err
+	}
+	return e.db.Vacuum(ctx)
+}
 
 func (e *Engine) Backup(ctx context.Context, dest string) error {
 	if _, err := os.Stat(dest); err == nil {
