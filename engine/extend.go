@@ -152,15 +152,15 @@ func (r RRFRanker) Rank(query string, lists map[string][]Candidate) map[string]f
 		switch c.Reliability {
 		case 3:
 		case 2:
-			s *= 0.85
+			s *= 0.97
 		default:
-			s *= 0.75
+			s *= 0.94
 		}
 		if c.Stale {
-			s *= 0.6
+			s *= 0.9
 		}
 		if c.OwnAgent && c.HeadSeq > 0 {
-			s *= 1 + 0.1*float64(c.Seq)/float64(c.HeadSeq)
+			s *= 1 + 0.03*float64(c.Seq)/float64(c.HeadSeq)
 		}
 		out[id] = s
 	}

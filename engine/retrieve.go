@@ -382,7 +382,7 @@ func (a *Agent) pathHits(ctx context.Context, query, path string, vis *visibilit
 			continue
 		}
 		p = strings.TrimPrefix(p, "./")
-		rows, err := a.e.db.R.QueryContext(ctx, "SELECT p.event_id, p.agent_id, p.seq, e.scope, e.ts, COALESCE(e.tool_name,''), e.role FROM paths p JOIN events e ON e.id=p.event_id WHERE p.session_id=? AND (p.path=? OR p.path LIKE ?) ORDER BY p.seq DESC LIMIT 20", a.s.id, p, "%/"+p)
+		rows, err := a.e.db.R.QueryContext(ctx, "SELECT p.event_id, p.agent_id, p.seq, e.scope, e.ts, COALESCE(e.tool_name,''), e.role FROM paths p JOIN events e ON e.id=p.event_id WHERE p.session_id=? AND (p.path=? OR p.path LIKE ?) ORDER BY (p.op != 'mention') DESC, p.seq DESC LIMIT 20", a.s.id, p, "%/"+p)
 		if err != nil {
 			return err
 		}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"math"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -197,6 +198,26 @@ func auxTerms(ev Event, extra string) string {
 	return b.String()
 }
 
+var reIdentTok = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_]{3,}`)
+
+func chunkAux(c string) string {
+	seen := map[string]bool{}
+	var b strings.Builder
+	for _, id := range reIdentTok.FindAllString(c, 400) {
+		if !strings.ContainsAny(id, "_ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+			continue
+		}
+		for _, w := range textproc.SplitIdent(id) {
+			if len(w) > 2 && !seen[w] {
+				seen[w] = true
+				b.WriteString(w)
+				b.WriteByte(' ')
+			}
+		}
+	}
+	return b.String()
+}
+
 func reliability(ev Event) int {
 	switch ev.Role {
 	case msg.RoleUser:
@@ -257,9 +278,9 @@ func (e *Engine) indexEvent(ctx context.Context, id string) error {
 				return err
 			}
 			docID, _ := res.LastInsertId()
-			a := ""
+			a := chunkAux(c)
 			if i == 0 {
-				a = aux
+				a = aux + " " + a
 			}
 			if _, err := tx.ExecContext(ctx, "INSERT INTO docs_fts(rowid, body, aux, sid) VALUES(?,?,?,?)", docID, c, a, sid); err != nil {
 				return err
