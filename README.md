@@ -71,14 +71,14 @@ The comparison below is against **component-matched** baselines: asynchronous an
 
 | strategy | requests that fit | simulated input cost per session | facts recoverable | standing rules visible | foreground summarization wait |
 |---|---|---|---|---|---|
-| async progressive summaries + retrieval | 100% | $12.88 ± 0.44 | 97.2% | 21.9% | 0 s |
-| sync progressive summaries + retrieval | 100% | $11.36 ± 0.55 | 97.2% | 22.0% | 320 s |
+| async progressive summaries + retrieval | 100% | $12.88 ± 0.44 | 97.2% | 7.3% | 0 s |
+| sync progressive summaries + retrieval | 100% | $11.36 ± 0.55 | 97.2% | 7.7% | 320 s |
 | **Stratavell** | **100%** | **$6.43 ± 0.20** | **100%** | **100%** | **0 s** |
 
 How to read the table:
 - **Facts recoverable:** a planted fact and its supporting evidence are in the context, or are found by one fixed retrieval query.
 - **Standing rules visible:** the user's earlier rules appear in the assembled context. That is visibility, not compliance.
-  - **Known error, found 2026-11-27:** the baselines' 21.9% and 22.0% are too high. The rule check also matched ordinary session text, such as the first line of Go files. With one of the three checks corrected, seed 1 drops to about 7%. Stratavell's 100% is unaffected. Details in [docs/benchmarks.md](docs/benchmarks.md).
+  - **Corrected on 2026-11-27:** an earlier version showed 21.9% and 22.0% for the baselines. The rule check also matched ordinary session text, such as the first line of Go files, so lost rules were counted as visible. Each rule is now matched on its own sentence. A full rerun changed only rule-visibility fields; every cost and token figure is identical. Details in [docs/benchmarks.md](docs/benchmarks.md).
 - **The main result:** at comparable fact recoverability, Stratavell costs about half as much as retrieval-enabled asynchronous progressive summarization (50% lower).
   - In the ablations, most of the saving comes from externalizing oversized tool outputs at ingestion, from batched (epoch) masking and from the cache-aware layout.
 
@@ -87,7 +87,7 @@ Other results:
   - Stratavell: 28
   - conventional compaction with a passive Stratavell archive: 27
   - async summaries with retrieval: 26
-- **QA after the provenance fix:** the same pre-registered test with three free readers from NVIDIA, Baidu and Recursive gave 33, 33 and 32 of 33 for those three strategies, identical for every reader. That is still a tie, now at the test's ceiling. The one miss traces to the measurement error above.
+- **QA after the provenance fix:** the same pre-registered test with three free readers from NVIDIA, Baidu and Recursive gave 33, 33 and 32 of 33 for those three strategies, identical for every reader. That is still a tie, now at the test's ceiling. The one miss traces to the rule-check error noted above.
 - **200k window** (400 turns, 3 seeds):
   - Stratavell's simulated input cost was $10.44 per session, against $16.46 to $27.62 for conventional, sync and async compaction without retrieval.
   - No component-matched variants were run at this size.
@@ -96,7 +96,7 @@ Other results:
   | operation | measurement |
   |---|---|
   | assembly, 45k-token context | 1.35 ms mean |
-  | engine time per benchmark turn | about 3 ms p95 |
+  | engine time per benchmark turn | about 2 to 3 ms p95, varying between runs |
   | search, 3.4k indexed chunks | p95 3.1 ms (v0.1.0: 10.6 ms) |
   | search, 13.2k chunks | p95 6.5 ms (v0.1.0: 35.8 ms) |
   | appending a small event | 0.56 ms mean (fsync on every commit) |

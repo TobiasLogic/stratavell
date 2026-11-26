@@ -53,4 +53,4 @@ jobs:
         with:
           go-version: stable
       - run: go run ./cmd/stratavell-bench ${{ matrix.suite.args }} -out "$RUNNER_TEMP/${{ matrix.suite.name }}"
-      - run: python3 scripts/compare-runs.py bench/results/2026-11-26/${{ matrix.suite.name }}/runs.jsonl "$RUNNER_TEMP/${{ matrix.suite.name }}/runs.jsonl"
+      - run: python3 scripts/compare-runs.py bench/results/2026-11-27/${{ matrix.suite.name }}/runs.jsonl "$RUNNER_TEMP/${{ matrix.suite.name }}/runs.jsonl"

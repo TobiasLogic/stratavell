@@ -5,36 +5,42 @@ The project was renamed from palimpsest to Stratavell for its v0.1.0 release. Th
 
 Purpose: give an outside reviewer everything needed to check the claims and the numbers in one file. Please be critical.
 
-Deterministic results: build 314ff5d. This is the second revision. An earlier version was reviewed; section 1 lists what changed in response. Every table is generated from the raw result files (bench/results/2026-11-26/) by bench/review/render.py. Nothing is copied by hand.
+Deterministic results: build 635fcb5. This is the second revision. An earlier version was reviewed; section 1 lists what changed in response. Every table is generated from the raw result files by bench/review/render.py: deterministic suites from bench/results/2026-11-27/ (rerun after the fix in section 0), reader runs from bench/results/2026-11-26/. Nothing is copied by hand.
 
 
-0. KNOWN MEASUREMENT ERROR (found 2026-11-27)
----------------------------------------------
+0. MEASUREMENT ERROR, FOUND AND FIXED ON 2026-11-27
+---------------------------------------------------
 
-The check for whether a standing rule is visible looks for a short key anywhere in the assembled context. All three keys also appear in ordinary session text:
+The error: the check for whether a standing rule is visible looked for a short key anywhere in the assembled context. All three keys also appear in ordinary session text:
 - "vendor/": the file listing in the first turn
 - "package store": the first line of every Go file in package store
 - "go vet": the "go vet ./..." command and the assistant's acknowledgement
 
-A strategy that has lost a rule can therefore still be counted as showing it.
+A strategy that had lost a rule could therefore still be counted as showing it.
 
-Affected:
-- the "standing rules visible" column, for strategies that drop rules (the summary-based baselines)
-- "probes visible" for the API rule
-- the reader test's decision to skip retrieval (section 7.0)
+The fix (commit 635fcb5):
+- Each rule is detected by its own sentence.
+- Graded answers are unchanged.
+- An audit of every planted fact over seeds 1 to 5 found no other key that matches unrelated text.
 
-Not affected: G pins the rules verbatim, so its 100% stands. The error favors the baselines.
+Verification:
+- Every deterministic suite was rerun on the fixed build and compared with the original results by scripts/compare-runs.py.
+- Over 151 strategy runs and 7,029 deterministic fields, only rule-visibility fields changed: standing-rule retention, and probe visibility, grounding and recoverability for the rules.
+- Every token, cache and cost field is identical. The 200k suite did not change at all.
+- The tables in this packet come from the rerun (bench/results/2026-11-27/). The original results stay in bench/results/2026-11-26/.
 
-Size, seed 1, 64k, with only the "package store" key replaced by the rule's own wording:
-- E: 18.1% -> 6.5%
-- F: 20.1% -> 7.0%
-- E + retrieval: 18.9% -> 7.0%
-- F + retrieval: 19.9% -> 7.0%
-- A, B, C, D, G and the other B variants: unchanged
+Standing rules visible, mean over 5 seeds at 64k (before -> after):
+- E: 21.1% -> 6.5%
+- F: 22.2% -> 6.7%
+- E + retrieval: 22.0% -> 7.7%
+- F + retrieval: 21.9% -> 7.3%
+- G without task state and pins (ablation): 80.9% -> 77.0%
+- unchanged: B and B + archive 61.5%, B + pins 81.0%, A, C, D
+- G: 100% -> 100%
 
-The other two keys are not corrected yet, so these figures may still be too high.
+Fact recoverability with retrieval is unchanged (97.2% for E and F with retrieval).
 
-Status: the tables below still show the original numbers. A rerun of every suite, with each rule keyed on its own sentence, is being prepared as a separate change.
+The reader tests (v1 to v4.1) were not rerun. They used the old keys to decide when to append retrieval, and are reported as they came out (see section 7.0).
 
 
 1. CHANGES SINCE THE FIRST REVIEW
@@ -153,7 +159,7 @@ Metrics:
 - recoverable % (grounded, or found with evidence by a fixed retrieval policy)
 - standing rules % (over turn and rule pairs, rules already given)
 - fg wait s (foreground summarization wait, modeled for extractive runs)
-- engine p95 ms (time inside Assemble per turn)
+- engine p95 ms (time inside Assemble per turn; wall-clock, so it varies between runs: G at 64k was 3.14 ms in the original runs and 2.06 ms in the 2026-11-27 rerun)
 
 Hardware: 8-core, 16-thread x86-64 laptop CPU, 16 GB RAM, NVMe; Go 1.27.4, pure-Go SQLite 3.54.1.
 
@@ -163,15 +169,15 @@ Hardware: 8-core, 16-thread x86-64 laptop CPU, 16 GB RAM, NVMe; Go 1.27.4, pure-
 
 4.1 64k window, 300 turns, 5 seeds (mean +/- sample sd)
 
-strategy             completion %   input cost $    total cost $    input Mtok     cache hit %    overflow turns  fg wait s        visible %     grounded %    recoverable %  standing rules %  tool Mtok      extra primary calls  engine p95 ms 
--------------------  -------------  --------------  --------------  -------------  -------------  --------------  ---------------  ------------  ------------  -------------  ----------------  -------------  -------------------  --------------
-A-uncompressed       1.9 +/- 0.5    0.12 +/- 0.02   0.12 +/- 0.02   0.12 +/- 0.06  57.3 +/- 18.0  294 +/- 2       0.0 +/- 0.0      0.0 +/- 0.0   0.0 +/- 0.0   0.0 +/- 0.0    1.4 +/- 0.4       0.12 +/- 0.06  0 +/- 0              0.26 +/- 0.02 
-B-conventional       81.4 +/- 3.4   11.42 +/- 0.67  11.50 +/- 0.68  8.61 +/- 0.37  48.9 +/- 1.9   56 +/- 10       824.9 +/- 32.2   26.4 +/- 6.8  26.4 +/- 6.8  26.4 +/- 6.8   61.5 +/- 2.6      7.44 +/- 0.32  0 +/- 0              0.00 +/- 0.00 
-C-noa                35.3 +/- 7.0   11.68 +/- 2.16  12.02 +/- 2.23  7.29 +/- 1.54  37.0 +/- 3.4   194 +/- 21      555.5 +/- 133.9  10.3 +/- 5.0  10.3 +/- 5.0  10.3 +/- 5.0   29.0 +/- 4.1      2.64 +/- 0.48  24 +/- 5             0.00 +/- 0.00 
-D-masking            3.1 +/- 1.0    0.56 +/- 0.42   0.56 +/- 0.42   0.30 +/- 0.16  36.2 +/- 30.6  291 +/- 3       0.0 +/- 0.0      0.7 +/- 1.6   0.7 +/- 1.6   0.7 +/- 1.6    2.4 +/- 0.8       0.24 +/- 0.12  0 +/- 0              1.58 +/- 0.26 
-E-sync-summary       100.0 +/- 0.0  11.41 +/- 0.49  11.44 +/- 0.49  8.75 +/- 0.07  49.9 +/- 2.4   0 +/- 0         322.5 +/- 23.5   12.1 +/- 3.0  11.6 +/- 3.4  11.6 +/- 3.4   21.1 +/- 3.5      7.34 +/- 0.12  0 +/- 0              11.92 +/- 0.77
-F-async-progressive  100.0 +/- 0.0  13.04 +/- 0.43  13.07 +/- 0.43  9.18 +/- 0.05  45.0 +/- 1.7   0 +/- 0         0.0 +/- 0.0      12.9 +/- 2.8  12.6 +/- 3.1  12.6 +/- 3.1   22.2 +/- 3.2      7.71 +/- 0.13  0 +/- 0              8.10 +/- 0.85 
-G-hybrid             100.0 +/- 0.0  6.43 +/- 0.20   6.48 +/- 0.21   7.45 +/- 0.03  68.1 +/- 1.2   0 +/- 0         0.0 +/- 0.0      49.5 +/- 1.7  47.5 +/- 1.5  100.0 +/- 0.0  100.0 +/- 0.0     3.52 +/- 0.10  0 +/- 0              3.14 +/- 0.42 
+strategy             completion %   input cost $    total cost $    input Mtok     cache hit %    overflow turns  fg wait s        visible %     grounded %    recoverable %  standing rules %  tool Mtok      extra primary calls  engine p95 ms
+-------------------  -------------  --------------  --------------  -------------  -------------  --------------  ---------------  ------------  ------------  -------------  ----------------  -------------  -------------------  -------------
+A-uncompressed       1.9 +/- 0.5    0.12 +/- 0.02   0.12 +/- 0.02   0.12 +/- 0.06  57.3 +/- 18.0  294 +/- 2       0.0 +/- 0.0      0.0 +/- 0.0   0.0 +/- 0.0   0.0 +/- 0.0    1.4 +/- 0.4       0.12 +/- 0.06  0 +/- 0              0.20 +/- 0.01
+B-conventional       81.4 +/- 3.4   11.42 +/- 0.67  11.50 +/- 0.68  8.61 +/- 0.37  48.9 +/- 1.9   56 +/- 10       824.9 +/- 32.2   26.4 +/- 6.8  26.4 +/- 6.8  26.4 +/- 6.8   61.5 +/- 2.6      7.44 +/- 0.32  0 +/- 0              0.00 +/- 0.00
+C-noa                35.3 +/- 7.0   11.68 +/- 2.16  12.02 +/- 2.23  7.29 +/- 1.54  37.0 +/- 3.4   194 +/- 21      555.5 +/- 133.9  10.3 +/- 5.0  10.3 +/- 5.0  10.3 +/- 5.0   29.0 +/- 4.1      2.64 +/- 0.48  24 +/- 5             0.00 +/- 0.00
+D-masking            3.1 +/- 1.0    0.56 +/- 0.42   0.56 +/- 0.42   0.30 +/- 0.16  36.2 +/- 30.6  291 +/- 3       0.0 +/- 0.0      0.7 +/- 1.6   0.7 +/- 1.6   0.7 +/- 1.6    2.4 +/- 0.8       0.24 +/- 0.12  0 +/- 0              1.14 +/- 0.05
+E-sync-summary       100.0 +/- 0.0  11.41 +/- 0.49  11.44 +/- 0.49  8.75 +/- 0.07  49.9 +/- 2.4   0 +/- 0         322.5 +/- 23.5   6.8 +/- 2.4   6.3 +/- 2.8   6.3 +/- 2.8    6.5 +/- 3.7       7.34 +/- 0.12  0 +/- 0              8.72 +/- 1.12
+F-async-progressive  100.0 +/- 0.0  13.04 +/- 0.43  13.07 +/- 0.43  9.18 +/- 0.05  45.0 +/- 1.7   0 +/- 0         0.0 +/- 0.0      7.0 +/- 2.6   6.8 +/- 3.0   6.8 +/- 3.0    6.7 +/- 3.7       7.71 +/- 0.13  0 +/- 0              6.22 +/- 0.84
+G-hybrid             100.0 +/- 0.0  6.43 +/- 0.20   6.48 +/- 0.21   7.45 +/- 0.03  68.1 +/- 1.2   0 +/- 0         0.0 +/- 0.0      49.5 +/- 1.7  47.5 +/- 1.5  100.0 +/- 0.0  100.0 +/- 0.0     3.52 +/- 0.10  0 +/- 0              2.06 +/- 0.18
 
 Cost among strategies that completed every turn:
 - versus E sync progressive summaries: 43.6% lower input cost, 43.4% lower total cost
@@ -198,21 +204,21 @@ A-uncompressed       0/140       0/45      0/45      0/90   0/45    0/31
 B-conventional       82/140      0/45      1/45      4/90   3/45    15/31        
 C-noa                27/140      5/45      2/45      2/90   1/45    4/31         
 D-masking            2/140       0/45      0/45      0/90   0/45    1/31         
-E-sync-summary       24/140      0/45      1/45      2/90   4/45    15/31        
-F-async-progressive  26/140      0/45      2/45      2/90   4/45    16/31        
+E-sync-summary       3/140       0/45      1/45      2/90   4/45    15/31        
+F-async-progressive  3/140       0/45      2/45      2/90   4/45    16/31        
 G-hybrid             140/140     45/45     45/45     90/90  45/45   31/31        
 
 4.2 200k window, 400 turns, 3 seeds
 
 strategy             completion %   input cost $    total cost $    input Mtok      cache hit %   overflow turns  fg wait s        visible %     grounded %    recoverable %  standing rules %  tool Mtok       extra primary calls  engine p95 ms 
 -------------------  -------------  --------------  --------------  --------------  ------------  --------------  ---------------  ------------  ------------  -------------  ----------------  --------------  -------------------  --------------
-A-uncompressed       5.2 +/- 1.0    0.60 +/- 0.09   0.60 +/- 0.09   1.91 +/- 0.62   90.3 +/- 3.1  379 +/- 4       0.0 +/- 0.0      0.0 +/- 0.0   0.0 +/- 0.0   0.0 +/- 0.0    3.9 +/- 0.8       1.76 +/- 0.57   0 +/- 0              0.32 +/- 0.02 
+A-uncompressed       5.2 +/- 1.0    0.60 +/- 0.09   0.60 +/- 0.09   1.91 +/- 0.62   90.3 +/- 3.1  379 +/- 4       0.0 +/- 0.0      0.0 +/- 0.0   0.0 +/- 0.0   0.0 +/- 0.0    3.9 +/- 0.8       1.76 +/- 0.57   0 +/- 0              0.27 +/- 0.03 
 B-conventional       100.0 +/- 0.0  16.46 +/- 1.10  16.51 +/- 1.10  38.73 +/- 1.19  86.5 +/- 0.7  0 +/- 0         298.3 +/- 34.7   36.0 +/- 0.2  36.0 +/- 0.2  36.0 +/- 0.2   75.9 +/- 0.4      35.97 +/- 1.18  0 +/- 0              0.00 +/- 0.00 
 C-noa                98.5 +/- 0.5   39.07 +/- 3.74  39.54 +/- 3.77  43.94 +/- 2.61  67.2 +/- 1.4  6 +/- 2         726.3 +/- 120.5  36.3 +/- 0.4  36.3 +/- 0.4  36.3 +/- 0.4   79.8 +/- 4.5      30.91 +/- 1.75  26 +/- 5             0.00 +/- 0.00 
-D-masking            36.8 +/- 5.8   44.02 +/- 6.29  44.02 +/- 6.29  17.82 +/- 2.42  1.3 +/- 0.8   253 +/- 23      0.0 +/- 0.0      11.0 +/- 3.2  11.0 +/- 3.2  11.0 +/- 3.2   30.5 +/- 5.4      11.39 +/- 1.36  0 +/- 0              2.13 +/- 0.17 
-E-sync-summary       100.0 +/- 0.0  17.82 +/- 0.35  17.87 +/- 0.35  32.77 +/- 0.61  81.5 +/- 0.5  0 +/- 0         382.9 +/- 23.0   41.9 +/- 7.5  39.1 +/- 3.6  39.1 +/- 3.6   79.5 +/- 0.7      25.84 +/- 0.82  0 +/- 0              17.13 +/- 0.94
-F-async-progressive  100.0 +/- 0.0  27.62 +/- 0.80  27.68 +/- 0.80  39.54 +/- 0.55  75.0 +/- 1.0  0 +/- 0         0.0 +/- 0.0      47.4 +/- 6.3  43.9 +/- 1.2  43.9 +/- 1.2   78.1 +/- 0.3      32.43 +/- 0.46  0 +/- 0              4.88 +/- 0.97 
-G-hybrid             100.0 +/- 0.0  10.44 +/- 0.32  10.50 +/- 0.32  30.59 +/- 0.80  89.9 +/- 0.2  0 +/- 0         0.0 +/- 0.0      56.8 +/- 2.2  53.3 +/- 2.6  100.0 +/- 0.0  100.0 +/- 0.0     18.84 +/- 0.67  0 +/- 0              3.41 +/- 0.45 
+D-masking            36.8 +/- 5.8   44.02 +/- 6.29  44.02 +/- 6.29  17.82 +/- 2.42  1.3 +/- 0.8   253 +/- 23      0.0 +/- 0.0      11.0 +/- 3.2  11.0 +/- 3.2  11.0 +/- 3.2   30.5 +/- 5.4      11.39 +/- 1.36  0 +/- 0              1.48 +/- 0.17 
+E-sync-summary       100.0 +/- 0.0  17.82 +/- 0.35  17.87 +/- 0.35  32.77 +/- 0.61  81.5 +/- 0.5  0 +/- 0         382.9 +/- 23.0   41.9 +/- 7.5  39.1 +/- 3.6  39.1 +/- 3.6   79.5 +/- 0.7      25.84 +/- 0.82  0 +/- 0              12.10 +/- 0.91
+F-async-progressive  100.0 +/- 0.0  27.62 +/- 0.80  27.68 +/- 0.80  39.54 +/- 0.55  75.0 +/- 1.0  0 +/- 0         0.0 +/- 0.0      47.4 +/- 6.3  43.9 +/- 1.2  43.9 +/- 1.2   78.1 +/- 0.3      32.43 +/- 0.46  0 +/- 0              3.74 +/- 1.52 
+G-hybrid             100.0 +/- 0.0  10.44 +/- 0.32  10.50 +/- 0.32  30.59 +/- 0.80  89.9 +/- 0.2  0 +/- 0         0.0 +/- 0.0      56.8 +/- 2.2  53.3 +/- 2.6  100.0 +/- 0.0  100.0 +/- 0.0     18.84 +/- 0.67  0 +/- 0              2.44 +/- 0.30 
 
 - versus B conventional compaction (proxy): 36.6% lower input cost, 36.4% lower total cost
 - versus E sync progressive summaries: 41.4% lower input cost, 41.3% lower total cost
@@ -243,16 +249,16 @@ G-hybrid             99/99       33/33     33/33     66/66  33/33   25/25
 5. COMPONENT-MATCHED COMPARISON (64K, 300 TURNS, 5 SEEDS)
 ---------------------------------------------------------
 
-strategy                       completion %   input cost $    total cost $    input Mtok     cache hit %   overflow turns  fg wait s       visible %     grounded %    recoverable %  standing rules %  tool Mtok      extra primary calls  engine p95 ms 
------------------------------  -------------  --------------  --------------  -------------  ------------  --------------  --------------  ------------  ------------  -------------  ----------------  -------------  -------------------  --------------
-B-conventional                 81.4 +/- 3.4   11.42 +/- 0.67  11.50 +/- 0.68  8.61 +/- 0.37  48.9 +/- 1.9  56 +/- 10       824.9 +/- 32.2  26.4 +/- 6.8  26.4 +/- 6.8  26.4 +/- 6.8   61.5 +/- 2.6      7.44 +/- 0.32  0 +/- 0              0.00 +/- 0.00 
-E-sync-summary                 100.0 +/- 0.0  11.41 +/- 0.49  11.44 +/- 0.49  8.75 +/- 0.07  49.9 +/- 2.4  0 +/- 0         322.5 +/- 23.5  12.1 +/- 3.0  11.6 +/- 3.4  11.6 +/- 3.4   21.1 +/- 3.5      7.34 +/- 0.12  0 +/- 0              11.79 +/- 0.40
-F-async-progressive            100.0 +/- 0.0  13.04 +/- 0.43  13.07 +/- 0.43  9.18 +/- 0.05  45.0 +/- 1.7  0 +/- 0         0.0 +/- 0.0     12.9 +/- 2.8  12.6 +/- 3.1  12.6 +/- 3.1   22.2 +/- 3.2      7.71 +/- 0.13  0 +/- 0              8.47 +/- 1.21 
-B-conventional+pins            81.0 +/- 3.7   11.38 +/- 0.83  11.46 +/- 0.83  8.58 +/- 0.44  48.9 +/- 2.2  57 +/- 11       830.1 +/- 31.9  33.7 +/- 8.5  33.7 +/- 8.5  33.7 +/- 8.5   81.0 +/- 3.9      7.37 +/- 0.41  0 +/- 0              0.00 +/- 0.00 
-B-conventional+archive         81.4 +/- 3.4   11.38 +/- 0.67  11.46 +/- 0.67  8.92 +/- 0.38  51.0 +/- 1.9  56 +/- 10       824.9 +/- 32.2  26.4 +/- 6.8  26.4 +/- 6.8  80.0 +/- 20.9  61.5 +/- 2.6      7.44 +/- 0.32  0 +/- 0              0.00 +/- 0.00 
-E-sync-summary+retrieval       100.0 +/- 0.0  11.36 +/- 0.55  11.40 +/- 0.55  8.92 +/- 0.12  51.1 +/- 2.5  0 +/- 0         320.1 +/- 27.2  12.6 +/- 3.5  12.1 +/- 3.7  97.2 +/- 1.3   22.0 +/- 3.6      7.14 +/- 0.13  0 +/- 0              11.77 +/- 0.74
-F-async-progressive+retrieval  100.0 +/- 0.0  12.88 +/- 0.44  12.91 +/- 0.44  9.36 +/- 0.10  46.9 +/- 1.6  0 +/- 0         0.0 +/- 0.0     12.8 +/- 3.1  12.6 +/- 3.4  97.2 +/- 1.3   21.9 +/- 2.8      7.53 +/- 0.16  0 +/- 0              8.88 +/- 0.82 
-G-hybrid                       100.0 +/- 0.0  6.43 +/- 0.20   6.48 +/- 0.21   7.45 +/- 0.03  68.1 +/- 1.2  0 +/- 0         0.0 +/- 0.0     49.5 +/- 1.7  47.5 +/- 1.5  100.0 +/- 0.0  100.0 +/- 0.0     3.52 +/- 0.10  0 +/- 0              2.91 +/- 0.50 
+strategy                       completion %   input cost $    total cost $    input Mtok     cache hit %   overflow turns  fg wait s       visible %     grounded %    recoverable %  standing rules %  tool Mtok      extra primary calls  engine p95 ms
+-----------------------------  -------------  --------------  --------------  -------------  ------------  --------------  --------------  ------------  ------------  -------------  ----------------  -------------  -------------------  -------------
+B-conventional                 81.4 +/- 3.4   11.42 +/- 0.67  11.50 +/- 0.68  8.61 +/- 0.37  48.9 +/- 1.9  56 +/- 10       824.9 +/- 32.2  26.4 +/- 6.8  26.4 +/- 6.8  26.4 +/- 6.8   61.5 +/- 2.6      7.44 +/- 0.32  0 +/- 0              0.00 +/- 0.00
+E-sync-summary                 100.0 +/- 0.0  11.41 +/- 0.49  11.44 +/- 0.49  8.75 +/- 0.07  49.9 +/- 2.4  0 +/- 0         322.5 +/- 23.5  6.8 +/- 2.4   6.3 +/- 2.8   6.3 +/- 2.8    6.5 +/- 3.7       7.34 +/- 0.12  0 +/- 0              8.67 +/- 0.56
+F-async-progressive            100.0 +/- 0.0  13.04 +/- 0.43  13.07 +/- 0.43  9.18 +/- 0.05  45.0 +/- 1.7  0 +/- 0         0.0 +/- 0.0     7.0 +/- 2.6   6.8 +/- 3.0   6.8 +/- 3.0    6.7 +/- 3.7       7.71 +/- 0.13  0 +/- 0              6.35 +/- 0.46
+B-conventional+pins            81.0 +/- 3.7   11.38 +/- 0.83  11.46 +/- 0.83  8.58 +/- 0.44  48.9 +/- 2.2  57 +/- 11       830.1 +/- 31.9  33.7 +/- 8.5  33.7 +/- 8.5  33.7 +/- 8.5   81.0 +/- 3.9      7.37 +/- 0.41  0 +/- 0              0.00 +/- 0.00
+B-conventional+archive         81.4 +/- 3.4   11.38 +/- 0.67  11.46 +/- 0.67  8.92 +/- 0.38  51.0 +/- 1.9  56 +/- 10       824.9 +/- 32.2  26.4 +/- 6.8  26.4 +/- 6.8  80.0 +/- 20.9  61.5 +/- 2.6      7.44 +/- 0.32  0 +/- 0              0.00 +/- 0.00
+E-sync-summary+retrieval       100.0 +/- 0.0  11.36 +/- 0.55  11.40 +/- 0.55  8.92 +/- 0.12  51.1 +/- 2.5  0 +/- 0         320.1 +/- 27.2  7.3 +/- 2.8   6.8 +/- 3.0   97.2 +/- 1.3   7.7 +/- 3.2       7.14 +/- 0.13  0 +/- 0              8.97 +/- 0.56
+F-async-progressive+retrieval  100.0 +/- 0.0  12.88 +/- 0.44  12.91 +/- 0.44  9.36 +/- 0.10  46.9 +/- 1.6  0 +/- 0         0.0 +/- 0.0     7.0 +/- 2.6   6.8 +/- 3.0   97.2 +/- 1.3   7.3 +/- 2.8       7.53 +/- 0.16  0 +/- 0              6.88 +/- 0.87
+G-hybrid                       100.0 +/- 0.0  6.43 +/- 0.20   6.48 +/- 0.21   7.45 +/- 0.03  68.1 +/- 1.2  0 +/- 0         0.0 +/- 0.0     49.5 +/- 1.7  47.5 +/- 1.5  100.0 +/- 0.0  100.0 +/- 0.0     3.52 +/- 0.10  0 +/- 0              2.09 +/- 0.18
 
 - versus E sync progressive summaries: 43.6% lower input cost, 43.4% lower total cost
 - versus F async progressive summaries: 50.7% lower input cost, 50.4% lower total cost
@@ -263,8 +269,8 @@ G-hybrid                       100.0 +/- 0.0  6.43 +/- 0.20   6.48 +/- 0.21   7.
 strategy                       constraint  decision  rejected  value  symbol  current error
 -----------------------------  ----------  --------  --------  -----  ------  -------------
 B-conventional                 82/140      0/45      1/45      4/90   3/45    15/31        
-E-sync-summary                 24/140      0/45      1/45      2/90   4/45    15/31        
-F-async-progressive            26/140      0/45      2/45      2/90   4/45    16/31        
+E-sync-summary                 3/140       0/45      1/45      2/90   4/45    15/31        
+F-async-progressive            3/140       0/45      2/45      2/90   4/45    16/31        
 B-conventional+pins            112/140     0/45      1/45      4/90   3/45    14/31        
 B-conventional+archive         115/140     37/45     37/45     74/90  37/45   18/31        
 E-sync-summary+retrieval       140/140     45/45     45/45     90/90  45/45   20/31        
@@ -277,17 +283,17 @@ G-hybrid                       140/140     45/45     45/45     90/90  45/45   31
 
 strategy             completion %   input cost $    total cost $    input Mtok     cache hit %   overflow turns  fg wait s       visible %     grounded %    recoverable %  standing rules %  tool Mtok      extra primary calls  engine p95 ms 
 -------------------  -------------  --------------  --------------  -------------  ------------  --------------  --------------  ------------  ------------  -------------  ----------------  -------------  -------------------  --------------
-G-hybrid             100.0 +/- 0.0  6.43 +/- 0.20   6.48 +/- 0.21   7.45 +/- 0.03  68.1 +/- 1.2  0 +/- 0         0.0 +/- 0.0     49.5 +/- 1.7  47.5 +/- 1.5  100.0 +/- 0.0  100.0 +/- 0.0     3.52 +/- 0.10  0 +/- 0              2.68 +/- 0.38 
-G-no-masking         100.0 +/- 0.0  7.22 +/- 0.18   7.27 +/- 0.18   7.66 +/- 0.04  64.8 +/- 0.8  0 +/- 0         0.0 +/- 0.0     50.0 +/- 1.8  48.2 +/- 1.6  100.0 +/- 0.0  100.0 +/- 0.0     3.79 +/- 0.08  0 +/- 0              3.22 +/- 0.82 
-G-no-externalize     100.0 +/- 0.0  13.12 +/- 0.54  13.16 +/- 0.54  8.72 +/- 0.17  41.4 +/- 1.6  0 +/- 0         0.0 +/- 0.0     45.4 +/- 2.8  45.2 +/- 3.1  100.0 +/- 0.0  100.0 +/- 0.0     6.58 +/- 0.24  0 +/- 0              8.98 +/- 1.18 
-G-no-dedupe          100.0 +/- 0.0  6.61 +/- 0.28   6.66 +/- 0.28   7.50 +/- 0.03  67.4 +/- 1.6  0 +/- 0         0.0 +/- 0.0     49.7 +/- 1.4  48.0 +/- 1.3  100.0 +/- 0.0  100.0 +/- 0.0     3.57 +/- 0.12  0 +/- 0              2.58 +/- 0.38 
-G-no-taskstate       100.0 +/- 0.0  6.01 +/- 0.23   6.06 +/- 0.23   7.22 +/- 0.02  69.4 +/- 1.4  0 +/- 0         0.0 +/- 0.0     48.0 +/- 1.3  46.0 +/- 1.8  98.8 +/- 2.1   100.0 +/- 0.0     3.54 +/- 0.12  0 +/- 0              2.26 +/- 0.45 
-G-no-pins            100.0 +/- 0.0  6.26 +/- 0.21   6.31 +/- 0.21   7.39 +/- 0.07  68.8 +/- 1.2  0 +/- 0         0.0 +/- 0.0     39.1 +/- 2.3  37.4 +/- 1.5  100.0 +/- 0.0  77.0 +/- 0.5      3.53 +/- 0.13  0 +/- 0              2.70 +/- 0.46 
-G-no-taskstate-pins  100.0 +/- 0.0  5.80 +/- 0.21   5.85 +/- 0.21   7.18 +/- 0.06  70.4 +/- 1.5  0 +/- 0         0.0 +/- 0.0     40.0 +/- 5.0  37.9 +/- 5.5  98.8 +/- 2.1   80.9 +/- 9.3      3.56 +/- 0.10  0 +/- 0              2.11 +/- 0.44 
-G-no-retrieval       100.0 +/- 0.0  6.30 +/- 0.33   6.34 +/- 0.33   7.20 +/- 0.05  67.7 +/- 2.0  0 +/- 0         0.0 +/- 0.0     49.7 +/- 1.3  47.7 +/- 1.7  47.7 +/- 1.7   100.0 +/- 0.0     3.57 +/- 0.09  0 +/- 0              2.21 +/- 0.25 
-G-rolling-mask       100.0 +/- 0.0  9.58 +/- 0.38   9.63 +/- 0.38   7.56 +/- 0.04  51.2 +/- 2.2  0 +/- 0         0.0 +/- 0.0     48.7 +/- 1.8  47.0 +/- 1.4  100.0 +/- 0.0  100.0 +/- 0.0     3.63 +/- 0.07  0 +/- 0              2.85 +/- 0.57 
-G-layout-spec        100.0 +/- 0.0  11.05 +/- 0.27  11.10 +/- 0.27  7.43 +/- 0.02  42.2 +/- 1.4  0 +/- 0         0.0 +/- 0.0     49.2 +/- 2.2  47.5 +/- 1.5  100.0 +/- 0.0  100.0 +/- 0.0     3.50 +/- 0.08  0 +/- 0              2.67 +/- 0.46 
-G-sync               100.0 +/- 0.0  5.37 +/- 0.16   5.42 +/- 0.16   7.49 +/- 0.04  74.2 +/- 0.8  0 +/- 0         427.6 +/- 18.4  51.0 +/- 3.7  49.2 +/- 3.1  100.0 +/- 0.0  100.0 +/- 0.0     3.40 +/- 0.08  0 +/- 0              14.94 +/- 0.73
+G-hybrid             100.0 +/- 0.0  6.43 +/- 0.20   6.48 +/- 0.21   7.45 +/- 0.03  68.1 +/- 1.2  0 +/- 0         0.0 +/- 0.0     49.5 +/- 1.7  47.5 +/- 1.5  100.0 +/- 0.0  100.0 +/- 0.0     3.52 +/- 0.10  0 +/- 0              2.16 +/- 0.37 
+G-no-masking         100.0 +/- 0.0  7.22 +/- 0.18   7.27 +/- 0.18   7.66 +/- 0.04  64.8 +/- 0.8  0 +/- 0         0.0 +/- 0.0     50.0 +/- 1.8  48.2 +/- 1.6  100.0 +/- 0.0  100.0 +/- 0.0     3.79 +/- 0.08  0 +/- 0              2.13 +/- 0.29 
+G-no-externalize     100.0 +/- 0.0  13.12 +/- 0.54  13.16 +/- 0.54  8.72 +/- 0.17  41.4 +/- 1.6  0 +/- 0         0.0 +/- 0.0     45.4 +/- 2.8  45.2 +/- 3.1  100.0 +/- 0.0  100.0 +/- 0.0     6.58 +/- 0.24  0 +/- 0              6.47 +/- 1.09 
+G-no-dedupe          100.0 +/- 0.0  6.61 +/- 0.28   6.66 +/- 0.28   7.50 +/- 0.03  67.4 +/- 1.6  0 +/- 0         0.0 +/- 0.0     49.7 +/- 1.4  48.0 +/- 1.3  100.0 +/- 0.0  100.0 +/- 0.0     3.57 +/- 0.12  0 +/- 0              2.06 +/- 0.21 
+G-no-taskstate       100.0 +/- 0.0  6.01 +/- 0.23   6.06 +/- 0.23   7.22 +/- 0.02  69.4 +/- 1.4  0 +/- 0         0.0 +/- 0.0     48.0 +/- 1.3  46.0 +/- 1.8  98.8 +/- 2.1   100.0 +/- 0.0     3.54 +/- 0.12  0 +/- 0              1.56 +/- 0.18 
+G-no-pins            100.0 +/- 0.0  6.26 +/- 0.21   6.31 +/- 0.21   7.39 +/- 0.07  68.8 +/- 1.2  0 +/- 0         0.0 +/- 0.0     39.1 +/- 2.3  37.4 +/- 1.5  100.0 +/- 0.0  77.0 +/- 0.5      3.53 +/- 0.13  0 +/- 0              2.02 +/- 0.31 
+G-no-taskstate-pins  100.0 +/- 0.0  5.80 +/- 0.21   5.85 +/- 0.21   7.18 +/- 0.06  70.4 +/- 1.5  0 +/- 0         0.0 +/- 0.0     38.2 +/- 1.3  36.1 +/- 1.9  98.8 +/- 2.1   77.0 +/- 0.6      3.56 +/- 0.10  0 +/- 0              1.64 +/- 0.21 
+G-no-retrieval       100.0 +/- 0.0  6.30 +/- 0.33   6.34 +/- 0.33   7.20 +/- 0.05  67.7 +/- 2.0  0 +/- 0         0.0 +/- 0.0     49.7 +/- 1.3  47.7 +/- 1.7  47.7 +/- 1.7   100.0 +/- 0.0     3.57 +/- 0.09  0 +/- 0              1.69 +/- 0.09 
+G-rolling-mask       100.0 +/- 0.0  9.58 +/- 0.38   9.63 +/- 0.38   7.56 +/- 0.04  51.2 +/- 2.2  0 +/- 0         0.0 +/- 0.0     48.7 +/- 1.8  47.0 +/- 1.4  100.0 +/- 0.0  100.0 +/- 0.0     3.63 +/- 0.07  0 +/- 0              2.05 +/- 0.29 
+G-layout-spec        100.0 +/- 0.0  11.05 +/- 0.27  11.10 +/- 0.27  7.43 +/- 0.02  42.2 +/- 1.4  0 +/- 0         0.0 +/- 0.0     49.2 +/- 2.2  47.5 +/- 1.5  100.0 +/- 0.0  100.0 +/- 0.0     3.50 +/- 0.08  0 +/- 0              2.07 +/- 0.22 
+G-sync               100.0 +/- 0.0  5.37 +/- 0.16   5.42 +/- 0.16   7.49 +/- 0.04  74.2 +/- 0.8  0 +/- 0         427.6 +/- 18.4  51.0 +/- 3.7  49.2 +/- 3.1  100.0 +/- 0.0  100.0 +/- 0.0     3.40 +/- 0.08  0 +/- 0              10.60 +/- 0.35
 
 
 7. RETRIEVAL-ASSISTED QUESTION ANSWERING (REAL MODEL)
@@ -481,8 +487,9 @@ Hedged answers that lenient grading accepts and strict grading rejects:
 12. RAW DATA AND CODE
 ---------------------
 
-bench/results/2026-11-26/{main64k,main200k,ablation64k,matched64k}/runs.jsonl     one row per strategy and seed, all metrics and accounting components
-bench/results/2026-11-26/*/probes.jsonl.gz, turns.jsonl.gz                          per probe, per turn
+bench/results/2026-11-27/{main64k,main200k,ablation64k,matched64k}/runs.jsonl     one row per strategy and seed, all metrics and accounting components (after the key fix)
+bench/results/2026-11-27/*/probes.jsonl.gz, turns.jsonl.gz                          per probe, per turn
+bench/results/2026-11-26/{main64k,main200k,ablation64k,matched64k}/                 the original runs, before the key fix
 bench/results/2026-11-26/reader-v3/reader.jsonl                                     every v3 question, answer and the three grades
 bench/results/2026-11-26/reader-extractive/, reader-haiku-summaries/, reader-v1-superseded/
 bench/review/protocol-reader-v3.md                                                  the frozen protocol
@@ -499,5 +506,6 @@ Total real-model API spend: $4.54 (OpenRouter, Claude Haiku 5.5). The v4 and v4.
 
 - After the rename and the release hardening, seed 1 of the 64k main, component-matched and ablation suites was rerun on the release build.
 - It was compared with bench/results/2026-11-26/ by scripts/compare-runs.py: 26 strategy runs, every deterministic field identical (tokens, cache components, costs, overflows, completion, probes, standing rules). Only wall-clock timing fields differ.
+- After the standing-rule key fix (section 0), all four suites were rerun in full. Those reruns are the current tables, in bench/results/2026-11-27/.
 - TestDeterministicSmoke pins a short deterministic run in bench/testdata/smoke-golden.json and runs in CI.
-- Not rerun: the 200k suite and the real-model runs.
+- Not rerun: the real-model runs.
