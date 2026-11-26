@@ -84,8 +84,8 @@ func grade(answer string, keys []string) bool {
 			}
 		}
 		if strings.Contains(lk, " = ") {
-			parts := strings.SplitN(lk, " = ", 2)
-			if strings.Contains(la, parts[1]) && (strings.Contains(la, parts[0]) || len(strings.Fields(la)) <= 3) {
+			val := strings.TrimSpace(strings.SplitN(lk, " = ", 2)[1])
+			if regexp.MustCompile(`(^|[^0-9a-z_])` + regexp.QuoteMeta(val) + `($|[^0-9a-z_])`).MatchString(la) {
 				continue
 			}
 		}
