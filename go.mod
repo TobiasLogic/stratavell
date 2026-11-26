@@ -1,4 +1,4 @@
-module github.com/TobiasLogic/palimpsest
+module github.com/TobiasLogic/stratavell
 
 go 1.26.0
 

@@ -8,15 +8,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/TobiasLogic/palimpsest/adapters/anthropic"
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/msg"
-	"github.com/TobiasLogic/palimpsest/summarize"
+	"github.com/TobiasLogic/stratavell/adapters/anthropic"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/msg"
+	"github.com/TobiasLogic/stratavell/summarize"
 )
 
 func main() {
 	ctx := context.Background()
-	dir, _ := os.MkdirTemp("", "palimpsest-example-")
+	dir, _ := os.MkdirTemp("", "stratavell-example-")
 	defer os.RemoveAll(dir)
 
 	e, err := engine.Open(ctx, engine.Options{

@@ -11,7 +11,7 @@ export type Part = {
 
 export type Message = { role: "user" | "assistant" | "tool"; parts: Part[]; meta?: Record<string, unknown> };
 
-export class PalimpsestError extends Error {
+export class StratavellError extends Error {
   status: number;
   code: string;
   constructor(status: number, code: string, message: string) {
@@ -24,7 +24,7 @@ export class PalimpsestError extends Error {
 export class Client {
   baseUrl: string;
   token: string | undefined;
-  constructor(baseUrl = "http://127.0.0.1:7077", token = process.env.PALIMPSEST_TOKEN) {
+  constructor(baseUrl = "http://127.0.0.1:7077", token = process.env.STRATAVELL_TOKEN) {
     this.baseUrl = baseUrl;
     this.token = token;
   }
@@ -34,7 +34,7 @@ export class Client {
     if (this.token) headers.authorization = `Bearer ${this.token}`;
     const res = await fetch(this.baseUrl + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
     const data = (await res.json()) as any;
-    if (!res.ok) throw new PalimpsestError(res.status, data.code, data.error);
+    if (!res.ok) throw new StratavellError(res.status, data.code, data.error);
     return data as T;
   }
 

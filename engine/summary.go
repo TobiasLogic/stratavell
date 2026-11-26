@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/TobiasLogic/palimpsest/internal/store"
-	"github.com/TobiasLogic/palimpsest/internal/textproc"
+	"github.com/TobiasLogic/stratavell/internal/store"
+	"github.com/TobiasLogic/stratavell/internal/textproc"
 )
 
 func sanitizeArchiveText(s string) string {

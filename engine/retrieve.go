@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/internal/textproc"
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/internal/textproc"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 type SearchFilters struct {

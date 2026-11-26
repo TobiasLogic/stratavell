@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/adapters/ollama"
-	"github.com/TobiasLogic/palimpsest/adapters/openai"
-	"github.com/TobiasLogic/palimpsest/engine"
+	"github.com/TobiasLogic/stratavell/adapters/ollama"
+	"github.com/TobiasLogic/stratavell/adapters/openai"
+	"github.com/TobiasLogic/stratavell/engine"
 )
 
 type Asker interface {

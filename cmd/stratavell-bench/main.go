@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/adapters/ollama"
-	"github.com/TobiasLogic/palimpsest/adapters/openai"
-	"github.com/TobiasLogic/palimpsest/bench"
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/summarize"
+	"github.com/TobiasLogic/stratavell/adapters/ollama"
+	"github.com/TobiasLogic/stratavell/adapters/openai"
+	"github.com/TobiasLogic/stratavell/bench"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/summarize"
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 	orSum := flag.String("openrouter-summarizer", "", "OpenRouter model id used as the summarizer")
 	orReader := flag.String("openrouter-reader", "", "OpenRouter model id used as the reader for the end-to-end question test")
 	regrade := flag.String("regrade", "", "comma-separated reader.jsonl files to grade again with the current answer keys")
-	keyFile := flag.String("openrouter-key-file", filepath.Join(os.Getenv("HOME"), ".config", "palimpsest", "openrouter.env"), "file holding OPENROUTER_API_KEY=... (or just the key)")
+	keyFile := flag.String("openrouter-key-file", filepath.Join(os.Getenv("HOME"), ".config", "stratavell", "openrouter.env"), "file holding OPENROUTER_API_KEY=... (or just the key)")
 	flag.Parse()
 	if *regrade != "" {
 		var all []bench.ReaderRecord
@@ -73,7 +73,7 @@ func main() {
 		}
 		b, err := os.ReadFile(*keyFile)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "palbench: no OpenRouter key: set OPENROUTER_API_KEY or create", *keyFile)
+			fmt.Fprintln(os.Stderr, "stratavell-bench: no OpenRouter key: set OPENROUTER_API_KEY or create", *keyFile)
 			os.Exit(2)
 		}
 		k := strings.TrimSpace(string(b))
@@ -153,7 +153,7 @@ func main() {
 		recs, err := cfg.RunReader(context.Background(), asker, *readerPoints, f)
 		f.Close()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "palbench:", err)
+			fmt.Fprintln(os.Stderr, "stratavell-bench:", err)
 			os.Exit(1)
 		}
 		rep := "## " + *title + "\n\n" + bench.ReaderReport(recs, readerName)
@@ -164,7 +164,7 @@ func main() {
 	start := time.Now()
 	runs, err := cfg.Run(context.Background())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "palbench:", err)
+		fmt.Fprintln(os.Stderr, "stratavell-bench:", err)
 		os.Exit(1)
 	}
 	t := *title

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 func warm(b *testing.B, window, turns int) (*engine.Engine, *engine.Agent) {

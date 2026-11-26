@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 type readyResult struct {

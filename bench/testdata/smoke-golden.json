@@ -1,0 +1,237 @@
+[
+  {
+    "strategy": "B-conventional",
+    "raw_session_tokens": 1300096,
+    "input_tokens": 680018,
+    "cache_read_tokens": 219139,
+    "cache_write_tokens": 460530,
+    "uncached_tokens": 349,
+    "extra_primary_calls": 0,
+    "extra_primary_output_tokens": 0,
+    "tool_tokens_sent": 470384,
+    "max_context": 25414,
+    "overflow_turns": 78,
+    "probes": 78,
+    "probe_by_kind": {
+      "constraint": [
+        10,
+        28
+      ],
+      "decision": [
+        0,
+        9
+      ],
+      "error": [
+        2,
+        5
+      ],
+      "rejected": [
+        0,
+        9
+      ],
+      "symbol": [
+        0,
+        9
+      ],
+      "value": [
+        2,
+        18
+      ]
+    },
+    "input_cost_usd": "1.1739",
+    "total_cost_usd": "1.2178",
+    "completion_rate": "0.3500",
+    "probe_grounded": "0.1795",
+    "probe_recoverable": "0.1795",
+    "standing_retention": "0.2687",
+    "exact_recovery": "-1.0000"
+  },
+  {
+    "strategy": "C-noa",
+    "raw_session_tokens": 1300096,
+    "input_tokens": 399647,
+    "cache_read_tokens": 72645,
+    "cache_write_tokens": 326653,
+    "uncached_tokens": 349,
+    "extra_primary_calls": 2,
+    "extra_primary_output_tokens": 722,
+    "tool_tokens_sent": 235795,
+    "max_context": 25373,
+    "overflow_turns": 100,
+    "probes": 78,
+    "probe_by_kind": {
+      "constraint": [
+        2,
+        28
+      ],
+      "decision": [
+        1,
+        9
+      ],
+      "error": [
+        1,
+        5
+      ],
+      "rejected": [
+        1,
+        9
+      ],
+      "symbol": [
+        0,
+        9
+      ],
+      "value": [
+        0,
+        18
+      ]
+    },
+    "input_cost_usd": "0.8246",
+    "total_cost_usd": "0.8448",
+    "completion_rate": "0.1667",
+    "probe_grounded": "0.0641",
+    "probe_recoverable": "0.0641",
+    "standing_retention": "0.1437",
+    "exact_recovery": "-1.0000"
+  },
+  {
+    "strategy": "F-async-progressive",
+    "raw_session_tokens": 1300096,
+    "input_tokens": 1236027,
+    "cache_read_tokens": 505955,
+    "cache_write_tokens": 730072,
+    "uncached_tokens": 0,
+    "extra_primary_calls": 0,
+    "extra_primary_output_tokens": 0,
+    "tool_tokens_sent": 925542,
+    "max_context": 21804,
+    "overflow_turns": 0,
+    "probes": 78,
+    "probe_by_kind": {
+      "constraint": [
+        5,
+        28
+      ],
+      "decision": [
+        0,
+        9
+      ],
+      "error": [
+        3,
+        5
+      ],
+      "rejected": [
+        0,
+        9
+      ],
+      "symbol": [
+        0,
+        9
+      ],
+      "value": [
+        0,
+        18
+      ]
+    },
+    "input_cost_usd": "1.8758",
+    "total_cost_usd": "1.8833",
+    "completion_rate": "1.0000",
+    "probe_grounded": "0.1026",
+    "probe_recoverable": "0.1026",
+    "standing_retention": "0.1844",
+    "exact_recovery": "1.0000"
+  },
+  {
+    "strategy": "F-async-progressive+retrieval",
+    "raw_session_tokens": 1300096,
+    "input_tokens": 1311720,
+    "cache_read_tokens": 615575,
+    "cache_write_tokens": 693199,
+    "uncached_tokens": 2946,
+    "extra_primary_calls": 0,
+    "extra_primary_output_tokens": 0,
+    "tool_tokens_sent": 851622,
+    "max_context": 21785,
+    "overflow_turns": 0,
+    "probes": 78,
+    "probe_by_kind": {
+      "constraint": [
+        28,
+        28
+      ],
+      "decision": [
+        9,
+        9
+      ],
+      "error": [
+        4,
+        5
+      ],
+      "rejected": [
+        9,
+        9
+      ],
+      "symbol": [
+        9,
+        9
+      ],
+      "value": [
+        18,
+        18
+      ]
+    },
+    "input_cost_usd": "1.8004",
+    "total_cost_usd": "1.8080",
+    "completion_rate": "1.0000",
+    "probe_grounded": "0.0769",
+    "probe_recoverable": "0.9872",
+    "standing_retention": "0.2000",
+    "exact_recovery": "1.0000"
+  },
+  {
+    "strategy": "G-hybrid",
+    "raw_session_tokens": 1300096,
+    "input_tokens": 1721623,
+    "cache_read_tokens": 968620,
+    "cache_write_tokens": 743044,
+    "uncached_tokens": 9959,
+    "extra_primary_calls": 0,
+    "extra_primary_output_tokens": 0,
+    "tool_tokens_sent": 645774,
+    "max_context": 19350,
+    "overflow_turns": 0,
+    "probes": 78,
+    "probe_by_kind": {
+      "constraint": [
+        28,
+        28
+      ],
+      "decision": [
+        9,
+        9
+      ],
+      "error": [
+        5,
+        5
+      ],
+      "rejected": [
+        9,
+        9
+      ],
+      "symbol": [
+        9,
+        9
+      ],
+      "value": [
+        18,
+        18
+      ]
+    },
+    "input_cost_usd": "1.9744",
+    "total_cost_usd": "1.9925",
+    "completion_rate": "1.0000",
+    "probe_grounded": "0.4487",
+    "probe_recoverable": "1.0000",
+    "standing_retention": "1.0000",
+    "exact_recovery": "1.0000"
+  }
+]

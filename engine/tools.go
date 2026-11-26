@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/TobiasLogic/palimpsest/internal/store"
-	"github.com/TobiasLogic/palimpsest/internal/textproc"
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/internal/store"
+	"github.com/TobiasLogic/stratavell/internal/textproc"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 func schema(s string) json.RawMessage { return json.RawMessage(s) }

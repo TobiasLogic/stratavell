@@ -8,21 +8,24 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"syscall"
 
-	"github.com/TobiasLogic/palimpsest/adapters/anthropic"
-	"github.com/TobiasLogic/palimpsest/adapters/ollama"
-	"github.com/TobiasLogic/palimpsest/adapters/openai"
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/mcp"
-	"github.com/TobiasLogic/palimpsest/server"
-	"github.com/TobiasLogic/palimpsest/summarize"
+	"github.com/TobiasLogic/stratavell/adapters/anthropic"
+	"github.com/TobiasLogic/stratavell/adapters/ollama"
+	"github.com/TobiasLogic/stratavell/adapters/openai"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/internal/store"
+	"github.com/TobiasLogic/stratavell/mcp"
+	"github.com/TobiasLogic/stratavell/server"
+	"github.com/TobiasLogic/stratavell/summarize"
 )
 
-const usage = `palimpsest: lossless, asynchronous context management for LLM agents
+const usage = `stratavell: lossless, asynchronous context management for LLM agents
 
-usage: palimpsest <command> [flags]
+usage: stratavell <command> [flags]
 
 commands:
   serve           run the HTTP API (TCP and/or Unix socket)
@@ -34,10 +37,11 @@ commands:
   verify          check journal hashes, summary lineage and SQLite integrity
   delete-session  delete a session and everything derived from it
   vacuum          checkpoint the WAL and reclaim free pages
+  migrate         copy a database from a pre-0.1.0 (palimpsest) location to a new path
   config          print the default policy as JSON
   version         print version information
 
-run "palimpsest <command> -h" for flags.
+run "stratavell <command> -h" for flags.
 `
 
 func main() {
@@ -67,10 +71,12 @@ func main() {
 		err = cmdDelete(ctx, os.Args[2:])
 	case "vacuum":
 		err = cmdVacuum(ctx, os.Args[2:])
+	case "migrate":
+		err = cmdMigrate(ctx, os.Args[2:])
 	case "config":
 		err = printJSON(engine.DefaultPolicy())
 	case "version":
-		err = printJSON(map[string]any{"version": server.Version, "api": server.APIVersion, "config_version": engine.ConfigVersion})
+		err = printJSON(versionInfo())
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 	default:
@@ -78,10 +84,15 @@ func main() {
 		os.Exit(2)
 	}
 	if err != nil && !errors.Is(err, context.Canceled) {
-		fmt.Fprintln(os.Stderr, "palimpsest:", err)
+		fmt.Fprintln(os.Stderr, "stratavell:", err)
 		os.Exit(1)
 	}
 }
+
+const (
+	defaultDB = "stratavell.db"
+	legacyDB  = "palimpsest.db"
+)
 
 type common struct {
 	db         string
@@ -90,29 +101,70 @@ type common struct {
 	sumURL     string
 	sumModel   string
 	artifacts  string
+	existing   bool
 }
 
 func (c *common) bind(fs *flag.FlagSet) {
-	def := os.Getenv("PALIMPSEST_DB")
-	if def == "" {
-		def = "palimpsest.db"
-	}
-	fs.StringVar(&c.db, "db", def, "SQLite database path (env PALIMPSEST_DB)")
-	fs.StringVar(&c.config, "config", "", "policy JSON file (see 'palimpsest config')")
-	fs.StringVar(&c.summarizer, "summarizer", envOr("PALIMPSEST_SUMMARIZER", "extractive"), "extractive, ollama, openai, anthropic or none")
-	fs.StringVar(&c.sumURL, "summarizer-url", os.Getenv("PALIMPSEST_SUMMARIZER_URL"), "base URL for an OpenAI-compatible summarizer (for example http://127.0.0.1:11434/v1)")
-	fs.StringVar(&c.sumModel, "summarizer-model", os.Getenv("PALIMPSEST_SUMMARIZER_MODEL"), "summarizer model name")
+	fs.StringVar(&c.db, "db", "", "SQLite database path (default "+defaultDB+", env STRATAVELL_DB)")
+	fs.StringVar(&c.config, "config", "", "policy JSON file (see 'stratavell config')")
+	fs.StringVar(&c.summarizer, "summarizer", envOr("SUMMARIZER", "extractive"), "extractive, ollama, openai, anthropic or none (env STRATAVELL_SUMMARIZER)")
+	fs.StringVar(&c.sumURL, "summarizer-url", env("SUMMARIZER_URL"), "base URL for an OpenAI-compatible summarizer, for example http://127.0.0.1:11434/v1 (env STRATAVELL_SUMMARIZER_URL)")
+	fs.StringVar(&c.sumModel, "summarizer-model", env("SUMMARIZER_MODEL"), "summarizer model name (env STRATAVELL_SUMMARIZER_MODEL)")
 	fs.StringVar(&c.artifacts, "artifacts", "", "directory for an external artifact store (default: inside the database)")
 }
 
-func envOr(k, d string) string {
-	if v := os.Getenv(k); v != "" {
+var warned = map[string]bool{}
+
+func warnOnce(key, text string) {
+	if warned[key] {
+		return
+	}
+	warned[key] = true
+	fmt.Fprintln(os.Stderr, "stratavell: warning:", text)
+}
+
+func env(name string) string {
+	if v := os.Getenv("STRATAVELL_" + name); v != "" {
+		return v
+	}
+	if v := os.Getenv("PALIMPSEST_" + name); v != "" {
+		warnOnce("env-"+name, fmt.Sprintf("PALIMPSEST_%s is deprecated and will be removed in a later release; set STRATAVELL_%s instead", name, name))
+		return v
+	}
+	return ""
+}
+
+func envOr(name, d string) string {
+	if v := env(name); v != "" {
 		return v
 	}
 	return d
 }
 
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+func (c *common) resolveDB() string {
+	if c.db != "" {
+		return c.db
+	}
+	if v := env("DB"); v != "" {
+		return v
+	}
+	if !fileExists(defaultDB) && fileExists(legacyDB) {
+		warnOnce("legacy-db", "using "+legacyDB+" from a pre-0.1.0 install; run 'stratavell migrate' to copy it to "+defaultDB+", or pass --db")
+		return legacyDB
+	}
+	return defaultDB
+}
+
 func (c *common) open(ctx context.Context) (*engine.Engine, error) {
+	c.db = c.resolveDB()
+	if c.existing && !fileExists(c.db) {
+		return nil, fmt.Errorf("database %s does not exist (pass --db or set STRATAVELL_DB)", c.db)
+	}
 	pol := engine.DefaultPolicy()
 	if c.config != "" {
 		b, err := os.ReadFile(c.config)
@@ -130,7 +182,7 @@ func (c *common) open(ctx context.Context) (*engine.Engine, error) {
 	case "none":
 	case "openai":
 		cl := openai.NewClient(c.sumURL, c.sumModel)
-		if k := os.Getenv("PALIMPSEST_SUMMARIZER_KEY"); k != "" {
+		if k := env("SUMMARIZER_KEY"); k != "" {
 			cl.APIKey = k
 		}
 		o.Summarizer = summarize.LLM{Model: cl}
@@ -138,7 +190,7 @@ func (c *common) open(ctx context.Context) (*engine.Engine, error) {
 		o.Summarizer = summarize.LLM{Model: ollama.New(c.sumURL, c.sumModel, 16384), MaxInput: 10000}
 	case "anthropic":
 		cl := anthropic.NewClient(c.sumModel)
-		if k := os.Getenv("PALIMPSEST_SUMMARIZER_KEY"); k != "" {
+		if k := env("SUMMARIZER_KEY"); k != "" {
 			cl.APIKey = k
 		}
 		if c.sumURL != "" {
@@ -171,9 +223,9 @@ func cmdServe(ctx context.Context, args []string) error {
 	c.bind(fs)
 	addr := fs.String("addr", "127.0.0.1:7077", "TCP listen address, empty to disable")
 	sock := fs.String("socket", "", "Unix domain socket path (created with mode 0600)")
-	tokenFile := fs.String("token-file", "", "file holding a bearer token required on every request (env PALIMPSEST_TOKEN)")
+	tokenFile := fs.String("token-file", "", "file holding a bearer token required on every request (env STRATAVELL_TOKEN)")
 	fs.Parse(args)
-	token := os.Getenv("PALIMPSEST_TOKEN")
+	token := env("TOKEN")
 	if *tokenFile != "" {
 		b, err := os.ReadFile(*tokenFile)
 		if err != nil {
@@ -182,14 +234,14 @@ func cmdServe(ctx context.Context, args []string) error {
 		token = strings.TrimSpace(string(b))
 	}
 	if *addr != "" && !strings.HasPrefix(*addr, "127.0.0.1:") && !strings.HasPrefix(*addr, "localhost:") && !strings.HasPrefix(*addr, "[::1]:") && token == "" {
-		return errors.New("refusing to listen on a non-loopback address without a bearer token (set PALIMPSEST_TOKEN or --token-file)")
+		return errors.New("refusing to listen on a non-loopback address without a bearer token (set STRATAVELL_TOKEN or --token-file)")
 	}
 	e, err := c.open(ctx)
 	if err != nil {
 		return err
 	}
 	defer e.Close()
-	fmt.Fprintf(os.Stderr, "palimpsest %s serving api %s on tcp=%q socket=%q db=%s\n", server.Version, server.APIVersion, *addr, *sock, c.db)
+	fmt.Fprintf(os.Stderr, "stratavell %s serving api %s on tcp=%q socket=%q db=%s\n", server.Version, server.APIVersion, *addr, *sock, c.db)
 	return server.New(e, token).Serve(ctx, server.Listeners{Addr: *addr, Socket: *sock})
 }
 
@@ -197,8 +249,8 @@ func cmdMCP(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("mcp", flag.ExitOnError)
 	var c common
 	c.bind(fs)
-	session := fs.String("session", envOr("PALIMPSEST_SESSION", "default"), "session id")
-	agent := fs.String("agent", envOr("PALIMPSEST_AGENT", "mcp"), "agent id")
+	session := fs.String("session", envOr("SESSION", "default"), "session id (env STRATAVELL_SESSION)")
+	agent := fs.String("agent", envOr("AGENT", "mcp"), "agent id (env STRATAVELL_AGENT)")
 	passive := fs.Bool("passive", true, "passive memory mode: expose memory_archive for hosts that cannot hand their context to the engine")
 	fs.Parse(args)
 	e, err := c.open(ctx)
@@ -214,12 +266,16 @@ func agentFlags(fs *flag.FlagSet) (*string, *string) {
 	return fs.String("session", "default", "session id"), fs.String("agent", "main", "agent id")
 }
 
-func openAgent(ctx context.Context, e *engine.Engine, session, agent string) (*engine.Agent, error) {
-	s, err := e.OpenSession(ctx, session, engine.SessionConfig{})
+func openAgent(ctx context.Context, e *engine.Engine, session, agent string) (*engine.Session, *engine.Agent, error) {
+	s, err := e.LookupSession(ctx, session)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return s.Agent(ctx, agent)
+	a, err := s.LookupAgent(ctx, agent)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s, a, nil
 }
 
 func cmdStats(ctx context.Context, args []string) error {
@@ -230,6 +286,7 @@ func cmdStats(ctx context.Context, args []string) error {
 	all := fs.Bool("engine", false, "print engine-wide statistics instead of one agent")
 	fs.Parse(args)
 	c.summarizer = "none"
+	c.existing = true
 	e, err := c.open(ctx)
 	if err != nil {
 		return err
@@ -242,7 +299,7 @@ func cmdStats(ctx context.Context, args []string) error {
 		}
 		return printJSON(st)
 	}
-	a, err := openAgent(ctx, e, *session, *agent)
+	_, a, err := openAgent(ctx, e, *session, *agent)
 	if err != nil {
 		return err
 	}
@@ -260,18 +317,18 @@ func cmdInspect(ctx context.Context, args []string) error {
 	session, agent := agentFlags(fs)
 	fs.Parse(args)
 	c.summarizer = "none"
+	c.existing = true
 	e, err := c.open(ctx)
 	if err != nil {
 		return err
 	}
 	defer e.Close()
 	sessions, _ := e.Sessions(ctx)
-	a, err := openAgent(ctx, e, *session, *agent)
+	s, a, err := openAgent(ctx, e, *session, *agent)
 	if err != nil {
 		return err
 	}
 	st, _ := a.Stats(ctx)
-	s, _ := e.OpenSession(ctx, *session, engine.SessionConfig{})
 	agents, _ := s.Agents(ctx)
 	items, _ := a.TaskState(ctx)
 	return printJSON(map[string]any{"sessions": sessions, "agents": agents, "stats": st, "frontier": a.Frontier(), "task_state": items})
@@ -285,12 +342,13 @@ func cmdSearch(ctx context.Context, args []string) error {
 	limit := fs.Int("limit", 10, "maximum hits")
 	fs.Parse(args)
 	c.summarizer = "none"
+	c.existing = true
 	e, err := c.open(ctx)
 	if err != nil {
 		return err
 	}
 	defer e.Close()
-	a, err := openAgent(ctx, e, *session, *agent)
+	_, a, err := openAgent(ctx, e, *session, *agent)
 	if err != nil {
 		return err
 	}
@@ -308,15 +366,16 @@ func cmdShow(ctx context.Context, args []string) error {
 	session, agent := agentFlags(fs)
 	fs.Parse(args)
 	if fs.NArg() != 1 {
-		return errors.New("usage: palimpsest show [flags] <event-id>")
+		return errors.New("usage: stratavell show [flags] <event-id>")
 	}
 	c.summarizer = "none"
+	c.existing = true
 	e, err := c.open(ctx)
 	if err != nil {
 		return err
 	}
 	defer e.Close()
-	a, err := openAgent(ctx, e, *session, *agent)
+	_, a, err := openAgent(ctx, e, *session, *agent)
 	if err != nil {
 		return err
 	}
@@ -334,6 +393,7 @@ func cmdVerify(ctx context.Context, args []string) error {
 	session := fs.String("session", "", "session id (default: all sessions)")
 	fs.Parse(args)
 	c.summarizer = "none"
+	c.existing = true
 	e, err := c.open(ctx)
 	if err != nil {
 		return err
@@ -377,6 +437,7 @@ func cmdDelete(ctx context.Context, args []string) error {
 		return errors.New("--session is required")
 	}
 	c.summarizer = "none"
+	c.existing = true
 	e, err := c.open(ctx)
 	if err != nil {
 		return err
@@ -387,10 +448,10 @@ func cmdDelete(ctx context.Context, args []string) error {
 		return err
 	}
 	if *vacuum {
-		if err := e.DB().Checkpoint(ctx); err != nil {
+		if err := e.Checkpoint(ctx); err != nil {
 			return err
 		}
-		if err := e.DB().Vacuum(ctx); err != nil {
+		if err := e.Vacuum(ctx); err != nil {
 			return err
 		}
 	}
@@ -403,13 +464,99 @@ func cmdVacuum(ctx context.Context, args []string) error {
 	c.bind(fs)
 	fs.Parse(args)
 	c.summarizer = "none"
+	c.existing = true
 	e, err := c.open(ctx)
 	if err != nil {
 		return err
 	}
 	defer e.Close()
-	if err := e.DB().Checkpoint(ctx); err != nil {
+	if err := e.Checkpoint(ctx); err != nil {
 		return err
 	}
-	return e.DB().Vacuum(ctx)
+	return e.Vacuum(ctx)
+}
+
+func versionInfo() map[string]any {
+	out := map[string]any{"version": server.Version, "api": server.APIVersion, "config_version": engine.ConfigVersion}
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		out["go"] = bi.GoVersion
+		for _, kv := range bi.Settings {
+			switch kv.Key {
+			case "vcs.revision":
+				out["commit"] = kv.Value
+			case "vcs.modified":
+				out["modified"] = kv.Value == "true"
+			}
+		}
+	}
+	return out
+}
+
+func cmdMigrate(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("migrate", flag.ExitOnError)
+	from := fs.String("from", legacyDB, "existing database to copy")
+	to := fs.String("to", defaultDB, "new database path; must not exist yet")
+	dry := fs.Bool("dry-run", false, "report what would happen and change nothing")
+	fs.Parse(args)
+	if !fileExists(*from) {
+		return fmt.Errorf("source database %s does not exist", *from)
+	}
+	for _, p := range []string{*to, *to + "-wal", *to + "-shm"} {
+		if fileExists(p) {
+			return fmt.Errorf("refusing to overwrite %s; move it away or choose another --to", p)
+		}
+	}
+	if *dry {
+		return printJSON(map[string]any{"from": *from, "to": *to, "action": "copy (source is left in place)", "dry_run": true})
+	}
+	if dir := filepath.Dir(*to); dir != "." {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
+	}
+	src, err := store.Open(ctx, *from, store.Options{})
+	if err != nil {
+		return fmt.Errorf("open %s: %w", *from, err)
+	}
+	var srcEvents int64
+	serr := src.R.QueryRowContext(ctx, "SELECT COUNT(*) FROM events").Scan(&srcEvents)
+	if serr == nil {
+		serr = src.VacuumInto(ctx, *to)
+	}
+	src.Close()
+	if serr != nil {
+		return fmt.Errorf("copy to %s: %w", *to, serr)
+	}
+	dst, err := engine.Open(ctx, engine.Options{Path: *to})
+	if err != nil {
+		return fmt.Errorf("open copy %s: %w", *to, err)
+	}
+	defer dst.Close()
+	dstStats, err := dst.Stats(ctx)
+	if err != nil {
+		return err
+	}
+	ids, err := dst.Sessions(ctx)
+	if err != nil {
+		return err
+	}
+	problems := 0
+	for _, id := range ids {
+		rep, err := dst.Verify(ctx, id)
+		if err != nil {
+			return err
+		}
+		problems += len(rep.Problems)
+		if rep.SQLiteCheck != "ok" {
+			problems++
+		}
+	}
+	out := map[string]any{"from": *from, "to": *to, "sessions": len(ids), "events_source": srcEvents, "events_copy": dstStats.Events, "verify_problems": problems, "source": "left in place; delete it yourself once the copy is confirmed"}
+	if err := printJSON(out); err != nil {
+		return err
+	}
+	if problems > 0 || srcEvents != dstStats.Events {
+		return errors.New("the copy did not verify; the source database is unchanged")
+	}
+	return nil
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 type predictor struct {

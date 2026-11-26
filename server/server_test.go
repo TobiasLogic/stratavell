@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/server"
-	"github.com/TobiasLogic/palimpsest/summarize"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/server"
+	"github.com/TobiasLogic/stratavell/summarize"
 )
 
 func setup(t *testing.T, token string) (*httptest.Server, *engine.Engine) {
@@ -115,4 +118,78 @@ func TestHTTPFlow(t *testing.T) {
 func toJSON(v any) string {
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+func TestServeRefusesToReplaceNonSocket(t *testing.T) {
+	e, err := engine.Open(context.Background(), engine.Options{Path: filepath.Join(t.TempDir(), "s.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close()
+	victim := filepath.Join(t.TempDir(), "important.db")
+	if err := os.WriteFile(victim, []byte("keep me"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err = server.New(e, "").Serve(context.Background(), server.Listeners{Socket: victim})
+	if err == nil || !strings.Contains(err.Error(), "not a socket") {
+		t.Fatalf("want refusal, got %v", err)
+	}
+	if b, _ := os.ReadFile(victim); string(b) != "keep me" {
+		t.Fatal("existing file was modified")
+	}
+}
+
+func TestLoopbackGuardWithoutToken(t *testing.T) {
+	e, err := engine.Open(context.Background(), engine.Options{Path: filepath.Join(t.TempDir(), "s.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.Close()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	ln.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- server.New(e, "").Serve(ctx, server.Listeners{Addr: addr}) }()
+	defer func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Errorf("serve: %v", err)
+		}
+	}()
+	get := func(host, origin string) int {
+		for i := 0; i < 50; i++ {
+			req, _ := http.NewRequest("GET", "http://"+addr+"/v1/stats", nil)
+			if host != "" {
+				req.Host = host
+			}
+			if origin != "" {
+				req.Header.Set("Origin", origin)
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				time.Sleep(20 * time.Millisecond)
+				continue
+			}
+			resp.Body.Close()
+			return resp.StatusCode
+		}
+		t.Fatal("server did not start")
+		return 0
+	}
+	if c := get("", ""); c != 200 {
+		t.Fatalf("plain loopback request: %d", c)
+	}
+	if c := get("localhost:7077", "http://localhost:3000"); c != 200 {
+		t.Fatalf("loopback origin: %d", c)
+	}
+	if c := get("attacker.example:7077", ""); c != 403 {
+		t.Fatalf("rebinding host accepted: %d", c)
+	}
+	if c := get("", "https://attacker.example"); c != 403 {
+		t.Fatalf("foreign origin accepted: %d", c)
+	}
 }

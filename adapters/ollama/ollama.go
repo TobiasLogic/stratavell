@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/adapters/openai"
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/msg"
-	"github.com/TobiasLogic/palimpsest/summarize"
+	"github.com/TobiasLogic/stratavell/adapters/openai"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/msg"
+	"github.com/TobiasLogic/stratavell/summarize"
 )
 
 type Client struct {

@@ -6,19 +6,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/internal/store"
-	"github.com/TobiasLogic/palimpsest/internal/tokens"
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/internal/store"
+	"github.com/TobiasLogic/stratavell/internal/tokens"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 type Options struct {
 	Path       string
 	Policy     Policy
-	Store      store.Options
-	Blob       store.BlobPolicy
+	Store      StoreOptions
+	Blob       BlobPolicy
 	Summarizer Summarizer
 	Embedder   Embedder
 	Clock      Clock
@@ -432,4 +433,28 @@ func (e *Engine) ReleaseSession(id string) {
 		}
 	}
 	delete(e.sess, id)
+}
+
+type StoreOptions = store.Options
+
+type Durability = store.Durability
+
+type BlobPolicy = store.BlobPolicy
+
+const (
+	DurabilityFull   = store.DurabilityFull
+	DurabilityNormal = store.DurabilityNormal
+)
+
+func DefaultBlobPolicy() BlobPolicy { return store.DefaultBlobPolicy() }
+
+func (e *Engine) Checkpoint(ctx context.Context) error { return e.db.Checkpoint(ctx) }
+
+func (e *Engine) Vacuum(ctx context.Context) error { return e.db.Vacuum(ctx) }
+
+func (e *Engine) Backup(ctx context.Context, dest string) error {
+	if _, err := os.Stat(dest); err == nil {
+		return fmt.Errorf("backup: %s already exists", dest)
+	}
+	return e.db.VacuumInto(ctx, dest)
 }

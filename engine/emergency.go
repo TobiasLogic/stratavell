@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 func (a *Agent) archiveRange(ctx context.Context, from, to int64, reason string) (int, error) {

@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"strings"
 
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 type Fact struct {

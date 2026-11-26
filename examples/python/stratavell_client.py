@@ -17,7 +17,7 @@ class _UnixConnection(http.client.HTTPConnection):
         self.sock = s
 
 
-class PalimpsestError(Exception):
+class StratavellError(Exception):
     def __init__(self, status, body):
         super().__init__(f"HTTP {status}: {body.get('error', body)}")
         self.status = status
@@ -29,7 +29,7 @@ class Client:
     def __init__(self, base_url="http://127.0.0.1:7077", socket_path=None, token=None, timeout=60):
         self.socket_path = socket_path
         self.url = urllib.parse.urlparse(base_url)
-        self.token = token or os.environ.get("PALIMPSEST_TOKEN")
+        self.token = token or os.environ.get("STRATAVELL_TOKEN")
         self.timeout = timeout
 
     def _conn(self):
@@ -49,7 +49,7 @@ class Client:
         finally:
             conn.close()
         if resp.status >= 400:
-            raise PalimpsestError(resp.status, data)
+            raise StratavellError(resp.status, data)
         return data
 
     def session(self, session_id, project=""):

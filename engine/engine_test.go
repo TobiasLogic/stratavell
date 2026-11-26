@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/msg"
-	"github.com/TobiasLogic/palimpsest/summarize"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/msg"
+	"github.com/TobiasLogic/stratavell/summarize"
 )
 
 func TestExactRecoveryAfterRepeatedCompaction(t *testing.T) {
@@ -807,5 +808,50 @@ func TestRetrievalOutputsCarryProvenance(t *testing.T) {
 	page, err := a.ReadEvent(ctx, ref.ID, 0)
 	if err != nil || !strings.Contains(page, "path pkg/api/config.go") || !strings.Contains(page, "RetryLimit = 7") {
 		t.Fatalf("event page lacks provenance: %v %s", err, page)
+	}
+}
+
+func TestCloseDuringConcurrentAppends(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "c.db")
+	ctx := context.Background()
+	e, err := engine.Open(ctx, engine.Options{Path: path, Policy: smallPolicy(16000), Summarizer: summarize.Extractive{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		s, _ := e.OpenSession(ctx, fmt.Sprintf("s%d", i), engine.SessionConfig{})
+		a, _ := s.Agent(ctx, "main")
+		wg.Add(1)
+		go func(a *engine.Agent) {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				if _, err := a.Append(ctx, msg.Text(msg.RoleUser, fmt.Sprintf("message %d with some words", j))); err != nil {
+					return
+				}
+				if j%10 == 0 {
+					if _, err := a.Assemble(ctx, engine.AssembleRequest{}); err != nil {
+						return
+					}
+				}
+			}
+		}(a)
+	}
+	time.Sleep(30 * time.Millisecond)
+	if err := e.Close(); err != nil {
+		t.Fatal(err)
+	}
+	wg.Wait()
+	e2, err := engine.Open(ctx, engine.Options{Path: path, Policy: smallPolicy(16000)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e2.Close()
+	ids, _ := e2.Sessions(ctx)
+	for _, id := range ids {
+		rep, err := e2.Verify(ctx, id)
+		if err != nil || len(rep.Problems) > 0 || rep.SQLiteCheck != "ok" {
+			t.Fatalf("session %s after close: %v %+v", id, err, rep)
+		}
 	}
 }

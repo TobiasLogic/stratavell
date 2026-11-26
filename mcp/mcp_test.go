@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/summarize"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/summarize"
 )
 
 func TestStdioSession(t *testing.T) {

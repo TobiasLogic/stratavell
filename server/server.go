@@ -9,15 +9,16 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/adapters/anthropic"
-	"github.com/TobiasLogic/palimpsest/adapters/openai"
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/adapters/anthropic"
+	"github.com/TobiasLogic/stratavell/adapters/openai"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 const APIVersion = "v1"
@@ -39,7 +40,34 @@ func New(e *engine.Engine, token string) *Server {
 
 func (s *Server) Handler() http.Handler { return s }
 
+type tcpConnKey struct{}
+
+func loopbackHost(h string) bool {
+	if host, _, err := net.SplitHostPort(h); err == nil {
+		h = host
+	}
+	h = strings.TrimSuffix(strings.TrimPrefix(h, "["), "]")
+	if strings.EqualFold(h, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(h)
+	return ip != nil && ip.IsLoopback()
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if s.Token == "" && r.Context().Value(tcpConnKey{}) != nil {
+		if !loopbackHost(r.Host) {
+			writeErr(w, http.StatusForbidden, "forbidden_host", errors.New("without a bearer token the server only answers requests addressed to localhost, 127.0.0.1 or [::1]"))
+			return
+		}
+		if o := r.Header.Get("Origin"); o != "" {
+			u, err := url.Parse(o)
+			if err != nil || !loopbackHost(u.Host) {
+				writeErr(w, http.StatusForbidden, "forbidden_origin", errors.New("browser requests from other origins are refused when no bearer token is set"))
+				return
+			}
+		}
+	}
 	if s.Token != "" && r.URL.Path != "/v1/health" {
 		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if subtle.ConstantTimeCompare([]byte(got), []byte(s.Token)) != 1 {
@@ -593,9 +621,24 @@ func (s *Server) Serve(ctx context.Context, l Listeners) error {
 	if l.Addr == "" && l.Socket == "" {
 		return errors.New("server: no listen address or socket")
 	}
-	srv := &http.Server{Handler: s, ReadHeaderTimeout: 10 * time.Second}
-	errs := make(chan error, 2)
+	srv := &http.Server{
+		Handler:           s,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       2 * time.Minute,
+		IdleTimeout:       2 * time.Minute,
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			if _, ok := c.(*net.TCPConn); ok {
+				return context.WithValue(ctx, tcpConnKey{}, true)
+			}
+			return ctx
+		},
+	}
 	var lns []net.Listener
+	closeAll := func() {
+		for _, x := range lns {
+			x.Close()
+		}
+	}
 	if l.Addr != "" {
 		ln, err := net.Listen("tcp", l.Addr)
 		if err != nil {
@@ -603,40 +646,66 @@ func (s *Server) Serve(ctx context.Context, l Listeners) error {
 		}
 		lns = append(lns, ln)
 	}
+	ownSocket := false
 	if l.Socket != "" {
-		if len(l.Socket) > 100 {
-			for _, x := range lns {
-				x.Close()
-			}
-			return fmt.Errorf("server: unix socket path is %d bytes; most systems allow about 104, so use a shorter path such as $XDG_RUNTIME_DIR/palimpsest.sock", len(l.Socket))
-		}
-		_ = os.Remove(l.Socket)
-		ln, err := net.Listen("unix", l.Socket)
-		if err != nil {
-			for _, x := range lns {
-				x.Close()
-			}
+		if err := removeStaleSocket(l.Socket); err != nil {
+			closeAll()
 			return err
 		}
-		if err := os.Chmod(l.Socket, 0o600); err != nil {
-			ln.Close()
+		if len(l.Socket) > 100 {
+			closeAll()
+			return fmt.Errorf("server: unix socket path is %d bytes; most systems allow about 104, so use a shorter path such as $XDG_RUNTIME_DIR/stratavell.sock", len(l.Socket))
+		}
+		ln, err := net.Listen("unix", l.Socket)
+		if err != nil {
+			closeAll()
 			return err
 		}
 		lns = append(lns, ln)
+		ownSocket = true
+		if err := os.Chmod(l.Socket, 0o600); err != nil {
+			closeAll()
+			_ = os.Remove(l.Socket)
+			return err
+		}
 	}
+	errs := make(chan error, len(lns))
 	for _, ln := range lns {
 		go func(ln net.Listener) { errs <- srv.Serve(ln) }(ln)
 	}
+	var err error
 	select {
 	case <-ctx.Done():
-		sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		err := srv.Shutdown(sctx)
-		if l.Socket != "" {
-			_ = os.Remove(l.Socket)
-		}
-		return err
-	case err := <-errs:
+	case err = <-errs:
+	}
+	sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if serr := srv.Shutdown(sctx); err == nil {
+		err = serr
+	}
+	if ownSocket {
+		_ = os.Remove(l.Socket)
+	}
+	if errors.Is(err, http.ErrServerClosed) {
+		err = nil
+	}
+	return err
+}
+
+func removeStaleSocket(path string) error {
+	fi, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
+	if fi.Mode()&os.ModeSocket == 0 {
+		return fmt.Errorf("server: %s exists and is not a socket; refusing to replace it", path)
+	}
+	if c, err := net.DialTimeout("unix", path, 300*time.Millisecond); err == nil {
+		c.Close()
+		return fmt.Errorf("server: another process is already listening on %s", path)
+	}
+	return os.Remove(path)
 }

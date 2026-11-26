@@ -258,6 +258,13 @@ func (db *DB) Vacuum(ctx context.Context) error {
 	return err
 }
 
+func (db *DB) VacuumInto(ctx context.Context, dest string) error {
+	db.wmu.Lock()
+	defer db.wmu.Unlock()
+	_, err := db.W.ExecContext(ctx, "VACUUM INTO ?", dest)
+	return err
+}
+
 func (db *DB) IntegrityCheck(ctx context.Context) (string, error) {
 	c, err := sql.Open("sqlite", dsn(db.Path, true, Options{BusyTimeout: 10 * time.Second}))
 	if err != nil {

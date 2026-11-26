@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/adapters/anthropic"
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/internal/tokens"
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/adapters/anthropic"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/internal/tokens"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 type View struct {

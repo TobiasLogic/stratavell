@@ -1,6 +1,6 @@
-import { Client, text } from "./palimpsest.ts";
+import { Client, text } from "./stratavell.ts";
 
-const agent = await new Client(process.env.PALIMPSEST_URL ?? "http://127.0.0.1:7077").agent("ts-demo", "main");
+const agent = await new Client(process.env.STRATAVELL_URL ?? "http://127.0.0.1:7077").agent("ts-demo", "main");
 
 await agent.append(
   text("user", "Upgrade the HTTP client. Keep Node 18 support; do not add dependencies."),

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/msg"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/msg"
 )
 
 type Model interface {

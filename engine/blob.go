@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/internal/store"
+	"github.com/TobiasLogic/stratavell/internal/store"
 )
 
 func (e *Engine) putBlob(ctx context.Context, tx *sql.Tx, hash string, data []byte) error {

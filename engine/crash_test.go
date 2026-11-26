@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/summarize"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/summarize"
 )
 
 func TestCrashRecoveryChild(t *testing.T) {
-	path := os.Getenv("PALIMPSEST_CRASH_DB")
+	path := os.Getenv("STRATAVELL_CRASH_DB")
 	if path == "" {
 		t.Skip("helper process")
 	}
@@ -78,7 +78,7 @@ func TestCrashRecovery(t *testing.T) {
 	for round, kills := range []int{150, 400, 900} {
 		path := filepath.Join(t.TempDir(), fmt.Sprintf("crash%d.db", round))
 		cmd := exec.Command(os.Args[0], "-test.run=^TestCrashRecoveryChild$", "-test.count=1")
-		cmd.Env = append(os.Environ(), "PALIMPSEST_CRASH_DB="+path)
+		cmd.Env = append(os.Environ(), "STRATAVELL_CRASH_DB="+path)
 		stdout, _ := cmd.StdoutPipe()
 		if err := cmd.Start(); err != nil {
 			t.Fatal(err)

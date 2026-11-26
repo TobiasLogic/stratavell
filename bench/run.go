@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/internal/tokens"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/internal/tokens"
 )
 
 type Config struct {

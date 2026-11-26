@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/TobiasLogic/palimpsest/engine"
-	"github.com/TobiasLogic/palimpsest/internal/textproc"
-	"github.com/TobiasLogic/palimpsest/internal/tokens"
+	"github.com/TobiasLogic/stratavell/engine"
+	"github.com/TobiasLogic/stratavell/internal/textproc"
+	"github.com/TobiasLogic/stratavell/internal/tokens"
 )
 
 type Extractive struct{}
@@ -200,7 +200,7 @@ type LLM struct {
 	MaxInput int
 }
 
-const PromptVersion = "palimpsest-summary-v1"
+const PromptVersion = "stratavell-summary-v1"
 
 const systemPrompt = `You compress one segment of an AI agent's working session into durable notes. Your notes replace the raw segment in the agent's context. The raw segment stays retrievable by its event ids, so prefer precise pointers over vague prose.
 

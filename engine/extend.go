@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/TobiasLogic/palimpsest/internal/store"
-	"github.com/TobiasLogic/palimpsest/internal/tokens"
+	"github.com/TobiasLogic/stratavell/internal/store"
+	"github.com/TobiasLogic/stratavell/internal/tokens"
 )
 
 type Tokenizer interface {
@@ -20,7 +20,7 @@ type Tokenizer interface {
 type estimator struct{}
 
 func (estimator) Count(s string) int { return tokens.Estimate(s) }
-func (estimator) Name() string       { return "palimpsest-estimate-v1" }
+func (estimator) Name() string       { return "stratavell-estimate-v1" }
 
 func DefaultTokenizer() Tokenizer { return estimator{} }
 

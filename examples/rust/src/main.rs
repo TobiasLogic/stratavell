@@ -22,7 +22,7 @@ impl Agent {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = env::var("PALIMPSEST_URL").unwrap_or_else(|_| "http://127.0.0.1:7077".into());
+    let url = env::var("STRATAVELL_URL").unwrap_or_else(|_| "http://127.0.0.1:7077".into());
     let agent = Agent::connect(&url, "rust-demo", "main")?;
 
     agent.post("/events", json!({ "messages": [
