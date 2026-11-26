@@ -1,9 +1,16 @@
 *.db
 *.db-wal
 *.db-shm
+*.sock
+*.env
+.env*
 /bin/
 /dist/
-/bench/out/tmp/
+/bench/out/
 /examples/rust/target/
 /examples/typescript/node_modules/
 __pycache__/
+*.pyc
+.DS_Store
+.idea/
+.vscode/

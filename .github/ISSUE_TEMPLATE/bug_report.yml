@@ -1,0 +1,50 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence of commands, API calls or code that shows the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: Output of `stratavell version`, or the module version you import.
+      render: json
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Integration mode
+      options:
+        - Go SDK
+        - HTTP API (TCP)
+        - HTTP API (Unix socket)
+        - MCP server (full)
+        - MCP server (passive)
+        - CLI
+        - Benchmark harness
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and architecture
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or `stratavell verify` output
+      description: Remove API keys, tokens and private data first.
+      render: text

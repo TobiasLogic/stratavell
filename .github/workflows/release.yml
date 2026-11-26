@@ -1,0 +1,35 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - name: build archives and checksums
+        run: ./scripts/release-build.sh "${GITHUB_REF_NAME#v}" dist
+      - name: create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="docs/releases/${GITHUB_REF_NAME}.md"
+          [ -f "$notes" ] || notes=CHANGELOG.md
+          title=$(sed -n '1s/^# //p' "$notes")
+          [ -n "$title" ] || title="Stratavell ${GITHUB_REF_NAME}"
+          tail -n +2 "$notes" > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "$title" --notes-file "$RUNNER_TEMP/notes.md" \
+            dist/*.tar.gz dist/*.zip dist/SHA256SUMS
