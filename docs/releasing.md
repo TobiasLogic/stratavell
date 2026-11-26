@@ -21,8 +21,8 @@ Each workflow can be rerun for an existing tag from the Actions tab (`workflow_d
 ## One-time setup
 
 Container image:
-- After the first image push, open the `stratavell` package under the GitHub profile's Packages tab.
-- Under Package settings, set its visibility to **public**. Images are private by default, and the MCP Registry only lists publicly pullable servers.
+- The image carries an `org.opencontainers.image.source` label that links the package to this public repository. For v0.1.2 the package was public right after the first push.
+- If it is ever private, open the `stratavell` package under the GitHub profile's Packages tab and set Package settings, visibility to **public**. The MCP Registry only lists publicly pullable servers.
 
 MCP Registry:
 - Ownership is proven by the image label `io.modelcontextprotocol.server.name`, which must equal `name` in `server.json`.
@@ -47,6 +47,7 @@ npm:
    - environment `npm`
    - leave "Allow npm publish" unchecked, so CI can only stage a release
 3. Create a GitHub environment named `npm`, and set `PUBLISH_NPM` to `true`.
+   npm marks a new trusted publisher "pending validation" until CI publishes through it once, and gives about two days to do so. If that window passes, delete the connection and add it again before the next release.
 4. Each release then appears under Staged Packages in the npm account settings. A maintainer approves it there with two-factor authentication before it goes live, so a compromised CI run cannot publish on its own.
 
 Until these variables are set, the publishing jobs are skipped instead of failing.
