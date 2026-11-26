@@ -132,9 +132,9 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) (DeleteReport, er
 }
 
 type RetentionPolicy struct {
-	OlderThanNS     int64
-	KeepSummaries   bool
-	OnlySummarized  bool
+	OlderThanNS    int64
+	KeepSummaries  bool
+	OnlySummarized bool
 }
 
 func (a *Agent) Purge(ctx context.Context, upToSeq int64, rp RetentionPolicy) (int64, error) {
@@ -205,12 +205,12 @@ func (e *Engine) gcBlobs(ctx context.Context, tx *sql.Tx) (int64, error) {
 }
 
 type VerifyReport struct {
-	Events        int      `json:"events"`
-	EventsOK      int      `json:"events_ok"`
-	Summaries     int      `json:"summaries"`
-	Views         int      `json:"views_checked"`
-	Problems      []string `json:"problems,omitempty"`
-	SQLiteCheck   string   `json:"sqlite_integrity"`
+	Events      int      `json:"events"`
+	EventsOK    int      `json:"events_ok"`
+	Summaries   int      `json:"summaries"`
+	Views       int      `json:"views_checked"`
+	Problems    []string `json:"problems,omitempty"`
+	SQLiteCheck string   `json:"sqlite_integrity"`
 }
 
 func (e *Engine) Verify(ctx context.Context, session string) (VerifyReport, error) {

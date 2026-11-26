@@ -17,18 +17,18 @@ const (
 )
 
 type jobSpec struct {
-	ID       string
-	Session  string
-	Agent    string
-	Kind     string
-	Level    int
-	BaseGen  int64
-	Lo, Hi   int64
-	Sources  []string
-	Input    SummarizeInput
-	SrcTok   int
-	Attempts int
-	Created  time.Time
+	ID        string
+	Session   string
+	Agent     string
+	Kind      string
+	Level     int
+	BaseGen   int64
+	Lo, Hi    int64
+	Sources   []string
+	Input     SummarizeInput
+	SrcTok    int
+	Attempts  int
+	Created   time.Time
 	notBefore time.Time
 }
 
@@ -463,16 +463,16 @@ func (a *Agent) rebuildJob(old jobSpec) *jobSpec {
 }
 
 type rateGate struct {
-	mu        sync.Mutex
-	clock     Clock
-	rpm       int
-	tpm       int
-	reserve   float64
-	reqTimes  []time.Time
-	tokTimes  []tokStamp
-	fgTokens  []tokStamp
-	penalty   time.Time
-	backoffN  int
+	mu       sync.Mutex
+	clock    Clock
+	rpm      int
+	tpm      int
+	reserve  float64
+	reqTimes []time.Time
+	tokTimes []tokStamp
+	fgTokens []tokStamp
+	penalty  time.Time
+	backoffN int
 }
 
 type tokStamp struct {

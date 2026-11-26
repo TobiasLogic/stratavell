@@ -32,8 +32,8 @@ func smallPolicy(window int) engine.Policy {
 type opt func(*engine.Options)
 
 func withSummarizer(s engine.Summarizer) opt { return func(o *engine.Options) { o.Summarizer = s } }
-func manual() opt                           { return func(o *engine.Options) { o.Manual = true } }
-func withPath(p string) opt                 { return func(o *engine.Options) { o.Path = p } }
+func manual() opt                            { return func(o *engine.Options) { o.Manual = true } }
+func withPath(p string) opt                  { return func(o *engine.Options) { o.Path = p } }
 func seeded(seed uint64) opt {
 	return func(o *engine.Options) {
 		c := engine.NewManualClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -85,10 +85,10 @@ type simTurn struct {
 }
 
 type sim struct {
-	r      *rand.Rand
-	n      int
-	files  map[string]string
-	paths  []string
+	r     *rand.Rand
+	n     int
+	files map[string]string
+	paths []string
 }
 
 func newSim(seed uint64) *sim {

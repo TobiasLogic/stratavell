@@ -79,27 +79,27 @@ type nodeRef struct {
 }
 
 type SummaryNode struct {
-	ID            string          `json:"id"`
-	SessionID     string          `json:"session_id"`
-	AgentID       string          `json:"agent_id"`
-	Level         int             `json:"level"`
-	Kind          string          `json:"kind"`
-	Lo            int64           `json:"seq_lo"`
-	Hi            int64           `json:"seq_hi"`
-	Text          string          `json:"text"`
-	Facts         []Fact          `json:"facts"`
-	SrcTokens     int             `json:"src_tokens"`
-	Tokens        int             `json:"tokens"`
-	ContentHash   string          `json:"content_hash"`
-	SourcesHash   string          `json:"sources_hash"`
-	Model         string          `json:"model"`
-	PromptVersion string          `json:"prompt_version"`
-	CreatedAt     int64           `json:"created_at"`
-	Validation    string          `json:"validation"`
-	Note          string          `json:"validation_note,omitempty"`
-	Sources       []SourceRef     `json:"sources"`
-	JobID         string          `json:"job_id,omitempty"`
-	State         string          `json:"state"`
+	ID            string      `json:"id"`
+	SessionID     string      `json:"session_id"`
+	AgentID       string      `json:"agent_id"`
+	Level         int         `json:"level"`
+	Kind          string      `json:"kind"`
+	Lo            int64       `json:"seq_lo"`
+	Hi            int64       `json:"seq_hi"`
+	Text          string      `json:"text"`
+	Facts         []Fact      `json:"facts"`
+	SrcTokens     int         `json:"src_tokens"`
+	Tokens        int         `json:"tokens"`
+	ContentHash   string      `json:"content_hash"`
+	SourcesHash   string      `json:"sources_hash"`
+	Model         string      `json:"model"`
+	PromptVersion string      `json:"prompt_version"`
+	CreatedAt     int64       `json:"created_at"`
+	Validation    string      `json:"validation"`
+	Note          string      `json:"validation_note,omitempty"`
+	Sources       []SourceRef `json:"sources"`
+	JobID         string      `json:"job_id,omitempty"`
+	State         string      `json:"state"`
 }
 
 type SourceRef struct {

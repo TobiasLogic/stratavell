@@ -25,14 +25,14 @@ type indexReq struct {
 }
 
 type indexer struct {
-	e      *Engine
-	sync   bool
-	mu     sync.Mutex
-	cond   *sync.Cond
-	queue  []indexReq
-	busy   bool
+	e       *Engine
+	sync    bool
+	mu      sync.Mutex
+	cond    *sync.Cond
+	queue   []indexReq
+	busy    bool
 	stopped bool
-	wg     sync.WaitGroup
+	wg      sync.WaitGroup
 }
 
 func newIndexer(e *Engine, syncMode bool) *indexer {

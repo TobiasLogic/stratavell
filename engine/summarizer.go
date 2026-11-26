@@ -45,5 +45,5 @@ type RateLimitError struct {
 	RetryAfterMS int64
 }
 
-func (e *RateLimitError) Error() string { return "summarizer: rate limited" }
+func (e *RateLimitError) Error() string   { return "summarizer: rate limited" }
 func (e *RateLimitError) Is(t error) bool { return t == ErrRateLimited }

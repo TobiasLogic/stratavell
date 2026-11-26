@@ -85,6 +85,7 @@ type Compaction struct {
 	TokensPerMinute    int           `json:"tokens_per_minute"`
 	ForegroundReserve  float64       `json:"foreground_reserve"`
 	DeterministicFirst bool          `json:"deterministic_first"`
+	Emergency          bool          `json:"emergency"`
 }
 
 type Retrieval struct {
@@ -175,6 +176,7 @@ func DefaultPolicy() Policy {
 			SummaryRatio:     0.15,
 			RatePerMinute:    30,
 			TokensPerMinute:  400000,
+			Emergency:        true,
 		},
 		Retrieval: Retrieval{
 			Enabled:           true,

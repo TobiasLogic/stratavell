@@ -10,11 +10,11 @@ import (
 )
 
 type hist struct {
-	n     int64
-	sum   float64
-	max   float64
-	ring  []float64
-	pos   int
+	n    int64
+	sum  float64
+	max  float64
+	ring []float64
+	pos  int
 }
 
 type Metrics struct {
@@ -219,4 +219,58 @@ func (e *Engine) Stats(ctx context.Context) (EngineStats, error) {
 	s.HeapBytes = ms.HeapAlloc
 	s.Goroutine = runtime.NumGoroutine()
 	return s, nil
+}
+
+type FrontierNode struct {
+	ID     string `json:"id"`
+	Level  int    `json:"level"`
+	Kind   string `json:"kind"`
+	Lo     int64  `json:"seq_lo"`
+	Hi     int64  `json:"seq_hi"`
+	Tokens int    `json:"tokens"`
+	Model  string `json:"model"`
+}
+
+func (a *Agent) Frontier() []FrontierNode {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make([]FrontierNode, len(a.frontier))
+	for i, n := range a.frontier {
+		out[i] = FrontierNode{ID: n.ID, Level: n.Level, Kind: n.Kind, Lo: n.Lo, Hi: n.Hi, Tokens: n.Tokens, Model: n.Model}
+	}
+	return out
+}
+
+func (s *Session) Agents(ctx context.Context) ([]string, error) {
+	rows, err := s.e.db.R.QueryContext(ctx, "SELECT id FROM agents WHERE session_id=? ORDER BY created_at, id", s.id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (e *Engine) Sessions(ctx context.Context) ([]string, error) {
+	rows, err := e.db.R.QueryContext(ctx, "SELECT id FROM sessions ORDER BY created_at, id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
 }

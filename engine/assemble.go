@@ -82,18 +82,18 @@ type evidenceBlock struct {
 }
 
 type parts struct {
-	fixed      int
-	summaries  []string
-	sumTok     int
-	pinned     string
-	pinTok     int
-	task       string
-	taskTok    int
-	hist       []rendered
-	histTok    int
-	evid       string
-	evidTok    int
-	total      int
+	fixed     int
+	summaries []string
+	sumTok    int
+	pinned    string
+	pinTok    int
+	task      string
+	taskTok   int
+	hist      []rendered
+	histTok   int
+	evid      string
+	evidTok   int
+	total     int
 }
 
 func (e *Engine) toolTokens(ts []msg.ToolDef) int {
@@ -170,7 +170,7 @@ func (a *Agent) Assemble(ctx context.Context, req AssembleRequest) (*Context, er
 			}
 		}
 	}
-	if float64(a.calib.Adjust(p.total)) >= th.Emergency*float64(capTok) {
+	if a.pol.Compaction.Emergency && float64(a.calib.Adjust(p.total)) >= th.Emergency*float64(capTok) {
 		if a.pol.Compaction.EmergencyWait > 0 && len(a.leafJobs) > 0 {
 			w := time.Now()
 			a.mu.Unlock()
@@ -293,7 +293,6 @@ func (a *Agent) measure(ctx context.Context, fixed int, req AssembleRequest) (pa
 	p.total = p.fixed + p.sumTok + p.pinTok + p.taskTok + p.histTok + p.evidTok + 16
 	return p, nil
 }
-
 
 func (a *Agent) renderPinned() (string, int) {
 	var lines []string

@@ -118,11 +118,11 @@ func pathsFromInput(in json.RawMessage) []string {
 }
 
 type appendPlan struct {
-	ev       Event
-	body     []storedPart
-	blobs    map[string][]byte
-	meta     storedMeta
-	parts    []msg.Part
+	ev          Event
+	body        []storedPart
+	blobs       map[string][]byte
+	meta        storedMeta
+	parts       []msg.Part
 	call        openCall
 	primary     map[string]bool
 	primaryList []string

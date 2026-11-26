@@ -192,15 +192,15 @@ func (a *Agent) frontierIDs() []string {
 }
 
 type publishChange struct {
-	frontier  []*SummaryNode
-	boundary  int64
-	maskSeq   int64
-	reason    string
-	published []string
-	stale     []string
+	frontier   []*SummaryNode
+	boundary   int64
+	maskSeq    int64
+	reason     string
+	published  []string
+	stale      []string
 	superseded []string
-	jobsDone  []string
-	newNodes  []*SummaryNode
+	jobsDone   []string
+	newNodes   []*SummaryNode
 }
 
 func (a *Agent) commitView(ctx context.Context, ch publishChange) error {

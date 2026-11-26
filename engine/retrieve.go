@@ -15,15 +15,15 @@ import (
 )
 
 type SearchFilters struct {
-	Kinds   []string `json:"kinds,omitempty"`
-	Roles   []string `json:"roles,omitempty"`
-	Tools   []string `json:"tools,omitempty"`
-	Path    string   `json:"path,omitempty"`
-	SeqFrom int64    `json:"seq_from,omitempty"`
-	SeqTo   int64    `json:"seq_to,omitempty"`
-	Since   int64    `json:"since,omitempty"`
-	Until   int64    `json:"until,omitempty"`
-	AllAgents bool   `json:"all_agents,omitempty"`
+	Kinds     []string `json:"kinds,omitempty"`
+	Roles     []string `json:"roles,omitempty"`
+	Tools     []string `json:"tools,omitempty"`
+	Path      string   `json:"path,omitempty"`
+	SeqFrom   int64    `json:"seq_from,omitempty"`
+	SeqTo     int64    `json:"seq_to,omitempty"`
+	Since     int64    `json:"since,omitempty"`
+	Until     int64    `json:"until,omitempty"`
+	AllAgents bool     `json:"all_agents,omitempty"`
 }
 
 type SearchHit struct {

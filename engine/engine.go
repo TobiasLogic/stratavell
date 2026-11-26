@@ -146,11 +146,11 @@ func (e *Engine) count(s string) int {
 	return e.tok.Count(s)
 }
 
-func (e *Engine) DB() *store.DB      { return e.db }
-func (e *Engine) Policy() Policy     { return e.pol }
-func (e *Engine) Metrics() *Metrics  { return e.metrics }
-func (e *Engine) now() int64         { return e.clock.Now().UnixNano() }
-func (e *Engine) Clock() Clock       { return e.clock }
+func (e *Engine) DB() *store.DB     { return e.db }
+func (e *Engine) Policy() Policy    { return e.pol }
+func (e *Engine) Metrics() *Metrics { return e.metrics }
+func (e *Engine) now() int64        { return e.clock.Now().UnixNano() }
+func (e *Engine) Clock() Clock      { return e.clock }
 func (e *Engine) SetSummarizer(s Summarizer) {
 	e.mu.Lock()
 	e.summarizer = s
@@ -345,10 +345,10 @@ type Agent struct {
 	lastUsage msg.Usage
 	lastEst   int
 
-	leafJobs    map[string]jobSpec
-	condenseJob string
-	failedJobs  []jobSpec
-	failCount   map[[2]int64]int
+	leafJobs      map[string]jobSpec
+	condenseJob   string
+	failedJobs    []jobSpec
+	failCount     map[[2]int64]int
 	evidence      evidenceBlock
 	waitMS        float64
 	squeeze       bool

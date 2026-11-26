@@ -673,7 +673,7 @@ func TestDeleteSessionRemovesEverything(t *testing.T) {
 	}
 	for _, tbl := range []string{"events", "summaries", "docs", "task_items", "views", "jobs", "paths", "symbols", "blob_refs"} {
 		var n int
-		e.DB().R.QueryRow("SELECT COUNT(*) FROM "+tbl+" WHERE session_id='gone'").Scan(&n)
+		e.DB().R.QueryRow("SELECT COUNT(*) FROM " + tbl + " WHERE session_id='gone'").Scan(&n)
 		if n != 0 {
 			t.Fatalf("%s still has %d rows", tbl, n)
 		}

@@ -168,14 +168,14 @@ func (r RRFRanker) Rank(query string, lists map[string][]Candidate) map[string]f
 }
 
 type Pressure struct {
-	Tokens          int
-	Capacity        int
-	Usage           float64
-	GrowthPerTurn   float64
-	TurnsNeeded     float64
-	Samples         int
-	Inflight        int
-	Thresholds      Thresholds
+	Tokens        int
+	Capacity      int
+	Usage         float64
+	GrowthPerTurn float64
+	TurnsNeeded   float64
+	Samples       int
+	Inflight      int
+	Thresholds    Thresholds
 }
 
 type Trigger interface {

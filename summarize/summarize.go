@@ -196,8 +196,8 @@ type Completion struct {
 }
 
 type LLM struct {
-	Model     Completer
-	MaxInput  int
+	Model    Completer
+	MaxInput int
 }
 
 const PromptVersion = "palimpsest-summary-v1"
@@ -314,10 +314,10 @@ func (d *Delayed) Calls() int {
 }
 
 type Flaky struct {
-	Inner   engine.Summarizer
-	FailN   int
-	mu      sync.Mutex
-	n       int
+	Inner engine.Summarizer
+	FailN int
+	mu    sync.Mutex
+	n     int
 }
 
 func (f *Flaky) Summarize(ctx context.Context, in engine.SummarizeInput) (engine.SummarizeOutput, error) {
