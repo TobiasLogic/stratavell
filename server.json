@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.TobiasLogic/stratavell",
+  "title": "Stratavell",
+  "description": "Local agent memory: archive anything, then search it and read back exact originals.",
+  "repository": {
+    "url": "https://github.com/TobiasLogic/stratavell",
+    "source": "github"
+  },
+  "version": "0.1.2",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/tobiaslogic/stratavell:0.1.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "docker",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "-v",
+          "value": "stratavell-data:/data",
+          "description": "Named volume that keeps the archive between runs"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "STRATAVELL_SESSION",
+          "description": "Session id to archive into, for example one per project (default: default)",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

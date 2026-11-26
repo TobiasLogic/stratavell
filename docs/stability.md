@@ -27,6 +27,7 @@ These may change in any release without a deprecation period.
 | `engine.Engine.DB()` | exposes the internal store for tests and maintenance; use `Checkpoint`, `Vacuum` and `Backup` instead |
 | `adapters/*` | provider APIs change, and only the OpenAI-compatible adapter has been used live |
 | `agentloop` | a reference loop, meant to be copied and adapted |
+| `clients/python`, `clients/typescript` | thin wrappers over HTTP API v1; their method names may change, the wire format is the stable part |
 | `summarize` | prompts and output format may change, which changes summary text |
 | metric names in `stats` output | may be renamed as observability is refined |
 | `bench`, `cmd/stratavell-bench` | a research harness, not a library; its output format follows the experiments |

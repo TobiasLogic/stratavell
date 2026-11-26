@@ -1,0 +1,88 @@
+name: publish-packages
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, for example v0.1.2
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - id: v
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          tag="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          case "$tag" in v[0-9]*) ;; *) echo "not a release tag: $tag"; exit 1;; esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.v.outputs.tag }}
+      - run: ./scripts/check-versions.sh "${{ steps.v.outputs.tag }}"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: build python distributions
+        run: |
+          python -m pip install build twine
+          python -m build clients/python --outdir dist-py
+          twine check dist-py/*
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: build npm package
+        working-directory: clients/typescript
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          npm pack --pack-destination ../../dist-npm
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages
+          path: |
+            dist-py
+            dist-npm
+
+  pypi:
+    needs: build
+    if: vars.PUBLISH_PYPI == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
+        with:
+          packages-dir: dist-py
+
+  npm:
+    needs: build
+    if: vars.PUBLISH_NPM == 'true'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: npm publish dist-npm/stratavell-*.tgz --access public --provenance

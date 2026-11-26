@@ -11,6 +11,11 @@ export type Part = {
 
 export type Message = { role: "user" | "assistant" | "tool"; parts: Part[]; meta?: Record<string, unknown> };
 
+function envToken(): string | undefined {
+  const p = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+  return p?.env?.STRATAVELL_TOKEN;
+}
+
 export class StratavellError extends Error {
   status: number;
   code: string;
@@ -24,7 +29,7 @@ export class StratavellError extends Error {
 export class Client {
   baseUrl: string;
   token: string | undefined;
-  constructor(baseUrl = "http://127.0.0.1:7077", token = process.env.STRATAVELL_TOKEN) {
+  constructor(baseUrl = "http://127.0.0.1:7077", token = envToken()) {
     this.baseUrl = baseUrl;
     this.token = token;
   }

@@ -123,7 +123,9 @@ text, _ := worker.Complete(ctx, engine.Completion{Summary: "...", Findings: []st
 stratavell mcp --db ~/.local/share/stratavell/memory.db --session my-project --agent assistant
 ```
 
-Register it as a stdio MCP server in the host. Tools exposed:
+Register it as a stdio MCP server in the host. With Docker, the same server is `docker run -i --rm -v stratavell-data:/data -e STRATAVELL_SESSION=my-project ghcr.io/tobiaslogic/stratavell`. The image's default command is `mcp --db /data/memory.db`, and the named volume keeps the archive between runs. To serve HTTP from the container instead, pass a token, since the server refuses a non-loopback address without one: `docker run -p 127.0.0.1:7077:7077 -e STRATAVELL_TOKEN=... ghcr.io/tobiaslogic/stratavell serve --addr 0.0.0.0:7077 --db /data/memory.db`.
+
+Tools exposed:
 
 - `memory_archive`: store notes, findings or large outputs
 - `memory_search`

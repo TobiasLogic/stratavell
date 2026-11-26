@@ -2,6 +2,18 @@
 
 All notable changes are listed here. The project follows [Semantic Versioning](https://semver.org/). Until 1.0, minor releases may change the Go API, the HTTP API, the MCP tool set or the database schema; every such change is listed here with migration steps.
 
+## v0.1.2 (unreleased)
+
+Packaging release. The engine is unchanged from v0.1.1.
+
+- Docker image `ghcr.io/tobiaslogic/stratavell`, for linux/amd64 and linux/arm64. It is static, runs as a non-root user and is about 25 MB. Its default command is the MCP server over stdio, with the archive in the `/data` volume.
+- MCP Registry entry `io.github.TobiasLogic/stratavell` (`server.json`), published from GitHub Actions with OIDC.
+- Python client `stratavell` (`clients/python`), standard library only, for Python 3.9 or newer, over TCP or a Unix socket.
+- TypeScript client `stratavell` (`clients/typescript`), with no runtime dependencies and with type definitions. It uses the global `fetch` and works in Node 18 or newer, Deno, Bun or browsers. It no longer assumes `process` exists.
+- The Python and TypeScript examples use these clients instead of their own copies.
+- CI checks that the Go, Python, npm and `server.json` versions agree. It builds and smoke-tests both packages against a live server, builds the image and runs an MCP handshake inside it.
+- `docs/releasing.md` describes the release and the one-time registry setup.
+
 ## v0.1.1, 2026-11-26
 
 Patch release: search latency. No API, database schema or configuration changes.

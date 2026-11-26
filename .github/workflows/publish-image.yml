@@ -1,0 +1,87 @@
+name: publish-image
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and publish, for example v0.1.1
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          tag="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          case "$tag" in v[0-9]*) ;; *) echo "not a release tag: $tag"; exit 1;; esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.v.outputs.tag }}
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: VERSION=${{ steps.v.outputs.version }}
+          tags: |
+            ghcr.io/tobiaslogic/stratavell:${{ steps.v.outputs.version }}
+            ghcr.io/tobiaslogic/stratavell:latest
+
+  mcp-registry:
+    needs: image
+    if: vars.PUBLISH_MCP_REGISTRY == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.16
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.image.outputs.tag }}
+      - uses: sigstore/cosign-installer@v4.1.4
+      - name: install mcp-publisher
+        run: |
+          base="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl -sSfLO "$base/mcp-publisher_linux_amd64.tar.gz"
+          curl -sSfLO "$base/mcp-publisher_linux_amd64.tar.gz.sigstore.json"
+          cosign verify-blob \
+            --bundle mcp-publisher_linux_amd64.tar.gz.sigstore.json \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            mcp-publisher_linux_amd64.tar.gz
+          tar xzf mcp-publisher_linux_amd64.tar.gz mcp-publisher
+      - name: set version from tag
+        env:
+          VERSION: ${{ needs.image.outputs.version }}
+        run: |
+          jq --arg v "$VERSION" '.version = $v | .packages[0].identifier = "ghcr.io/tobiaslogic/stratavell:" + $v' server.json > server.tmp
+          mv server.tmp server.json
+          cat server.json
+      - run: ./mcp-publisher validate
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish

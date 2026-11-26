@@ -1,5 +1,11 @@
+import os
 import sys
-from stratavell_client import Client, text, tool_call, tool_result
+
+try:
+    from stratavell import Client, text, tool_call, tool_result
+except ImportError:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "clients", "python", "src"))
+    from stratavell import Client, text, tool_call, tool_result
 
 socket_path = sys.argv[1] if len(sys.argv) > 1 else None
 client = Client(socket_path=socket_path)

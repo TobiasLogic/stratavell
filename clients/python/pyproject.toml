@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stratavell"
+version = "0.1.2"
+description = "Python client for the Stratavell context engine HTTP API"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "TobiasLogic" }]
+keywords = ["llm", "agents", "context-management", "agent-memory", "prompt-caching"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/TobiasLogic/stratavell"
+Documentation = "https://github.com/TobiasLogic/stratavell/blob/main/docs/integration.md"
+Issues = "https://github.com/TobiasLogic/stratavell/issues"
+Changelog = "https://github.com/TobiasLogic/stratavell/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]

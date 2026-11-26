@@ -1,0 +1,45 @@
+{
+  "name": "stratavell",
+  "version": "0.1.2",
+  "description": "TypeScript client for the Stratavell context engine HTTP API",
+  "license": "Apache-2.0",
+  "author": "TobiasLogic",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "llm",
+    "agents",
+    "context-management",
+    "agent-memory",
+    "prompt-caching"
+  ],
+  "homepage": "https://github.com/TobiasLogic/stratavell",
+  "bugs": "https://github.com/TobiasLogic/stratavell/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TobiasLogic/stratavell.git",
+    "directory": "clients/typescript"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

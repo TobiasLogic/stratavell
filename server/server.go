@@ -23,7 +23,7 @@ import (
 
 const APIVersion = "v1"
 
-var Version = "0.1.1"
+var Version = "0.1.2"
 
 type Server struct {
 	E       *engine.Engine

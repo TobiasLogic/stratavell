@@ -1,0 +1,13 @@
+.git
+bin
+dist
+bench/results
+examples/rust/target
+clients/typescript/node_modules
+clients/typescript/dist
+clients/python/dist
+**/__pycache__
+*.db
+*.db-wal
+*.db-shm
+*.env

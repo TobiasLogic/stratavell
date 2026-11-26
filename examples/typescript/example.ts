@@ -1,4 +1,4 @@
-import { Client, text } from "./stratavell.ts";
+import { Client, text } from "../../clients/typescript/src/index.ts";
 
 const agent = await new Client(process.env.STRATAVELL_URL ?? "http://127.0.0.1:7077").agent("ts-demo", "main");
 

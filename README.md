@@ -12,7 +12,7 @@ Summaries are produced in the background, and the request is laid out so that pr
 
 It runs fully locally as a Go library, an HTTP API over TCP or a Unix socket, an MCP server and a single static executable. It needs no external database, no embedding model and no API key.
 
-> **Research preview (v0.1.1).** The results below come from generated, fixed-trajectory workloads, reconstructed baselines and a simulated prompt-cache model. Real autonomous coding-task performance has not been evaluated yet. See [limitations](docs/limitations.md).
+> **Research preview (v0.1.2).** The results below come from generated, fixed-trajectory workloads, reconstructed baselines and a simulated prompt-cache model. Real autonomous coding-task performance has not been evaluated yet. See [limitations](docs/limitations.md).
 
 ## Why Stratavell?
 
@@ -114,10 +114,21 @@ Every run, including failed and superseded ones, is logged in [docs/experiments.
 
 ## Quick start
 
-Requires Go 1.26.11 or newer (earlier 1.26 releases have standard-library vulnerabilities that affect the HTTP server). No cgo, no C toolchain.
+Install the engine one of these ways:
+
+| method | command |
+|---|---|
+| Go 1.26.11 or newer | `go install github.com/TobiasLogic/stratavell/cmd/stratavell@latest` |
+| release binary | download an archive for Linux, macOS or Windows from [releases](https://github.com/TobiasLogic/stratavell/releases) and check it against `SHA256SUMS` |
+| Docker | `docker pull ghcr.io/tobiaslogic/stratavell` (static, non-root, about 25 MB) |
+
+Go releases before 1.26.11 have standard-library vulnerabilities that affect the HTTP server. The engine needs no cgo and no C toolchain.
+
+Client libraries for the HTTP API, with no dependencies:
 
 ```bash
-go install github.com/TobiasLogic/stratavell/cmd/stratavell@latest
+pip install stratavell
+npm install stratavell
 ```
 
 Or build from a clone:
@@ -188,7 +199,7 @@ The first three are **full inference-loop integration**. The host routes every m
 
 **MCP alone does not replace a host's own compaction.** An MCP server cannot see or rewrite the host's context. In passive mode the model can archive material with `memory_archive` and retrieve exact originals, but the host still decides what stays in its window. Use full integration when you control the agent loop. Use MCP for hosts you cannot change.
 
-An MCP host configuration looks like this:
+An MCP host configuration looks like this, with the binary:
 
 ```json
 {
@@ -200,6 +211,21 @@ An MCP host configuration looks like this:
   }
 }
 ```
+
+Or with Docker, keeping the archive in a named volume:
+
+```json
+{
+  "mcpServers": {
+    "stratavell": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-v", "stratavell-data:/data", "-e", "STRATAVELL_SESSION=my-project", "ghcr.io/tobiaslogic/stratavell"]
+    }
+  }
+}
+```
+
+The server is listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.TobiasLogic/stratavell`.
 
 ## Provider support
 
@@ -213,7 +239,7 @@ Any of them can also serve as the background summarizer. The default summarizer 
 
 ## Examples
 
-All four run against a local server in CI (`scripts/examples-smoke.sh`):
+The Python and TypeScript examples use the `stratavell` client packages in [clients/](clients/). All four examples run against a local server in CI (`scripts/examples-smoke.sh`):
 
 | example | transport |
 |---|---|

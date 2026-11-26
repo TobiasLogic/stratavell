@@ -14,3 +14,8 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+/clients/typescript/node_modules/
+/clients/typescript/dist/
+/clients/python/dist/
+*.egg-info/
+*.tgz

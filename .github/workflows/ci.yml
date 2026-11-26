@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: stable
+      - name: versions agree across Go, Python, npm and server.json
+        run: ./scripts/check-versions.sh
       - name: gofmt
         run: |
           unformatted=$(gofmt -l .)
@@ -76,6 +78,42 @@ jobs:
         with:
           python-version: "3.12"
       - run: ./scripts/examples-smoke.sh
+
+  packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: ./scripts/packages-smoke.sh
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: stratavell:ci
+      - name: MCP handshake inside the container
+        run: |
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            | docker run -i --rm stratavell:ci | grep -q '"name":"stratavell"'
+      - name: server.json matches the image label
+        run: |
+          label=$(docker inspect stratavell:ci --format '{{index .Config.Labels "io.modelcontextprotocol.server.name"}}')
+          name=$(jq -r .name server.json)
+          test "$label" = "$name"
 
   bench-cli:
     runs-on: ubuntu-latest
