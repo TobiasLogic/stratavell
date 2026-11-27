@@ -1,6 +1,6 @@
 # LOCA-bench with Stratavell
 
-Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with Stratavell as the agent's context manager. The protocol is `bench/review/protocol-agent-loca-v1.md`.
+Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with Stratavell as the agent's context manager. The protocol is `bench/review/protocol-agent-loca-v1.1.md`, which amends `protocol-agent-loca-v1.md`.
 
 ## What the patch changes
 
@@ -60,7 +60,12 @@ The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinne
    - If the preflight passes, it runs `loca run` in the sandbox.
    - It writes `RUN`, `preflight.txt`, `requests.jsonl` and LOCA's own outputs to `$LOCA_ROOT/work/runs/NAME/`.
 
-4. **The protocol's runs.** `bench/loca/schedule.py`, with `LOCA_ROOT` set, runs the 60 runs of `protocol-agent-loca-v1.md` in the order of `order-v1.json`.
+4. **Budget calibration.** Each strategy counts tokens its own way, so the protocol sets per-state limits that all correspond to the same number of provider tokens:
+   - `dump_tools.py`, run in the sandbox, saves each state's first prompt and tool definitions.
+   - `measure_calib.py` sends each state's first request in LOCA's, passive mode's and Stratavell's form, with a 1-token output cap. It needs the proxy and a scratch `stratavell serve` (`CALIB_STRATAVELL`, default port 7078). It writes `calib-v1.1.json`.
+   - `calibrate.py` turns those counts into the limits in `budget-v1.1.json`.
+
+5. **The protocol's runs.** `bench/loca/schedule.py`, with `LOCA_ROOT` set, runs the 60 runs of `protocol-agent-loca-v1.1.md` in the order of `order-v1.json`, with the limits in `budget-v1.1.json`.
    - It resumes after an interruption.
    - It starts a run only when at least 160 of the day's 900 requests remain.
    - It reruns a void run at most twice.

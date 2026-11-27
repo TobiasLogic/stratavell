@@ -13,14 +13,23 @@ STRATAVELL_URL = os.environ.get("STRATAVELL_URL", "http://127.0.0.1:7077")
 CAP = int(os.environ.get("FREEPROXY_DAILY_CAP", "900"))
 RESERVE = int(os.environ.get("SCHEDULE_RESERVE", "160"))
 TOOL_CAP = "100"
-PREFIX = os.environ.get("SCHEDULE_PREFIX", "v1")
+MAX_TOKENS = "16384"
+PREFIX = os.environ.get("SCHEDULE_PREFIX", "v1.1")
+BUDGET = json.load(open(os.path.join(HERE, "budget-v1.1.json")))
 
-STRATEGIES = {
-    "trim": ({}, ["--max-context-size", "64000"]),
-    "compact": ({}, ["--context-summary", "--reset-size", "51200", "--max-context-size", "64000"]),
-    "compact_archive": ({"STRATAVELL_URL": STRATAVELL_URL, "STRATAVELL_MODE": "passive", "STRATAVELL_WINDOW": "70000"}, ["--context-summary", "--reset-size", "51200", "--max-context-size", "64000"]),
-    "stratavell": ({"STRATAVELL_URL": STRATAVELL_URL, "STRATAVELL_WINDOW": "70000"}, []),
-}
+
+def strategy(name, state):
+    b = BUDGET[state]
+    if name == "trim":
+        return {}, ["--max-context-size", str(b["loca_max_context_size"])]
+    if name == "compact":
+        return {}, ["--context-summary", "--reset-size", str(b["loca_reset_size"]), "--max-context-size", str(b["loca_max_context_size"])]
+    if name == "compact_archive":
+        env = {"STRATAVELL_URL": STRATAVELL_URL, "STRATAVELL_MODE": "passive", "STRATAVELL_WINDOW": str(b["stratavell_window"])}
+        return env, ["--context-summary", "--reset-size", str(b["passive_reset_size"]), "--max-context-size", str(b["passive_max_context_size"])]
+    if name == "stratavell":
+        return {"STRATAVELL_URL": STRATAVELL_URL, "STRATAVELL_WINDOW": str(b["stratavell_window"])}, []
+    raise KeyError(name)
 
 
 def today_count():
@@ -94,7 +103,7 @@ def main():
         cfg_path = os.path.join(ROOT, "work", "configs", f"{state}.json")
         if not os.path.exists(cfg_path):
             json.dump({"configurations": [configs[state]]}, open(cfg_path, "w"), indent=1)
-        env_extra, args = STRATEGIES[strat]
+        env_extra, args = strategy(strat, state)
         for attempt in range(3):
             name = f"{PREFIX}-{state}-{strat}" + (f"-r{attempt}" if attempt else "")
             run_dir = os.path.join(ROOT, "work", "runs", name)
@@ -109,7 +118,7 @@ def main():
             for k in ("STRATAVELL_URL", "STRATAVELL_MODE", "STRATAVELL_WINDOW"):
                 if k not in env_extra:
                     env.pop(k, None)
-            cmd = [os.path.join(HERE, "run.sh"), name, "-c", cfg_path, "-s", "react", "-m", MODEL, "--max-tool-uses", TOOL_CAP, "--max-tokens", "4096"] + args
+            cmd = [os.path.join(HERE, "run.sh"), name, "-c", cfg_path, "-s", "react", "-m", MODEL, "--max-tool-uses", TOOL_CAP, "--max-tokens", MAX_TOKENS] + args
             print(f"{time.strftime('%FT%TZ', time.gmtime())} start {name}", flush=True)
             subprocess.run(cmd, env=env)
             reason = void_reason(run_dir)

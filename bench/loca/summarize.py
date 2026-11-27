@@ -40,6 +40,10 @@ def run_row(d):
         "completion_tokens": sum(r.get("completion_tokens") or 0 for r in ok),
         "max_agent_prompt": max([r.get("prompt_tokens") or 0 for r in agent], default=0),
     })
+    args = m.get("args", "").split()
+    cap = int(args[args.index("--max-tokens") + 1]) if "--max-tokens" in args else None
+    if cap:
+        row["truncated"] = len([r for r in agent if (r.get("completion_tokens") or 0) >= cap])
     states = sorted(glob.glob(os.path.join(d, "loca", "tasks", "*", "state*")))
     for s in states[:1]:
         e = json.load(open(os.path.join(s, "eval.json"))) if os.path.exists(os.path.join(s, "eval.json")) else {}
