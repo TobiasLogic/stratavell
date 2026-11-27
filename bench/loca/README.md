@@ -4,7 +4,7 @@ Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with St
 
 ## What the patch changes
 
-`loca.patch` applies to LOCA-bench commit 8b6fac4. It changes three things.
+`loca.patch` applies to LOCA-bench commit 8b6fac4. It changes four things.
 
 **1. A Stratavell mode in the agent loop** (`inference/run_react.py` and `inference/stratavell_ctx.py`). It is off unless `STRATAVELL_URL` is set.
 - Every message is appended to a Stratavell session.
@@ -20,6 +20,10 @@ Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with St
 **3. MCP server launch** (`gem/tools/mcp_server/config_loader.py`). With `LOCA_UV_AS_PYTHON` and `LOCA_XVENV` set, servers start from preinstalled environments instead of `uv run` and `uvx`.
 - Unpatched, inside the sandbox, `uv run` tried to build a new environment, and three servers never started.
 - LOCA then ran the task without their tools and reported no error.
+
+**4. Request timeout** (`inference/run_react.py`). LOCA's HTTP client waits up to 600 seconds for a reply instead of 60.
+- Unpatched, a reply that took longer than 60 seconds was dropped and the same request was sent again, up to 50 times, with nothing shown to the agent.
+- On a free endpoint that writes 60 to 90 tokens a second, that dropped every reply longer than about 4,000 tokens.
 
 ## Setup
 

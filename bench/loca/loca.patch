@@ -30,9 +30,18 @@ index 540c5dc..c1ff1a2 100644
  
      def _build_node_command(
 diff --git a/inference/run_react.py b/inference/run_react.py
-index 092dce0..6be3724 100644
+index 092dce0..dc1d4b4 100644
 --- a/inference/run_react.py
 +++ b/inference/run_react.py
+@@ -625,7 +625,7 @@ def make_aihubmix_api_request(
+                 aihubmix_api_url,
+                 headers=headers,
+                 json=json_data,
+-                timeout=60
++                timeout=600
+             )
+             if verbose:
+                 print(f"Response status: {response.status_code}")
 @@ -1269,6 +1269,12 @@ def run_single_task(
  
          messages = [{"role": "user", "content": enhanced_user_prompt}]

@@ -22,7 +22,7 @@ start_line=$(wc -l < "$LOG")
 pre=$?
 code=99
 if [ "$pre" -eq 0 ]; then
-  timeout "${RUN_TIMEOUT:-10800}" "$HERE/sandbox.sh" "$L/venv/bin/loca" run --max-workers 1 -o "$out/loca" "$@" > "$out/stdout.log" 2>&1
+  timeout "${RUN_TIMEOUT:-21600}" "$HERE/sandbox.sh" "$L/venv/bin/loca" run --max-workers 1 -o "$out/loca" "$@" > "$out/stdout.log" 2>&1
   code=$?
 fi
 end_line=$(wc -l < "$LOG")
