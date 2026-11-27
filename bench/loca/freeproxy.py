@@ -195,13 +195,17 @@ class Handler(BaseHTTPRequestHandler):
             t0 = time.time()
             code, body, transient = upstream(raw)
             body = ACCOUNT.sub(b'"user_id":"redacted"', body)
-            usage = {}
+            usage, finish, error = {}, None, None
+            try:
+                parsed = json.loads(body)
+            except ValueError:
+                parsed = {}
             if code == 200:
-                try:
-                    usage = json.loads(body).get("usage") or {}
-                except ValueError:
-                    pass
-            record({"t": t0, "day": time.strftime("%Y-%m-%d", time.gmtime(t0)), "model": model, "status": code, "attempt": attempt, "seconds": round(time.time() - t0, 2), "messages": len(req.get("messages", [])), "tools": len(req.get("tools") or []), "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"), "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens"), "cost": usage.get("cost"), "tag": self.headers.get("X-Run-Tag", "")})
+                usage = parsed.get("usage") or {}
+                finish = ((parsed.get("choices") or [{}])[0]).get("finish_reason")
+            else:
+                error = str((parsed.get("error") or {}).get("message") or body[:200])[:200]
+            record({"t": t0, "day": time.strftime("%Y-%m-%d", time.gmtime(t0)), "model": model, "status": code, "attempt": attempt, "seconds": round(time.time() - t0, 2), "messages": len(req.get("messages", [])), "tools": len(req.get("tools") or []), "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"), "reasoning_tokens": (usage.get("completion_tokens_details") or {}).get("reasoning_tokens"), "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens"), "finish": finish, "error": error, "cost": usage.get("cost"), "tag": self.headers.get("X-Run-Tag", "")})
             if code == 429 and rate_tries < RETRY_429:
                 attempt += 1
                 rate_tries += 1
