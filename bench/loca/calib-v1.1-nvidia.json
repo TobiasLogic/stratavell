@@ -1,0 +1,137 @@
+{
+ "CanvasArrangeExamS2LEnv": {
+  "tools": 149,
+  "loca_x0": 21243,
+  "loca_p0": 26097,
+  "passive_x0": 21771,
+  "passive_p0": 26759,
+  "stratavell_e0": 30823,
+  "stratavell_p0": 27446
+ },
+ "CanvasListTestS2LEnv": {
+  "tools": 94,
+  "loca_x0": 13829,
+  "loca_p0": 16732,
+  "passive_x0": 14357,
+  "passive_p0": 17394,
+  "stratavell_e0": 20809,
+  "stratavell_p0": 18062
+ },
+ "CourseAssistantS2LEnv": {
+  "tools": 75,
+  "loca_x0": 11541,
+  "loca_p0": 14200,
+  "passive_x0": 12068,
+  "passive_p0": 14862,
+  "stratavell_e0": 17436,
+  "stratavell_p0": 15530
+ },
+ "ABTestingS2LEnv": {
+  "tools": 57,
+  "loca_x0": 7538,
+  "loca_p0": 9072,
+  "passive_x0": 8066,
+  "passive_p0": 9734,
+  "stratavell_e0": 11910,
+  "stratavell_p0": 10412
+ },
+ "AcademicWarningS2LEnv": {
+  "tools": 57,
+  "loca_x0": 7446,
+  "loca_p0": 8983,
+  "passive_x0": 7974,
+  "passive_p0": 9645,
+  "stratavell_e0": 11787,
+  "stratavell_p0": 10315
+ },
+ "ApplyPhDEmailS2LEnv": {
+  "tools": 67,
+  "loca_x0": 10748,
+  "loca_p0": 12436,
+  "passive_x0": 11275,
+  "passive_p0": 13098,
+  "stratavell_e0": 16131,
+  "stratavell_p0": 13748
+ },
+ "MachineOperatingS2LEnv": {
+  "tools": 82,
+  "loca_x0": 11750,
+  "loca_p0": 14571,
+  "passive_x0": 12278,
+  "passive_p0": 15233,
+  "stratavell_e0": 17652,
+  "stratavell_p0": 15900
+ },
+ "SetConfCrDdlS2LEnv": {
+  "tools": 53,
+  "loca_x0": 7669,
+  "loca_p0": 9246,
+  "passive_x0": 8197,
+  "passive_p0": 9908,
+  "stratavell_e0": 12240,
+  "stratavell_p0": 10535
+ },
+ "ExcelMarketResearchS2LEnv": {
+  "tools": 45,
+  "loca_x0": 8560,
+  "loca_p0": 10538,
+  "passive_x0": 9087,
+  "passive_p0": 11200,
+  "stratavell_e0": 13437,
+  "stratavell_p0": 11862
+ },
+ "FilterLowSellingProductsS2LEnv": {
+  "tools": 103,
+  "loca_x0": 14773,
+  "loca_p0": 17806,
+  "passive_x0": 15301,
+  "passive_p0": 18468,
+  "stratavell_e0": 22285,
+  "stratavell_p0": 19152
+ },
+ "UpdateMaterialInventoryS2LEnv": {
+  "tools": 90,
+  "loca_x0": 14196,
+  "loca_p0": 17010,
+  "passive_x0": 14724,
+  "passive_p0": 17672,
+  "stratavell_e0": 21499,
+  "stratavell_p0": 18340
+ },
+ "WoocommerceNewWelcomeS2LEnv": {
+  "tools": 142,
+  "loca_x0": 18251,
+  "loca_p0": 22127,
+  "passive_x0": 18779,
+  "passive_p0": 22789,
+  "stratavell_e0": 26857,
+  "stratavell_p0": 23457
+ },
+ "WoocommerceStockAlertS2LEnv": {
+  "tools": 118,
+  "loca_x0": 16993,
+  "loca_p0": 20482,
+  "passive_x0": 17521,
+  "passive_p0": 21144,
+  "stratavell_e0": 25333,
+  "stratavell_p0": 21803
+ },
+ "NhlB2bAnalysisS2LEnv": {
+  "tools": 35,
+  "loca_x0": 6646,
+  "loca_p0": 7796,
+  "passive_x0": 7173,
+  "passive_p0": 8458,
+  "stratavell_e0": 10792,
+  "stratavell_p0": 9124
+ },
+ "PayableInvoiceCheckerS2LEnv": {
+  "tools": 67,
+  "loca_x0": 9511,
+  "loca_p0": 11078,
+  "passive_x0": 10038,
+  "passive_p0": 11740,
+  "stratavell_e0": 14362,
+  "stratavell_p0": 12406
+ }
+}

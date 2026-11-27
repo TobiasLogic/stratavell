@@ -1,6 +1,6 @@
 # Agent test v1 on LOCA-bench: frozen protocol
 
-Status: frozen. This file is committed and pushed before the first scored run. The pilot runs at the end tested the harness and are not results.
+Status: superseded by `protocol-agent-loca-v1.1.md` on 2026-11-27, after two scored runs. They showed that LOCA discarded most replies in one run, because of its 60-second request timeout and the 4,096-token output cap, and that the strategies' budgets were not equal in provider tokens. The text below is unchanged from when it was frozen. The pilot runs at the end tested the harness and are not results.
 
 ## Question
 

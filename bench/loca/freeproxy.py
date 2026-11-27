@@ -6,18 +6,26 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-UPSTREAM = "https://openrouter.ai/api/v1/chat/completions"
-KEY_FILE = os.path.expanduser(os.environ.get("FREEPROXY_KEY_FILE", "~/.config/stratavell/openrouter.env"))
+PROVIDERS = {
+    "openrouter": ("https://openrouter.ai/api/v1/chat/completions", "~/.config/stratavell/openrouter.env", "OPENROUTER_API_KEY"),
+    "nvidia": ("https://integrate.api.nvidia.com/v1/chat/completions", "~/.config/stratavell/nvidia.env", "NVIDIA_API_KEY"),
+}
+PROVIDER = os.environ.get("FREEPROXY_UPSTREAM", "openrouter")
+UPSTREAM, DEFAULT_KEY_FILE, KEY_ENV = PROVIDERS[PROVIDER]
+STREAM = PROVIDER == "nvidia"
+KEY_FILE = os.path.expanduser(os.environ.get("FREEPROXY_KEY_FILE", DEFAULT_KEY_FILE))
 MIN_GAP = float(os.environ.get("FREEPROXY_MIN_GAP", "3.2"))
 DAILY_CAP = int(os.environ.get("FREEPROXY_DAILY_CAP", "900"))
+RETRY_429 = int(os.environ.get("FREEPROXY_RETRY_429", "40" if STREAM else "0"))
 LOG = os.environ.get("FREEPROXY_LOG", "freeproxy.jsonl")
 ACCOUNT = re.compile(rb'"user_id"\s*:\s*"[^"]*"')
 
 
 def load_key():
-    k = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    k = os.environ.get(KEY_ENV, "").strip()
     if not k:
         k = open(KEY_FILE).read().strip()
         if "=" in k:
@@ -33,6 +41,7 @@ log_lock = threading.Lock()
 
 
 def record(entry):
+    entry["provider"] = PROVIDER
     with log_lock, open(LOG, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
@@ -48,6 +57,68 @@ def count_today(today):
             if isinstance(e.get("status"), int) and time.strftime("%Y-%m-%d", time.gmtime(e["t"])) == today:
                 n += 1
     return n
+
+
+def collect(resp):
+    content, reasoning, calls = [], [], {}
+    finish, usage, rid, model, created = None, None, None, None, None
+    for raw in resp:
+        line = raw.decode("utf-8", "replace").strip()
+        if not line.startswith("data:"):
+            continue
+        data = line[5:].strip()
+        if data == "[DONE]":
+            break
+        d = json.loads(data)
+        if d.get("error"):
+            raise RuntimeError("stream error: " + json.dumps(d["error"])[:300])
+        rid = rid or d.get("id")
+        model = model or d.get("model")
+        created = created or d.get("created")
+        if d.get("usage"):
+            usage = d["usage"]
+        for ch in d.get("choices") or []:
+            delta = ch.get("delta") or {}
+            if delta.get("content"):
+                content.append(delta["content"])
+            r = delta.get("reasoning_content") or delta.get("reasoning")
+            if r:
+                reasoning.append(r)
+            for tc in delta.get("tool_calls") or []:
+                c = calls.setdefault(tc.get("index", len(calls)), {"id": None, "type": "function", "function": {"name": "", "arguments": ""}})
+                c["id"] = c["id"] or tc.get("id")
+                f = tc.get("function") or {}
+                c["function"]["name"] += f.get("name") or ""
+                c["function"]["arguments"] += f.get("arguments") or ""
+            if ch.get("finish_reason"):
+                finish = ch["finish_reason"]
+    message = {"role": "assistant", "content": "".join(content) or (None if calls else ""), "reasoning": "".join(reasoning) or None}
+    if calls:
+        for i, c in sorted(calls.items()):
+            c["id"] = c["id"] or "call_" + uuid.uuid4().hex[:24]
+        message["tool_calls"] = [c for _, c in sorted(calls.items())]
+    return {
+        "id": rid or "chatcmpl-" + uuid.uuid4().hex,
+        "object": "chat.completion",
+        "created": created or int(time.time()),
+        "model": model,
+        "provider": PROVIDER,
+        "choices": [{"index": 0, "message": message, "finish_reason": finish}],
+        "usage": usage or {},
+    }
+
+
+def upstream(raw):
+    r = urllib.request.Request(UPSTREAM, data=raw, method="POST", headers={"Content-Type": "application/json", "Authorization": "Bearer " + KEY, "Accept": "text/event-stream" if STREAM else "application/json"})
+    try:
+        with urllib.request.urlopen(r, timeout=900) as resp:
+            if STREAM:
+                return 200, json.dumps(collect(resp)).encode()
+            return resp.status, resp.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+    except Exception as e:
+        return 502, json.dumps({"error": {"message": "freeproxy upstream error: " + type(e).__name__ + ": " + str(e)[:200]}}).encode()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -73,36 +144,42 @@ class Handler(BaseHTTPRequestHandler):
         if not model.endswith(":free"):
             record({"t": time.time(), "model": model, "status": "refused"})
             return self.reply(403, b'{"error":{"message":"freeproxy: only :free models are allowed"}}')
-        with lock:
-            today = time.strftime("%Y-%m-%d", time.gmtime())
-            if day[0] != today:
-                day[0], day[1] = today, count_today(today)
-            if day[1] >= DAILY_CAP:
-                record({"t": time.time(), "day": today, "model": model, "status": "capped"})
-                return self.reply(429, b'{"error":{"message":"freeproxy: daily request cap reached"}}')
-            day[1] += 1
-            wait = last[0] + MIN_GAP - time.time()
-            if wait > 0:
-                time.sleep(wait)
-            last[0] = time.time()
-        t0 = time.time()
-        r = urllib.request.Request(UPSTREAM, data=raw, method="POST", headers={"Content-Type": "application/json", "Authorization": "Bearer " + KEY})
-        try:
-            with urllib.request.urlopen(r, timeout=900) as resp:
-                code, body = resp.status, resp.read()
-        except urllib.error.HTTPError as e:
-            code, body = e.code, e.read()
-        except Exception as e:
-            code, body = 502, json.dumps({"error": {"message": "freeproxy upstream error: " + type(e).__name__}}).encode()
-        body = ACCOUNT.sub(b'"user_id":"redacted"', body)
-        usage = {}
-        if code == 200:
-            try:
-                usage = json.loads(body).get("usage") or {}
-            except ValueError:
-                pass
-        record({"t": t0, "day": time.strftime("%Y-%m-%d", time.gmtime(t0)), "model": model, "status": code, "seconds": round(time.time() - t0, 2), "messages": len(req.get("messages", [])), "tools": len(req.get("tools") or []), "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"), "cost": usage.get("cost"), "tag": self.headers.get("X-Run-Tag", "")})
-        self.reply(code, body)
+        if req.get("stream"):
+            return self.reply(400, b'{"error":{"message":"freeproxy: streaming clients are not supported"}}')
+        if STREAM:
+            req["model"] = model[: -len(":free")]
+            req["stream"] = True
+            req["stream_options"] = {"include_usage": True}
+            raw = json.dumps(req).encode()
+        attempt = 0
+        while True:
+            with lock:
+                today = time.strftime("%Y-%m-%d", time.gmtime())
+                if day[0] != today:
+                    day[0], day[1] = today, count_today(today)
+                if day[1] >= DAILY_CAP:
+                    record({"t": time.time(), "day": today, "model": model, "status": "capped"})
+                    return self.reply(429, b'{"error":{"message":"freeproxy: daily request cap reached"}}')
+                day[1] += 1
+                wait = last[0] + MIN_GAP - time.time()
+                if wait > 0:
+                    time.sleep(wait)
+                last[0] = time.time()
+            t0 = time.time()
+            code, body = upstream(raw)
+            body = ACCOUNT.sub(b'"user_id":"redacted"', body)
+            usage = {}
+            if code == 200:
+                try:
+                    usage = json.loads(body).get("usage") or {}
+                except ValueError:
+                    pass
+            record({"t": t0, "day": time.strftime("%Y-%m-%d", time.gmtime(t0)), "model": model, "status": code, "attempt": attempt, "seconds": round(time.time() - t0, 2), "messages": len(req.get("messages", [])), "tools": len(req.get("tools") or []), "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"), "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens"), "cost": usage.get("cost"), "tag": self.headers.get("X-Run-Tag", "")})
+            if code == 429 and attempt < RETRY_429:
+                attempt += 1
+                time.sleep(min(10 * 2 ** min(attempt, 4), 120))
+                continue
+            return self.reply(code, body)
 
 
 if __name__ == "__main__":

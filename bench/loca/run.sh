@@ -2,7 +2,7 @@
 set -uo pipefail
 L="${LOCA_ROOT:?set LOCA_ROOT to the LOCA working directory}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG="$L/logs/freeproxy.jsonl"
+LOG="${FREEPROXY_LOG:-$L/logs/freeproxy.jsonl}"
 name=$1
 shift
 out="$L/work/runs/$name"

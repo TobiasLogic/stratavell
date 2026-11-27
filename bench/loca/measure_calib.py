@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.environ["LOCA_ROOT"], "upstream"))
 from inference.stratavell_ctx import StratavellContext
 
 ENC = tiktoken.get_encoding("cl100k_base")
-PROXY = "http://127.0.0.1:18080/v1/chat/completions"
+PROXY = os.environ.get("CALIB_PROXY", "http://127.0.0.1:18080/v1/chat/completions")
 SCRATCH = os.environ.get("CALIB_STRATAVELL", "http://127.0.0.1:7078")
 MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 OUTPUT = 16384

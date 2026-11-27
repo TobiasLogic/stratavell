@@ -33,7 +33,7 @@ def strategy(name, state):
 
 
 def today_count():
-    log = os.path.join(ROOT, "logs", "freeproxy.jsonl")
+    log = os.environ.get("FREEPROXY_LOG", os.path.join(ROOT, "logs", "freeproxy.jsonl"))
     day = time.strftime("%Y-%m-%d", time.gmtime())
     n = 0
     if os.path.exists(log):
