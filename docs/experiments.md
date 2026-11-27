@@ -1,6 +1,6 @@
 # Experiment log
 
-Every benchmark and model run made while building Stratavell (named palimpsest until the v0.1.0 rename; the benchmark tool was then called `palbench`), in order, including failed and superseded ones. Times are UTC+7 on 2026-11-26. Commit hashes refer to the build each run used. Raw outputs of the runs that the reports cite are in `bench/results/2026-11-26/`. Earlier runs are summarized here and their raw files were not kept.
+Every benchmark and model run made while building Stratavell (named palimpsest until the v0.1.0 rename; the benchmark tool was then called `palbench`), in order, including failed and superseded ones. Times are UTC+7 on 2026-11-26. Commit hashes refer to the build each run used. Raw outputs of the runs that the reports cite are in `bench/results/2026-11-26/`, and the deterministic suites rerun after the standing-rule key fix are in `bench/results/2026-11-27/`. Earlier runs are summarized here and their raw files were not kept.
 
 ## Research (no compute cost)
 
@@ -70,6 +70,16 @@ On a freshly reopened copy of the corpus, p95 over the eight queries went from 7
 
 Seed 1 of the 64k main, matched and ablation suites (26 strategy runs) on dddc848 is identical to `bench/results/2026-11-26/` in every deterministic field, including recoverability per fact kind and injected evidence. The golden smoke run is unchanged.
 
+### Standing-rule key fix, 2026-11-27 (UTC+7)
+
+| time | build | run | outcome |
+|---|---|---|---|
+| 01:44 | 314ff5d tree, one key changed, scratch copy | seed 1, 64k main and matched, `package store` key replaced by the rule's sentence | E 18.1% to 6.5% and F 20.1% to 7.0% standing rules; prompted the fix |
+| 01:47 | none (a throwaway test) | key audit: every fact key over seeds 1 to 5, listing where each key occurs | only the three standing-rule keys match unrelated text |
+| 01:51 to 02:01 | 635fcb5 | all four suites rerun in full: 64k main, matched and ablation (5 seeds), 200k main (3 seeds) | 151 strategy runs, 7,029 deterministic fields compared with `bench/results/2026-11-26/`; only rule-visibility fields changed, for B, E, F, their variants and the G ablation without pins; 200k unchanged; stored in `bench/results/2026-11-27/` |
+
+The first attempt at the rerun started only the 64k main suite. The other three suites never ran, because of a shell error in the launch command, and were started again at 01:55.
+
 ## Real-model runs
 
 Costs per run are estimates, because runs overlapped and OpenRouter reports one running total per key. The readings are listed below the table.
@@ -134,4 +144,5 @@ Changes 1 and 2 were made after reading the v1 answers. All three apply to every
 | `TestGrade` | value grading accepted answers by accident | token-level matching |
 | external review | noa's in-band compression calls were priced with an approximation and left out of the cache-hit numerator, so its cost and hit rate disagreed | every request goes through the cache simulator; runs fail unless tokens and cost reconcile |
 | reader v3 | search hits and event pages did not show which file an archived observation came from, so a reader could not confirm where a retrieved value lives | paths in search hits, event pages and injected evidence; `TestRetrievalOutputsCarryProvenance` |
-| reader v4 (2026-11-27) | the three standing-rule keys (`vendor/`, `package store`, `go vet`) also match ordinary session text, so a lost rule could be counted as visible, and the reader test then skipped retrieval. This inflates the baselines' standing-rule numbers; G pins the rules and is unaffected. Seed 1 with only the API key corrected: E 18.1% to 6.5%, F 20.1% to 7.0% | not fixed yet; disclosed in `docs/benchmarks.md`; a full rerun with each rule keyed on its own sentence is being prepared |
+| reader v4 (2026-11-27) | the three standing-rule keys (`vendor/`, `package store`, `go vet`) also match ordinary session text, so a lost rule could be counted as visible, and the reader test then skipped retrieval. This inflates the baselines' standing-rule numbers; G pins the rules and is unaffected. Over 5 seeds: F + retrieval 21.9% to 7.3%, E + retrieval 22.0% to 7.7% | 635fcb5: each rule keyed on its own sentence; all suites rerun; only rule-visibility fields changed |
+| reader v4 (2026-11-27) | OpenRouter error bodies carry the account's `user_id`, and the reader test stored error text verbatim | 4b2bd32: redacted before storing; `TestRedactAccount`; the stored v4 files were redacted by hand |

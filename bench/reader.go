@@ -89,6 +89,10 @@ var reHedge = regexp.MustCompile(`(?i)\b(i )?(don't|do not) know\b|not (stated|s
 
 func Hedged(answer string) bool { return reHedge.MatchString(answer) }
 
+var reAccount = regexp.MustCompile(`"user_id"\s*:\s*"[^"]*"`)
+
+func redactAccount(s string) string { return reAccount.ReplaceAllString(s, `"user_id":"redacted"`) }
+
 func grade(answer string, keys []string) bool {
 	la := strings.ToLower(answer)
 	for _, k := range keys {
@@ -178,7 +182,7 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 							res, err := cl.Ask(ctx, v.Context, extra, q, maxTok)
 							r.Seconds = time.Since(t0).Seconds()
 							if err != nil {
-								r.Answer = "error: " + err.Error()
+								r.Answer = "error: " + redactAccount(err.Error())
 							} else {
 								r.Answer = strings.TrimSpace(res.Text)
 								r.PromptTok = res.InputTokens

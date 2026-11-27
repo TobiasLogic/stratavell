@@ -2,6 +2,7 @@ import json, statistics as st, collections, sys, os, re
 
 root = sys.argv[1]
 res = os.path.join(root, "bench/results/2026-11-26")
+det = os.path.join(root, "bench/results/2026-11-27")
 here = os.path.join(root, "bench/review")
 HEDGE = re.compile(r"(?i)\b(i )?(don't|do not) know\b|not (stated|shown|present|mentioned)|cannot (confirm|determine)|can't (confirm|determine)")
 LABEL = {
@@ -43,7 +44,7 @@ def txt(headers, rows):
 
 
 def suite(name):
-    path = os.path.join(res, name, "runs.jsonl")
+    path = os.path.join(det, name, "runs.jsonl")
     if not os.path.exists(path):
         return None
     by = collections.OrderedDict()
@@ -264,7 +265,7 @@ def build(template, out, fmt):
     text = text.replace("{{reader.v4.expect}}", T(EXP_H, rows) if rows else "(not run)")
     hz = hedged([("v2 extractive", os.path.join(res, "reader-extractive/reader.regraded.jsonl")), ("Haiku summaries", os.path.join(res, "reader-haiku-summaries/reader.regraded.jsonl")), ("v3", os.path.join(res, "reader-v3/reader.jsonl"))] + [(name, os.path.join(res, rel, "reader.jsonl")) for rel, name in readers_v4()])
     text = text.replace("{{spend}}", sys.argv[2] if len(sys.argv) > 2 else "unknown")
-    build_file = os.path.join(res, "BUILD")
+    build_file = os.path.join(det, "BUILD")
     text = text.replace("{{build}}", open(build_file).read().strip() if os.path.exists(build_file) else "unknown")
     text = text.replace("{{hedged}}", "\n".join(("- " if md_mode else "  ") + h for h in hz) if hz else "(none)")
     left = re.findall(r"\{\{[^}]+\}\}", text)
