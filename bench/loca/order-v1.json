@@ -1,0 +1,242 @@
+[
+ {
+  "state": "CanvasArrangeExamS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "CanvasArrangeExamS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "CanvasArrangeExamS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "CanvasArrangeExamS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "CanvasListTestS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "CanvasListTestS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "CanvasListTestS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "CanvasListTestS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "CourseAssistantS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "CourseAssistantS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "CourseAssistantS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "CourseAssistantS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "ABTestingS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "ABTestingS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "ABTestingS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "ABTestingS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "AcademicWarningS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "AcademicWarningS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "AcademicWarningS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "AcademicWarningS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "ApplyPhDEmailS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "ApplyPhDEmailS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "ApplyPhDEmailS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "ApplyPhDEmailS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "MachineOperatingS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "MachineOperatingS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "MachineOperatingS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "MachineOperatingS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "SetConfCrDdlS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "SetConfCrDdlS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "SetConfCrDdlS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "SetConfCrDdlS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "ExcelMarketResearchS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "ExcelMarketResearchS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "ExcelMarketResearchS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "ExcelMarketResearchS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "FilterLowSellingProductsS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "FilterLowSellingProductsS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "FilterLowSellingProductsS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "FilterLowSellingProductsS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "UpdateMaterialInventoryS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "UpdateMaterialInventoryS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "UpdateMaterialInventoryS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "UpdateMaterialInventoryS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "WoocommerceNewWelcomeS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "WoocommerceNewWelcomeS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "WoocommerceNewWelcomeS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "WoocommerceNewWelcomeS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "WoocommerceStockAlertS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "WoocommerceStockAlertS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "WoocommerceStockAlertS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "WoocommerceStockAlertS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "NhlB2bAnalysisS2LEnv",
+  "strategy": "compact"
+ },
+ {
+  "state": "NhlB2bAnalysisS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "NhlB2bAnalysisS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "NhlB2bAnalysisS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "PayableInvoiceCheckerS2LEnv",
+  "strategy": "compact_archive"
+ },
+ {
+  "state": "PayableInvoiceCheckerS2LEnv",
+  "strategy": "stratavell"
+ },
+ {
+  "state": "PayableInvoiceCheckerS2LEnv",
+  "strategy": "trim"
+ },
+ {
+  "state": "PayableInvoiceCheckerS2LEnv",
+  "strategy": "compact"
+ }
+]

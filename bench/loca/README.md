@@ -1,10 +1,10 @@
 # LOCA-bench with Stratavell
 
-Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with Stratavell as the agent's context manager. The protocol is `bench/review/protocol-agent-loca-v1-DRAFT.md`.
+Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with Stratavell as the agent's context manager. The protocol is `bench/review/protocol-agent-loca-v1.md`.
 
 ## What the patch changes
 
-`loca.patch` applies to LOCA-bench commit 8b6fac4. It changes only two things.
+`loca.patch` applies to LOCA-bench commit 8b6fac4. It changes three things.
 
 **1. A Stratavell mode in the agent loop** (`inference/run_react.py` and `inference/stratavell_ctx.py`). It is off unless `STRATAVELL_URL` is set.
 - Every message is appended to a Stratavell session.
@@ -15,7 +15,9 @@ Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with St
   - LOCA manages its own context as usual
   - Stratavell archives every message and answers four retrieval tools: `memory_search`, `memory_get_event`, `memory_expand` and `memory_get_artifact`
 
-**2. MCP server launch** (`gem/tools/mcp_server/config_loader.py`). With `LOCA_UV_AS_PYTHON` and `LOCA_XVENV` set, servers start from preinstalled environments instead of `uv run` and `uvx`.
+**2. Tool cap.** Memory-tool calls count toward `--max-tool-uses`, and every strategy's run ends when the cap is reached. Unpatched, the environment stopped executing tools at the cap, but the loop kept sending requests with unanswered tool calls.
+
+**3. MCP server launch** (`gem/tools/mcp_server/config_loader.py`). With `LOCA_UV_AS_PYTHON` and `LOCA_XVENV` set, servers start from preinstalled environments instead of `uv run` and `uvx`.
 - Unpatched, inside the sandbox, `uv run` tried to build a new environment, and three servers never started.
 - LOCA then ran the task without their tools and reported no error.
 
@@ -57,6 +59,11 @@ The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinne
    - First it runs `preflight.py` in the sandbox. That starts every MCP server and checks that each one lists tools.
    - If the preflight passes, it runs `loca run` in the sandbox.
    - It writes `RUN`, `preflight.txt`, `requests.jsonl` and LOCA's own outputs to `$LOCA_ROOT/work/runs/NAME/`.
+
+4. **The protocol's runs.** `bench/loca/schedule.py`, with `LOCA_ROOT` set, runs the 60 runs of `protocol-agent-loca-v1.md` in the order of `order-v1.json`.
+   - It resumes after an interruption.
+   - It starts a run only when at least 160 of the day's 900 requests remain.
+   - It reruns a void run at most twice.
 
 ## Sandbox
 

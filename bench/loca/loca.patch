@@ -30,7 +30,7 @@ index 540c5dc..c1ff1a2 100644
  
      def _build_node_command(
 diff --git a/inference/run_react.py b/inference/run_react.py
-index 092dce0..fe8366b 100644
+index 092dce0..6be3724 100644
 --- a/inference/run_react.py
 +++ b/inference/run_react.py
 @@ -1269,6 +1269,12 @@ def run_single_task(
@@ -103,7 +103,7 @@ index 092dce0..fe8366b 100644
 +                    next_obs = json.dumps(memory_results + json.loads(next_obs))
 +                except (TypeError, ValueError):
 +                    pass
-+            if sctx is not None and not terminated and env.tool_use_counter >= max_tool_uses:
++            if not terminated and env.tool_use_counter >= max_tool_uses:
 +                truncated = True
  
              if verbose:
@@ -119,10 +119,10 @@ index 092dce0..fe8366b 100644
  
 diff --git a/inference/stratavell_ctx.py b/inference/stratavell_ctx.py
 new file mode 100644
-index 0000000..6a17e30
+index 0000000..91e27a0
 --- /dev/null
 +++ b/inference/stratavell_ctx.py
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,146 @@
 +import json
 +import os
 +import time
@@ -214,6 +214,11 @@ index 0000000..6a17e30
 +            return out
 +        return {"role": "user", "parts": [{"type": "text", "text": _text(m.get("content"))}]}
 +
++    def _unanswered(self):
++        out = [{"role": "tool", "parts": [{"type": "tool_result", "tool_call_id": cid, "tool_name": self.names.get(cid, ""), "text": "(no result was returned for this call)", "is_error": True}]} for cid in self.open]
++        self.open = []
++        return out
++
 +    def append(self, *openai_messages):
 +        out = []
 +        for m in openai_messages:
@@ -226,9 +231,7 @@ index 0000000..6a17e30
 +                    continue
 +                self.open.remove(cid)
 +            else:
-+                for cid in self.open:
-+                    out.append({"role": "tool", "parts": [{"type": "tool_result", "tool_call_id": cid, "tool_name": self.names.get(cid, ""), "text": "(no result was returned for this call)", "is_error": True}]})
-+                self.open = []
++                out.extend(self._unanswered())
 +                if role == "assistant":
 +                    self.open = [tc["id"] for tc in m.get("tool_calls") or []]
 +            out.append(self._convert(m))
@@ -236,6 +239,8 @@ index 0000000..6a17e30
 +            self.agent.append(*out)
 +
 +    def assemble(self, openai_tools, model, max_tokens):
++        if self.open:
++            self.agent.append(*self._unanswered())
 +        defs = []
 +        for t in openai_tools or []:
 +            fn = t.get("function", t)
