@@ -115,6 +115,18 @@ All on OpenRouter free endpoints, $0. Build 1b0788f for every run.
 
 **Stored errors:** the OpenRouter account's `user_id`, which appears in the provider's error bodies, is replaced with `user_redacted` in the stored answers. Nothing else in those files was changed.
 
+### Reader correction after the second review, 2026-11-27 (UTC+7)
+
+An outside review of revision 2 pointed out that the v4 evidence column still credited F with evidence at the question the key error had broken. All $0.
+
+| time | step | outcome |
+|---|---|---|
+| 07:20 to 07:24 | dry runs with the corrected keys and no model calls, for the v3/v4 configuration and the v1/v2 configuration (`bench/results/2026-11-27/reader-v4-dry-run/`, `reader-v2-dry-run/`) | against the stored records: in v3, v4 and v4.1, one slot of 99 per reader changes (F at turn 151, `constraint_api`, now gets retrieval); in v1 and v2, 3 slots for E and F without retrieval change visibility only. 2 other v1/v2 slots differ because of harness changes made in v3, not the keys |
+| 07:27 | protocol v4.2 committed (e18960f) and pushed at 07:29 | asks only the changed slot again, with the three readers that completed v4 and v4.1 |
+| 07:29 to 07:30 | **reader test v4.2** | all three readers answered strictly correctly with retrieval appended; E3 met; F with the corrected keys is 33 of 33 for every reader |
+
+The reader tables now show evidence as recorded and with the corrected keys. The strict grade is labeled "strict correct", because it checks for the value and no hedging, not cited evidence.
+
 **The shared miss:** every reader missed the same question, F at turn 151 on the public-API rule. A local reproduction showed that the harness skipped retrieval there because of the visibility-key bug listed below.
 
 ## Grading changes, all applied to stored answers offline
@@ -146,3 +158,4 @@ Changes 1 and 2 were made after reading the v1 answers. All three apply to every
 | reader v3 | search hits and event pages did not show which file an archived observation came from, so a reader could not confirm where a retrieved value lives | paths in search hits, event pages and injected evidence; `TestRetrievalOutputsCarryProvenance` |
 | reader v4 (2026-11-27) | the three standing-rule keys (`vendor/`, `package store`, `go vet`) also match ordinary session text, so a lost rule could be counted as visible, and the reader test then skipped retrieval. This inflates the baselines' standing-rule numbers; G pins the rules and is unaffected. Over 5 seeds: F + retrieval 21.9% to 7.3%, E + retrieval 22.0% to 7.7% | 635fcb5: each rule keyed on its own sentence; all suites rerun; only rule-visibility fields changed |
 | reader v4 (2026-11-27) | OpenRouter error bodies carry the account's `user_id`, and the reader test stored error text verbatim | 4b2bd32: redacted before storing; `TestRedactAccount`; the stored v4 files were redacted by hand |
+| second review (2026-11-27) | the reader's evidence-available column used the same old keys, so it showed evidence for F at turn 151 although the reader never saw the rule | evidence recomputed from dry runs with the corrected keys and shown next to the recorded value; the one affected question asked again under protocol v4.2 |

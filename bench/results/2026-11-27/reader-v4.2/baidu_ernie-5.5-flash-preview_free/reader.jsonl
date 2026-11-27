@@ -1,0 +1,1 @@
+{"strategy":"F-async-progressive+retrieval","seed":1,"turn":151,"fact":"constraint_api","kind":"constraint","visible":false,"grounded":false,"retrieval_added":true,"overflow":false,"correct":true,"correct_strict":true,"evidence_available":true,"answer":"The public API of package `store` must stay unchanged.","prompt_tokens":33996,"output_tokens":14,"seconds":2.555879079}

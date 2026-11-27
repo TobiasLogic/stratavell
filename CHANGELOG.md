@@ -11,6 +11,9 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
   - Each rule is now detected by its own sentence. The graded answers are unchanged.
   - The deterministic suites were rerun. Only rule-visibility fields changed: standing-rule retention, and probe visibility, grounding and recoverability for those rules. Every token, cache and cost field is identical.
   - `bench/testdata/smoke-golden.json` was regenerated for this change.
+- **Reader test options.** `-reader-only strategy@turn:fact,...` asks only the listed questions. `-reader-dry-run` runs the reader test with no model and records what each question would see.
+- **Reader evidence corrected.** The reader tables show evidence as recorded and with the corrected keys. The only reader question whose input the key fix changes (F at turn 151, the public-API rule) was asked again under protocol v4.2.
+- The reader's strict grade is now labeled "strict correct" instead of "grounded answer": it checks for the expected value and no hedging, not cited evidence.
 
 ## v0.1.2, 2026-11-26
 

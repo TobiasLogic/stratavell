@@ -126,7 +126,32 @@ def savings(by):
     return "\n".join(lines)
 
 
-def reader(path, sep_md):
+DRY = {
+    "v2": os.path.join(det, "reader-v2-dry-run/reader.jsonl"),
+    "v4": os.path.join(det, "reader-v4-dry-run/reader.jsonl"),
+}
+
+
+def dry_slots(which):
+    p = DRY[which]
+    if not os.path.exists(p):
+        return None
+    return {(r["strategy"], r["seed"], r["turn"], r["fact"]): r for r in load(p)}
+
+
+def evidence_recorded(r):
+    return bool(r.get("evidence_available", r.get("visible") or r.get("retrieval_added")))
+
+
+def evidence_corrected(r, dry):
+    ev = evidence_recorded(r)
+    d = dry.get((r["strategy"], r["seed"], r["turn"], r["fact"]))
+    if ev and r["kind"] == "constraint" and d and not d["visible"] and r.get("visible") and not r.get("retrieval_added"):
+        return False
+    return ev
+
+
+def reader(path, sep_md, dry=None):
     if not os.path.exists(path):
         return None
     recs = load(path)
@@ -138,14 +163,15 @@ def reader(path, sep_md):
         n = len(rs)
         lenient = sum(r["correct"] for r in rs)
         strict = sum(1 for r in rs if r["correct"] and not HEDGE.search(r["answer"]))
-        ev = sum(1 for r in rs if r.get("evidence_available", r.get("visible") or r.get("retrieval_added")))
+        ev = sum(1 for r in rs if evidence_recorded(r))
+        evc = sum(1 for r in rs if evidence_corrected(r, dry)) if dry is not None else "not checked"
         ov = sum(r["overflow"] for r in rs)
         empty = sum(1 for r in rs if not r["overflow"] and r["answer"] == "")
-        rows.append([LABEL.get(s, s) if sep_md else s, n, f"{strict} ({100 * strict / n:.1f}%)", f"{lenient} ({100 * lenient / n:.1f}%)", ev, ov, empty])
+        rows.append([LABEL.get(s, s) if sep_md else s, n, f"{strict} ({100 * strict / n:.1f}%)", f"{lenient} ({100 * lenient / n:.1f}%)", ev, evc, ov, empty])
     return rows
 
 
-READ_H = ["strategy", "questions", "grounded answer (strict)", "value recovered (lenient)", "evidence available", "overflowed", "empty answers"]
+READ_H = ["strategy", "questions", "strict correct", "value recovered (lenient)", "evidence available (as recorded)", "evidence available (corrected keys)", "overflowed", "empty answers"]
 
 
 READERS_V4 = [
@@ -174,6 +200,7 @@ def readers_v4():
 
 def reader_multi(sep_md):
     rows = []
+    dry = dry_slots("v4") or {}
     for rel, name in readers_v4():
         path = os.path.join(res, rel, "reader.jsonl")
         if not os.path.exists(path):
@@ -183,21 +210,55 @@ def reader_multi(sep_md):
             rs = [r for r in recs if r["strategy"] == s]
             label = LABEL.get(s, s) if sep_md else s
             if not rs:
-                rows.append([name, label, 0, "-", "not reached", "-", "-"])
+                rows.append([name, label, 0, "-", "not reached", "-", "-", "-"])
                 continue
             ans = [r for r in rs if not unanswered(r)]
             n = len(ans)
             if n == 0:
-                rows.append([name, label, len(rs), len(rs), "no answers", "-", "-"])
+                rows.append([name, label, len(rs), len(rs), "no answers", "-", "-", "-"])
                 continue
             strict = sum(r["correct_strict"] for r in ans)
             lenient = sum(r["correct"] for r in ans)
             ev = sum(r["evidence_available"] for r in ans)
-            rows.append([name, label, len(rs), len(rs) - n, f"{strict}/{n}", f"{lenient}/{n}", f"{ev}/{n}"])
+            evc = sum(evidence_corrected(r, dry) for r in ans)
+            rows.append([name, label, len(rs), len(rs) - n, f"{strict}/{n}", f"{lenient}/{n}", f"{ev}/{n}", f"{evc}/{n}"])
     return rows
 
 
-READ4_H = ["reader", "strategy", "asked", "unanswered", "grounded answer (strict)", "value recovered (lenient)", "evidence available"]
+READ4_H = ["reader", "strategy", "asked", "unanswered", "strict correct", "value recovered (lenient)", "evidence available (as recorded)", "evidence available (corrected keys)"]
+
+
+V42 = os.path.join(det, "reader-v4.2")
+V42_SLOT = ("F-async-progressive+retrieval", 1, 151, "constraint_api")
+
+
+def rerun_v42():
+    if not os.path.isdir(V42):
+        return None
+    rows = []
+    for rel, name in readers_v4():
+        orig_path = os.path.join(res, rel, "reader.jsonl")
+        new_path = os.path.join(V42, os.path.basename(rel), "reader.jsonl")
+        if not os.path.exists(orig_path) or not os.path.exists(new_path):
+            continue
+        orig = [r for r in load(orig_path) if r["strategy"] == V42_SLOT[0]]
+        new = [r for r in load(new_path) if (r["strategy"], r["seed"], r["turn"], r["fact"]) == V42_SLOT]
+        if not orig or not new:
+            continue
+        o = next(r for r in orig if (r["strategy"], r["seed"], r["turn"], r["fact"]) == V42_SLOT)
+        n = new[0]
+        if unanswered(n):
+            rows.append([name, "yes" if o["retrieval_added"] else "no", "yes" if n["retrieval_added"] else "no", "unanswered", "-", "not evaluated"])
+            continue
+        rest = [r for r in orig if r is not o and not unanswered(r)]
+        before = sum(r["correct_strict"] for r in rest) + o["correct_strict"]
+        after = sum(r["correct_strict"] for r in rest) + n["correct_strict"]
+        total = len(rest) + 1
+        rows.append([name, "yes" if o["retrieval_added"] else "no", "yes" if n["retrieval_added"] else "no", "correct" if n["correct_strict"] else ("lenient only" if n["correct"] else "wrong"), f"{before}/{total} to {after}/{total}", "met" if n["correct_strict"] else "not met"])
+    return rows
+
+
+V42_H = ["reader", "retrieval appended, v4", "retrieval appended, v4.2", "rerun answer (strict)", "F strict count, v4 to corrected", "E3"]
 
 
 def expectations():
@@ -256,13 +317,15 @@ def build(template, out, fmt):
         if g:
             raw = [r["raw_session_tokens"] for r in g]
             text = text.replace("{{" + name + ".raw}}", f"{min(raw) / 1e6:.2f} to {max(raw) / 1e6:.2f}")
-    for key, rel in [("reader.v2", "reader-extractive/reader.regraded.jsonl"), ("reader.haiku", "reader-haiku-summaries/reader.regraded.jsonl"), ("reader.v1", "reader-v1-superseded/reader.regraded.jsonl"), ("reader.v3", "reader-v3/reader.jsonl")]:
-        rows = reader(os.path.join(res, rel), md_mode)
+    for key, rel, dk in [("reader.v2", "reader-extractive/reader.regraded.jsonl", "v2"), ("reader.haiku", "reader-haiku-summaries/reader.regraded.jsonl", None), ("reader.v1", "reader-v1-superseded/reader.regraded.jsonl", "v2"), ("reader.v3", "reader-v3/reader.jsonl", "v4")]:
+        rows = reader(os.path.join(res, rel), md_mode, dry_slots(dk) if dk else None)
         text = text.replace("{{" + key + "}}", T(READ_H, rows) if rows else "(not run)")
     rows = reader_multi(md_mode)
     text = text.replace("{{reader.v4}}", T(READ4_H, rows) if rows else "(not run)")
     rows = expectations()
     text = text.replace("{{reader.v4.expect}}", T(EXP_H, rows) if rows else "(not run)")
+    rows = rerun_v42()
+    text = text.replace("{{reader.v4.2}}", T(V42_H, rows) if rows else "(not run yet)")
     hz = hedged([("v2 extractive", os.path.join(res, "reader-extractive/reader.regraded.jsonl")), ("Haiku summaries", os.path.join(res, "reader-haiku-summaries/reader.regraded.jsonl")), ("v3", os.path.join(res, "reader-v3/reader.jsonl"))] + [(name, os.path.join(res, rel, "reader.jsonl")) for rel, name in readers_v4()])
     text = text.replace("{{spend}}", sys.argv[2] if len(sys.argv) > 2 else "unknown")
     build_file = os.path.join(det, "BUILD")
