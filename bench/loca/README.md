@@ -57,6 +57,7 @@ The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinne
    - For NVIDIA it also retries network errors and HTTP 500, 502, 503 and 504 every 30 seconds, for up to `FREEPROXY_RETRY_NET_SECONDS` (900 by default), so a short outage does not end a run.
    - It spaces requests at least `FREEPROXY_MIN_GAP` seconds apart and stops at `FREEPROXY_DAILY_CAP` requests per UTC day.
    - It logs every request with its token counts, and removes the account id from error bodies.
+   - `GET /ready?model=ID` sends that model a one-line request, without retries, and returns 200 if it answers. The request is logged with the tag `ready`.
 
 2. **Stratavell.** For the Stratavell strategies, start a server, with the agent's model as summarizer:
 
@@ -83,7 +84,7 @@ The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinne
    ```
 
    - It resumes after an interruption. Runs named with an earlier prefix in `SCHEDULE_PRIOR` (`v1.1` by default) count, so the valid v1.1 runs are not repeated.
-   - Before every run, it waits until `SCHEDULE_UPSTREAM_HOST` (NVIDIA's API host by default) accepts a connection.
+   - Before every run, it calls the proxy's `/ready`, which sends the model a one-line request. While the model does not answer within `FREEPROXY_READY_TIMEOUT` seconds (120), it waits, and asks again every 5 minutes.
    - It starts a run only when at least 160 of the day's requests remain under `FREEPROXY_DAILY_CAP`.
    - It reruns a void run at most twice. A void run in which the model returned no reply does not count, and is retried with a `-zN` name. After 3 of these in a row on the same run, it stops with exit code 3.
 

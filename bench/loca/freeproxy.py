@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -22,6 +23,7 @@ DAILY_CAP = int(os.environ.get("FREEPROXY_DAILY_CAP", "900"))
 RETRY_429 = int(os.environ.get("FREEPROXY_RETRY_429", "40" if STREAM else "0"))
 RETRY_NET_SECONDS = float(os.environ.get("FREEPROXY_RETRY_NET_SECONDS", "900" if STREAM else "0"))
 NET_WAIT = 30
+READY_TIMEOUT = float(os.environ.get("FREEPROXY_READY_TIMEOUT", "120"))
 TRANSIENT = (500, 502, 503, 504)
 LOG = os.environ.get("FREEPROXY_LOG", "freeproxy.jsonl")
 ACCOUNT = re.compile(rb'"user_id"\s*:\s*"[^"]*"')
@@ -111,10 +113,10 @@ def collect(resp):
     }
 
 
-def upstream(raw):
+def upstream(raw, timeout=900):
     r = urllib.request.Request(UPSTREAM, data=raw, method="POST", headers={"Content-Type": "application/json", "Authorization": "Bearer " + KEY, "Accept": "text/event-stream" if STREAM else "application/json"})
     try:
-        with urllib.request.urlopen(r, timeout=900) as resp:
+        with urllib.request.urlopen(r, timeout=timeout) as resp:
             if STREAM:
                 return 200, json.dumps(collect(resp)).encode(), False
             return resp.status, resp.read(), False
@@ -134,6 +136,27 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_GET(self):
+        url = urllib.parse.urlparse(self.path)
+        if url.path.rstrip("/") != "/ready":
+            return self.reply(404, b'{"error":{"message":"only /ready is served"}}')
+        model = (urllib.parse.parse_qs(url.query).get("model") or [""])[0]
+        if not model.endswith(":free"):
+            return self.reply(403, b'{"error":{"message":"freeproxy: only :free models are allowed"}}')
+        req = {"model": model[: -len(":free")] if STREAM else model, "messages": [{"role": "user", "content": "Reply with the single word: ready"}], "max_tokens": 16}
+        if STREAM:
+            req["stream"] = True
+            req["stream_options"] = {"include_usage": True}
+        with lock:
+            wait = last[0] + MIN_GAP - time.time()
+            if wait > 0:
+                time.sleep(wait)
+            last[0] = time.time()
+        t0 = time.time()
+        code, body, _ = upstream(json.dumps(req).encode(), timeout=READY_TIMEOUT)
+        record({"t": t0, "day": time.strftime("%Y-%m-%d", time.gmtime(t0)), "model": model, "status": code, "seconds": round(time.time() - t0, 2), "tag": "ready"})
+        return self.reply(200 if code == 200 else 503, json.dumps({"ready": code == 200, "status": code}).encode())
 
     def do_POST(self):
         if self.path.rstrip("/") not in ("/v1/chat/completions", "/chat/completions"):

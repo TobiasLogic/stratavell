@@ -25,7 +25,10 @@ v1.2 changes these rules and the harness:
   - An attempt counts once the model has returned at least one reply.
   - A run with no reply shows nothing of how it would have gone, so retrying it cannot select on the result.
   - After 3 such voids in a row on the same run, the scheduler stops for the operator.
-- **The scheduler waits for NVIDIA.** Before every run it checks that it can connect to NVIDIA's API host, and waits while it cannot.
+- **The scheduler waits for the model.**
+  - Before every run, the proxy sends the model a one-line request. While no reply comes within 2 minutes, the scheduler waits, and asks again every 5 minutes.
+  - These requests are logged with the tag `ready`, and are not part of any run.
+  - The first push of v1.2 only checked that NVIDIA's API host accepted a connection. Before any v1.2 run, the model stopped answering while the host still did, so the check now asks the model.
 - **The proxy retries network errors** and NVIDIA's 500, 502, 503 and 504 replies every 30 seconds, for up to 15 minutes, before returning the error to LOCA. That leaves time for a full 7-minute reply inside LOCA's 1,800-second timeout.
 - **The tokenizer file is cached.**
   - `setup.sh` downloads `cl100k_base` once, and the sandbox points tiktoken at that copy.
@@ -98,7 +101,7 @@ Run environment, as in `bench/loca/README.md`:
   - New in v1.2: it retries network errors and NVIDIA's 500, 502, 503 and 504 replies every 30 seconds, for up to 15 minutes.
 - **Tokenizer:** new in v1.2. The sandbox loads `cl100k_base` from a copy made by `setup.sh`, so no run needs the network to start.
 - **Stratavell:** one `stratavell serve` built from the v1.1 commit, e22f79d, started with a fresh database before the first v1.1 run. It keeps running, with its database, into v1.2, which changes no Stratavell code. Its summarizer is the agent model, through the same proxy. The policy is the default except for the window.
-- **Runs** go one at a time, in the fixed order. New in v1.2: before every run, the scheduler waits until NVIDIA's API host accepts a connection.
+- **Runs** go one at a time, in the fixed order. New in v1.2: before every run, the scheduler waits until the model answers a one-line request.
 
 ## States
 

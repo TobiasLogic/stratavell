@@ -2,10 +2,12 @@ import calendar
 import glob
 import json
 import os
-import socket
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.environ["LOCA_ROOT"]
@@ -17,7 +19,8 @@ TOOL_CAP = "100"
 MAX_TOKENS = "16384"
 PREFIX = os.environ.get("SCHEDULE_PREFIX", "v1.2")
 PRIOR = [p for p in os.environ.get("SCHEDULE_PRIOR", "v1.1").split(",") if p]
-UPSTREAM_HOST = os.environ.get("SCHEDULE_UPSTREAM_HOST", "integrate.api.nvidia.com")
+PROXY = "http://127.0.0.1:" + os.environ.get("FREEPROXY_PORT", "18080")
+READY_EVERY = 300
 HALT_AFTER = 3
 API_ERRORS = ("API Error", "Error: Failed to get response after multiple retries.", "Error: Invalid parameter format.", "Error: Request failed with 400 status.")
 BUDGET = json.load(open(os.path.join(HERE, "budget-v1.1.json")))
@@ -56,19 +59,28 @@ def stamp():
     return time.strftime("%FT%TZ", time.gmtime())
 
 
-def wait_for_upstream():
+def model_ready():
+    try:
+        with urllib.request.urlopen(PROXY + "/ready?" + urllib.parse.urlencode({"model": MODEL}), timeout=180) as r:
+            return r.status == 200, "ok"
+    except urllib.error.HTTPError as e:
+        return False, "status " + str(json.loads(e.read() or b"{}").get("status", e.code))
+    except OSError as e:
+        return False, type(e).__name__
+
+
+def wait_for_model():
     waited = False
     while True:
-        try:
-            socket.create_connection((UPSTREAM_HOST, 443), timeout=10).close()
+        ok, why = model_ready()
+        if ok:
             if waited:
-                print(f"{stamp()} {UPSTREAM_HOST} reachable again", flush=True)
+                print(f"{stamp()} {MODEL} answering again", flush=True)
             return
-        except OSError as e:
-            if not waited:
-                print(f"{stamp()} {UPSTREAM_HOST} unreachable ({type(e).__name__}), waiting", flush=True)
-            waited = True
-            time.sleep(60)
+        if not waited:
+            print(f"{stamp()} {MODEL} not answering ({why}), checking every {READY_EVERY} s", flush=True)
+        waited = True
+        time.sleep(READY_EVERY)
 
 
 def wait_for_quota():
@@ -174,7 +186,7 @@ def main():
             if counted >= 3:
                 print(f"{state} {strat}: void after {counted} counted attempts, excluded", flush=True)
                 break
-            wait_for_upstream()
+            wait_for_model()
             wait_for_quota()
             name = next_name(state, strat, counted)
             run_dir = os.path.join(ROOT, "work", "runs", name)
