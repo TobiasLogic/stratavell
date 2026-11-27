@@ -31,6 +31,7 @@ type Config struct {
 	Log         func(string, ...any)
 
 	ReaderMaxTokens int
+	ReaderOnly      map[string]bool
 }
 
 func basePolicy(window, maxOut int) engine.Policy {

@@ -160,6 +160,9 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 				}
 				if chosen[t] {
 					for _, f := range sc.FactsAt(t - 1) {
+						if len(c.ReaderOnly) > 0 && !c.ReaderOnly[ReaderSlot(name, t, f.ID)] {
+							continue
+						}
 						r := ReaderRecord{Strategy: name, Seed: seed, Turn: t, Fact: f.ID, Kind: f.Kind, Overflow: v.Overflow}
 						if !v.Overflow {
 							r.Visible = containsAll(v.Text, f.Keys)
@@ -211,6 +214,16 @@ func (c *Config) RunReader(ctx context.Context, cl Asker, points int, out io.Wri
 		}
 	}
 	return recs, nil
+}
+
+func ReaderSlot(strategy string, turn int, fact string) string {
+	return fmt.Sprintf("%s@%d:%s", strategy, turn, fact)
+}
+
+type DryAsker struct{}
+
+func (DryAsker) Ask(ctx context.Context, cx *engine.Context, extra []string, question string, maxTokens int) (AskResult, error) {
+	return AskResult{}, nil
 }
 
 func clip(s string, n int) string {
