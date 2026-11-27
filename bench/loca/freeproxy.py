@@ -20,6 +20,9 @@ KEY_FILE = os.path.expanduser(os.environ.get("FREEPROXY_KEY_FILE", DEFAULT_KEY_F
 MIN_GAP = float(os.environ.get("FREEPROXY_MIN_GAP", "3.2"))
 DAILY_CAP = int(os.environ.get("FREEPROXY_DAILY_CAP", "900"))
 RETRY_429 = int(os.environ.get("FREEPROXY_RETRY_429", "40" if STREAM else "0"))
+RETRY_NET_SECONDS = float(os.environ.get("FREEPROXY_RETRY_NET_SECONDS", "900" if STREAM else "0"))
+NET_WAIT = 30
+TRANSIENT = (500, 502, 503, 504)
 LOG = os.environ.get("FREEPROXY_LOG", "freeproxy.jsonl")
 ACCOUNT = re.compile(rb'"user_id"\s*:\s*"[^"]*"')
 
@@ -113,12 +116,12 @@ def upstream(raw):
     try:
         with urllib.request.urlopen(r, timeout=900) as resp:
             if STREAM:
-                return 200, json.dumps(collect(resp)).encode()
-            return resp.status, resp.read()
+                return 200, json.dumps(collect(resp)).encode(), False
+            return resp.status, resp.read(), False
     except urllib.error.HTTPError as e:
-        return e.code, e.read()
+        return e.code, e.read(), e.code in TRANSIENT
     except Exception as e:
-        return 502, json.dumps({"error": {"message": "freeproxy upstream error: " + type(e).__name__ + ": " + str(e)[:200]}}).encode()
+        return 502, json.dumps({"error": {"message": "freeproxy upstream error: " + type(e).__name__ + ": " + str(e)[:200]}}).encode(), True
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -151,7 +154,8 @@ class Handler(BaseHTTPRequestHandler):
             req["stream"] = True
             req["stream_options"] = {"include_usage": True}
             raw = json.dumps(req).encode()
-        attempt = 0
+        attempt = rate_tries = 0
+        first = time.time()
         while True:
             with lock:
                 today = time.strftime("%Y-%m-%d", time.gmtime())
@@ -166,7 +170,7 @@ class Handler(BaseHTTPRequestHandler):
                     time.sleep(wait)
                 last[0] = time.time()
             t0 = time.time()
-            code, body = upstream(raw)
+            code, body, transient = upstream(raw)
             body = ACCOUNT.sub(b'"user_id":"redacted"', body)
             usage = {}
             if code == 200:
@@ -175,9 +179,14 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError:
                     pass
             record({"t": t0, "day": time.strftime("%Y-%m-%d", time.gmtime(t0)), "model": model, "status": code, "attempt": attempt, "seconds": round(time.time() - t0, 2), "messages": len(req.get("messages", [])), "tools": len(req.get("tools") or []), "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"), "cached_tokens": (usage.get("prompt_tokens_details") or {}).get("cached_tokens"), "cost": usage.get("cost"), "tag": self.headers.get("X-Run-Tag", "")})
-            if code == 429 and attempt < RETRY_429:
+            if code == 429 and rate_tries < RETRY_429:
                 attempt += 1
-                time.sleep(min(10 * 2 ** min(attempt, 4), 120))
+                rate_tries += 1
+                time.sleep(min(10 * 2 ** min(rate_tries, 4), 120))
+                continue
+            if transient and time.time() + NET_WAIT - first < RETRY_NET_SECONDS:
+                attempt += 1
+                time.sleep(NET_WAIT)
                 continue
             return self.reply(code, body)
 

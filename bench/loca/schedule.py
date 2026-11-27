@@ -2,6 +2,7 @@ import calendar
 import glob
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -14,7 +15,11 @@ CAP = int(os.environ.get("FREEPROXY_DAILY_CAP", "900"))
 RESERVE = int(os.environ.get("SCHEDULE_RESERVE", "160"))
 TOOL_CAP = "100"
 MAX_TOKENS = "16384"
-PREFIX = os.environ.get("SCHEDULE_PREFIX", "v1.1")
+PREFIX = os.environ.get("SCHEDULE_PREFIX", "v1.2")
+PRIOR = [p for p in os.environ.get("SCHEDULE_PRIOR", "v1.1").split(",") if p]
+UPSTREAM_HOST = os.environ.get("SCHEDULE_UPSTREAM_HOST", "integrate.api.nvidia.com")
+HALT_AFTER = 3
+API_ERRORS = ("API Error", "Error: Failed to get response after multiple retries.", "Error: Invalid parameter format.", "Error: Request failed with 400 status.")
 BUDGET = json.load(open(os.path.join(HERE, "budget-v1.1.json")))
 
 
@@ -45,6 +50,25 @@ def today_count():
             if isinstance(e.get("status"), int) and time.strftime("%Y-%m-%d", time.gmtime(e["t"])) == day:
                 n += 1
     return n
+
+
+def stamp():
+    return time.strftime("%FT%TZ", time.gmtime())
+
+
+def wait_for_upstream():
+    waited = False
+    while True:
+        try:
+            socket.create_connection((UPSTREAM_HOST, 443), timeout=10).close()
+            if waited:
+                print(f"{stamp()} {UPSTREAM_HOST} reachable again", flush=True)
+            return
+        except OSError as e:
+            if not waited:
+                print(f"{stamp()} {UPSTREAM_HOST} unreachable ({type(e).__name__}), waiting", flush=True)
+            waited = True
+            time.sleep(60)
 
 
 def wait_for_quota():
@@ -89,9 +113,46 @@ def void_reason(run_dir):
     if os.path.exists(traj):
         t = json.load(open(traj))
         hist = (t.get("conversation") or {}).get("full_messages_history") or t.get("messages") or []
-        if hist and str(hist[-1].get("content", "")).startswith("API Error"):
+        if hist and str(hist[-1].get("content", "")).startswith(API_ERRORS):
             return "api error"
     return None
+
+
+def replies(run_dir):
+    p = os.path.join(run_dir, "requests.jsonl")
+    if not os.path.exists(p):
+        return 0
+    return sum(1 for line in open(p) if '"status": 200' in line)
+
+
+def history(state, strat):
+    runs = os.path.join(ROOT, "work", "runs")
+    seen = []
+    for p in dict.fromkeys(PRIOR + [PREFIX]):
+        base = f"{p}-{state}-{strat}"
+        for d in [os.path.join(runs, base)] + glob.glob(os.path.join(runs, base + "-*")):
+            m = manifest(os.path.join(d, "RUN"))
+            if "exit" in m:
+                seen.append((m.get("start", ""), d))
+    valid, counted, free = None, 0, 0
+    for _, d in sorted(seen):
+        reason = void_reason(d)
+        if reason is None:
+            valid = d
+        elif replies(d):
+            counted += 1
+        else:
+            free += 1
+    return valid, counted, free
+
+
+def next_name(state, strat, counted):
+    base = f"{PREFIX}-{state}-{strat}" + (f"-r{counted}" if counted else "")
+    name, k = base, 0
+    while os.path.exists(os.path.join(ROOT, "work", "runs", name)):
+        k += 1
+        name = f"{base}-z{k}"
+    return name
 
 
 def main():
@@ -104,27 +165,39 @@ def main():
         if not os.path.exists(cfg_path):
             json.dump({"configurations": [configs[state]]}, open(cfg_path, "w"), indent=1)
         env_extra, args = strategy(strat, state)
-        for attempt in range(3):
-            name = f"{PREFIX}-{state}-{strat}" + (f"-r{attempt}" if attempt else "")
-            run_dir = os.path.join(ROOT, "work", "runs", name)
-            if os.path.exists(os.path.join(run_dir, "RUN")) and "exit" in manifest(os.path.join(run_dir, "RUN")):
-                reason = void_reason(run_dir)
-                if reason is None:
-                    break
-                print(f"{name} already ran, void: {reason}", flush=True)
-                continue
+        streak = 0
+        while True:
+            valid, counted, free = history(state, strat)
+            if valid:
+                print(f"{state} {strat}: valid run {os.path.basename(valid)}", flush=True)
+                break
+            if counted >= 3:
+                print(f"{state} {strat}: void after {counted} counted attempts, excluded", flush=True)
+                break
+            wait_for_upstream()
             wait_for_quota()
+            name = next_name(state, strat, counted)
+            run_dir = os.path.join(ROOT, "work", "runs", name)
             env = dict(os.environ, **env_extra)
             for k in ("STRATAVELL_URL", "STRATAVELL_MODE", "STRATAVELL_WINDOW"):
                 if k not in env_extra:
                     env.pop(k, None)
             cmd = [os.path.join(HERE, "run.sh"), name, "-c", cfg_path, "-s", "react", "-m", MODEL, "--max-tool-uses", TOOL_CAP, "--max-tokens", MAX_TOKENS] + args
-            print(f"{time.strftime('%FT%TZ', time.gmtime())} start {name}", flush=True)
+            print(f"{stamp()} start {name}", flush=True)
             subprocess.run(cmd, env=env)
             reason = void_reason(run_dir)
-            print(f"{time.strftime('%FT%TZ', time.gmtime())} done {name}: {'valid' if reason is None else 'void, ' + reason}", flush=True)
             if reason is None:
+                print(f"{stamp()} done {name}: valid", flush=True)
                 break
+            if replies(run_dir):
+                streak = 0
+                print(f"{stamp()} done {name}: void, {reason}", flush=True)
+                continue
+            streak += 1
+            print(f"{stamp()} done {name}: void, {reason}, no model reply, not counted", flush=True)
+            if streak >= HALT_AFTER:
+                print(f"{stamp()} halt: {streak} voids in a row with no model reply on {state} {strat}", flush=True)
+                return 3
     print("schedule complete", flush=True)
 
 

@@ -1,6 +1,6 @@
 # Agent test v1.1 on LOCA-bench: frozen protocol
 
-Status: frozen. This file is committed and pushed before the first v1.1 scored run. It amends `protocol-agent-loca-v1.md`, which was stopped after two scored runs (see "Why v1 was amended").
+Status: superseded by `protocol-agent-loca-v1.2.md` on 2026-11-27, after 9 scored runs. A network outage ended one run with an API error that `schedule.py` did not detect, and made every later run and both of its reruns fail preflight without a request to the model. The text below is unchanged from when it was frozen.
 
 ## Question
 

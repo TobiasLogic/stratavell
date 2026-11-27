@@ -27,6 +27,7 @@ exec bwrap \
   --setenv UV_PROJECT_ENVIRONMENT "$L/venv" --setenv UV_NO_SYNC 1 --setenv UV_PYTHON_DOWNLOADS never \
   --setenv LOCA_UV_AS_PYTHON 1 --setenv LOCA_XVENV "$L/xvenv" --setenv LOCA_ROOT "$L" \
   --setenv npm_config_cache "$L/home/.npm" \
+  --setenv TIKTOKEN_CACHE_DIR "$L/tiktoken-cache" \
   --setenv LANG C.UTF-8 \
   --setenv LOCA_OPENAI_API_KEY sandbox-no-key \
   --setenv LOCA_OPENAI_BASE_URL "http://127.0.0.1:${FREEPROXY_PORT:-18080}/v1" \

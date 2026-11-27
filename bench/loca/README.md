@@ -1,6 +1,6 @@
 # LOCA-bench with Stratavell
 
-Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with Stratavell as the agent's context manager. The protocol is `bench/review/protocol-agent-loca-v1.1.md`, which amends `protocol-agent-loca-v1.md`.
+Runs [LOCA-bench](https://github.com/hkust-nlp/LOCA-bench) (MIT license) with Stratavell as the agent's context manager. The protocol is `bench/review/protocol-agent-loca-v1.2.md`, which amends `protocol-agent-loca-v1.1.md` and, through it, `protocol-agent-loca-v1.md`.
 
 ## What the patch changes
 
@@ -38,6 +38,8 @@ This clones LOCA-bench at 8b6fac4, applies the patch and builds three virtual en
 - the main one, from `requirements-lock.txt`
 - one for each of the two `uvx` tools
 
+It also downloads tiktoken's `cl100k_base` file once, into `$LOCA_ROOT/tiktoken-cache`. Preflight and LOCA load it from there, so a run does not need the network to start.
+
 The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinned, current `mcp` and `fastmcp` releases break LOCA's servers.
 
 ## Running
@@ -52,6 +54,7 @@ The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinne
    - `FREEPROXY_UPSTREAM` is `openrouter` (the default) or `nvidia`. The key comes from `OPENROUTER_API_KEY` or `NVIDIA_API_KEY`, or from `FREEPROXY_KEY_FILE`.
    - It forwards only model ids that end in `:free` and refuses anything else. For NVIDIA it removes the suffix.
    - For NVIDIA it requests the reply as a stream and returns it as one reply, because in testing NVIDIA closed a non-streamed 16,384-token request after 5.7 minutes without a reply. It retries a rate-limit refusal (HTTP 429) up to 40 times, waiting 20 to 120 seconds.
+   - For NVIDIA it also retries network errors and HTTP 500, 502, 503 and 504 every 30 seconds, for up to `FREEPROXY_RETRY_NET_SECONDS` (900 by default), so a short outage does not end a run.
    - It spaces requests at least `FREEPROXY_MIN_GAP` seconds apart and stops at `FREEPROXY_DAILY_CAP` requests per UTC day.
    - It logs every request with its token counts, and removes the account id from error bodies.
 
@@ -72,16 +75,17 @@ The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinne
    - `measure_calib.py` sends each state's first request in LOCA's, passive mode's and Stratavell's form, with a 1-token output cap. It needs the proxy (`CALIB_PROXY`) and a scratch `stratavell serve` (`CALIB_STRATAVELL`, default port 7078). `calib-v1.1.json` was measured through OpenRouter and `calib-v1.1-nvidia.json` through NVIDIA. The counts are identical.
    - `calibrate.py` turns those counts into the limits in `budget-v1.1.json`.
 
-5. **The protocol's runs.** `bench/loca/schedule.py`, with `LOCA_ROOT` set, runs the 60 runs of `protocol-agent-loca-v1.1.md` in the order of `order-v1.json`, with the limits in `budget-v1.1.json`:
+5. **The protocol's runs.** `bench/loca/schedule.py`, with `LOCA_ROOT` set, runs the 60 runs of `protocol-agent-loca-v1.2.md` in the order of `order-v1.json`, with the limits in `budget-v1.1.json`:
 
    ```
    LOCA_ROOT=... FREEPROXY_PORT=18081 FREEPROXY_LOG=$LOCA_ROOT/logs/nvproxy.jsonl FREEPROXY_DAILY_CAP=20000 \
      STRATAVELL_URL=http://127.0.0.1:7077 python3 -I bench/loca/schedule.py
    ```
 
-   - It resumes after an interruption.
+   - It resumes after an interruption. Runs named with an earlier prefix in `SCHEDULE_PRIOR` (`v1.1` by default) count, so the valid v1.1 runs are not repeated.
+   - Before every run, it waits until `SCHEDULE_UPSTREAM_HOST` (NVIDIA's API host by default) accepts a connection.
    - It starts a run only when at least 160 of the day's requests remain under `FREEPROXY_DAILY_CAP`.
-   - It reruns a void run at most twice.
+   - It reruns a void run at most twice. A void run in which the model returned no reply does not count, and is retried with a `-zN` name. After 3 of these in a row on the same run, it stops with exit code 3.
 
 ## Sandbox
 
