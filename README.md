@@ -83,11 +83,11 @@ How to read the table:
   - In the ablations, most of the saving comes from externalizing oversized tool outputs at ingestion, from batched (epoch) masking and from the cache-aware layout.
 
 Other results:
-- **QA with a real model:** in a pre-registered question-answering run (Claude Haiku 5.5 reader, 33 questions, 1 seed), the grounded-answer counts were a tie:
+- **QA with a real model:** in a pre-registered question-answering run (Claude Haiku 5.5 reader, 33 questions, 1 seed), the strict-correct counts were a tie:
   - Stratavell: 28
   - conventional compaction with a passive Stratavell archive: 27
   - async summaries with retrieval: 26
-- **QA after the provenance fix:** the same pre-registered test with three free readers from NVIDIA, Baidu and Recursive gave 33, 33 and 32 of 33 for those three strategies, identical for every reader. That is still a tie, now at the test's ceiling. The one miss traces to the rule-check error noted above.
+- **QA after the provenance fix:** the same pre-registered test with three free readers from NVIDIA, Baidu and Recursive gave 33, 33 and 32 of 33 for those three strategies, identical for every reader. The one miss traced to the rule-check error noted above: asked again with the corrected check (protocol v4.2), every reader answered it, so all three strategies scored 33 of 33. That is a tie at the test's ceiling.
 - **200k window** (400 turns, 3 seeds):
   - Stratavell's simulated input cost was $10.44 per session, against $16.46 to $27.62 for conventional, sync and async compaction without retrieval.
   - No component-matched variants were run at this size.

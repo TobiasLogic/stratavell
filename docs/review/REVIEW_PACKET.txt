@@ -1,11 +1,11 @@
-STRATAVELL: REVIEW PACKET (REVISION 2)
+STRATAVELL: REVIEW PACKET (REVISION 3)
 =====================================
 
-The project was renamed from palimpsest to Stratavell for its v0.1.0 release. The results below were produced before the rename and are unchanged; section 13 records the check that the release build reproduces them.
+The project was renamed from palimpsest to Stratavell for its v0.1.0 release. The original results were produced before the rename, and section 13 records the check that the release build reproduced them. On 2026-11-27 a measurement error was fixed and every deterministic suite was rerun; only rule-visibility fields changed (section 0).
 
 Purpose: give an outside reviewer everything needed to check the claims and the numbers in one file. Please be critical.
 
-Deterministic results: build 635fcb5. This is the second revision. An earlier version was reviewed; section 1 lists what changed in response. Every table is generated from the raw result files by bench/review/render.py: deterministic suites from bench/results/2026-11-27/ (rerun after the fix in section 0), reader runs from bench/results/2026-11-26/. Nothing is copied by hand.
+Deterministic results: build 635fcb5. This is the third revision. Two earlier versions were reviewed; section 1 lists what changed in response to each. Every table is generated from the raw result files by bench/review/render.py: deterministic suites from bench/results/2026-11-27/ (rerun after the fix in section 0), reader runs from bench/results/2026-11-26/. Nothing is copied by hand.
 
 
 0. MEASUREMENT ERROR, FOUND AND FIXED ON 2026-11-27
@@ -43,8 +43,17 @@ Fact recoverability with retrieval is unchanged (97.2% for E and F with retrieva
 The reader tests (v1 to v4.1) were not rerun. They used the old keys to decide when to append retrieval, and are reported as they came out (see section 7.0).
 
 
-1. CHANGES SINCE THE FIRST REVIEW
----------------------------------
+1. CHANGES SINCE THE REVIEWS
+----------------------------
+
+After the second review (of revision 2):
+- The reader's evidence column overstated F by one question: the standing-rule key error also made the reader count the public-API rule as visible for F at turn 151, so retrieval was skipped. Each reader table now shows evidence as recorded and with the corrected keys (from dry runs, no model calls). The one affected v4 question was asked again under protocol v4.2; the original records are kept (section 7.0).
+- "Grounded answer" is renamed strict correct, because the grader checks for the value and no hedging, not cited evidence.
+- The retrieval latency target is now listed as met since v0.1.1 (section 9).
+- The introduction no longer says the results are unchanged since the rename.
+- Limitations added: the reader runs reuse the same questions; strict grading does not check evidence (section 10).
+
+After the first review:
 
 A. noa cost accounting (review issue A: confirmed and fixed)
 - About half of noa's input tokens came from its in-band compression calls.
@@ -59,7 +68,7 @@ A. noa cost accounting (review issue A: confirmed and fixed)
 B. Strict grading is the headline. The QA tables report three dimensions:
 - value recovered (lenient)
 - evidence available
-- grounded answer (strict: value recovered and no hedging)
+- strict correct (value recovered and no hedging; the protocols call it "grounded answer", renamed because the grader does not check cited evidence)
 
 C. "End-to-end reader test" is renamed retrieval-assisted question answering. Task success is marked NOT EVALUATED.
 
@@ -306,9 +315,13 @@ Setup:
 - This is not an agent evaluation.
 
 Grading:
-- grounded answer (strict) = value recovered and no hedging
+- strict correct = value recovered and no hedging. It does not check that the answer cites its evidence, or that details beyond the expected value are right. Protocols v3 to v4.1 call this "grounded answer"; renamed after an outside review.
 - value recovered (lenient) = answer contains the key
 - evidence available = context or retrieval text contains key plus evidence
+  - as recorded: with the keys the run used
+  - corrected keys: recomputed for the three standing-rule questions from a dry run of the same configuration with the corrected keys (-reader-dry-run, no model calls; bench/results/2026-11-27/reader-v4-dry-run/ and reader-v2-dry-run/)
+  - for v1 and v2 the correction lowers E's and F's counts by 1 or 2; they had no retrieval, so prompts and answers were not affected
+  - the Haiku-summary run is not checked: its summaries came from a model
 
 7.0 v4 and v4.1, FROZEN PROTOCOL, three free readers, seed 1
 
@@ -321,20 +334,20 @@ Setup:
 - Protocol v4.1 (commit 1fced24) was committed before the candidates' pilot results were read. It replaced Ling with Recursive Flint, chosen from four free candidates by a fixed rule.
 - Grades are over answered questions; unanswered questions are counted separately.
 
-reader                                strategy                       asked  unanswered  grounded answer (strict)  value recovered (lenient)  evidence available
-------------------------------------  -----------------------------  -----  ----------  ------------------------  -------------------------  ------------------
-NVIDIA Nemotron 3 Ultra               G-hybrid                       33     0           33/33                     33/33                      33/33             
-NVIDIA Nemotron 3 Ultra               F-async-progressive+retrieval  33     0           32/33                     32/33                      33/33             
-NVIDIA Nemotron 3 Ultra               B-conventional+archive         33     0           33/33                     33/33                      33/33             
-Baidu ERNIE 5.5 Flash                 G-hybrid                       33     0           33/33                     33/33                      33/33             
-Baidu ERNIE 5.5 Flash                 F-async-progressive+retrieval  33     0           32/33                     32/33                      33/33             
-Baidu ERNIE 5.5 Flash                 B-conventional+archive         33     0           33/33                     33/33                      33/33             
-inclusionAI Ling 3.2 Flash (stopped)  G-hybrid                       1      1           no answers                -                          -                 
-inclusionAI Ling 3.2 Flash (stopped)  F-async-progressive+retrieval  0      -           not reached               -                          -                 
-inclusionAI Ling 3.2 Flash (stopped)  B-conventional+archive         0      -           not reached               -                          -                 
-Recursive Flint (v4.1)                G-hybrid                       33     0           33/33                     33/33                      33/33             
-Recursive Flint (v4.1)                F-async-progressive+retrieval  33     0           32/33                     32/33                      33/33             
-Recursive Flint (v4.1)                B-conventional+archive         33     0           33/33                     33/33                      33/33             
+reader                                strategy                       asked  unanswered  strict correct  value recovered (lenient)  evidence available (as recorded)  evidence available (corrected keys)
+------------------------------------  -----------------------------  -----  ----------  --------------  -------------------------  --------------------------------  -----------------------------------
+NVIDIA Nemotron 3 Ultra               G-hybrid                       33     0           33/33           33/33                      33/33                             33/33                              
+NVIDIA Nemotron 3 Ultra               F-async-progressive+retrieval  33     0           32/33           32/33                      33/33                             32/33                              
+NVIDIA Nemotron 3 Ultra               B-conventional+archive         33     0           33/33           33/33                      33/33                             33/33                              
+Baidu ERNIE 5.5 Flash                 G-hybrid                       33     0           33/33           33/33                      33/33                             33/33                              
+Baidu ERNIE 5.5 Flash                 F-async-progressive+retrieval  33     0           32/33           32/33                      33/33                             32/33                              
+Baidu ERNIE 5.5 Flash                 B-conventional+archive         33     0           33/33           33/33                      33/33                             33/33                              
+inclusionAI Ling 3.2 Flash (stopped)  G-hybrid                       1      1           no answers      -                          -                                 -                                  
+inclusionAI Ling 3.2 Flash (stopped)  F-async-progressive+retrieval  0      -           not reached     -                          -                                 -                                  
+inclusionAI Ling 3.2 Flash (stopped)  B-conventional+archive         0      -           not reached     -                          -                                 -                                  
+Recursive Flint (v4.1)                G-hybrid                       33     0           33/33           33/33                      33/33                             33/33                              
+Recursive Flint (v4.1)                F-async-progressive+retrieval  33     0           32/33           32/33                      33/33                             32/33                              
+Recursive Flint (v4.1)                B-conventional+archive         33     0           33/33           33/33                      33/33                             33/33                              
 
 Expectations stated before the run:
 
@@ -349,15 +362,28 @@ Interpretation:
 - The provenance fix removed the config-value hedges that caused most of v3's strict misses. The readers differ from v3's, so this is consistent with the fix, not a controlled comparison.
 - Parity holds across three model families. Their answers differ in wording (any two readers gave identical answers on 16 to 32 of 99 questions).
 - The one shared miss (F, turn 151, the public-API rule) is a harness error, not a reader error. F's summaries had dropped the rule, but the visibility key "package store" matched the first line of a Go source file, so retrieval was skipped. Haiku missed the same question in v3. See section 0.
+- With the corrected keys, evidence was available for 32 of F's 33 questions for every reader, not 33: the miss is exactly the question where the reader never saw the rule.
+- A dry run with the corrected keys changes this one slot and none of the other 98 for each reader. Protocol v4.2 (bench/review/protocol-reader-v4.2.md) was committed before that one question was asked again. The v4 and v4.1 records are unchanged.
+
+v4.2, the one changed question asked again with the corrected keys:
+
+reader                   retrieval appended, v4  retrieval appended, v4.2  rerun answer (strict)  F strict count, v4 to corrected  E3 
+-----------------------  ----------------------  ------------------------  ---------------------  -------------------------------  ---
+NVIDIA Nemotron 3 Ultra  no                      yes                       correct                32/33 to 33/33                   met
+Baidu ERNIE 5.5 Flash    no                      yes                       correct                32/33 to 33/33                   met
+Recursive Flint (v4.1)   no                      yes                       correct                32/33 to 33/33                   met
+
+With retrieval appended, every reader answered it. With the corrected keys, F's count is therefore 33 of 33 for every reader, and the three strategies tie at 33. E3, stated in the v4.2 protocol before the run, was met by all three readers.
+
 - The test is now at its ceiling: every strategy is at or near 100% strict.
 
 7.1 v3, FROZEN PROTOCOL, component-matched, seed 1
 
-strategy                       questions  grounded answer (strict)  value recovered (lenient)  evidence available  overflowed  empty answers
------------------------------  ---------  ------------------------  -------------------------  ------------------  ----------  -------------
-B-conventional+archive         33         27 (81.8%)                33 (100.0%)                33                  0           0            
-F-async-progressive+retrieval  33         26 (78.8%)                31 (93.9%)                 33                  0           1            
-G-hybrid                       33         28 (84.8%)                33 (100.0%)                33                  0           0            
+strategy                       questions  strict correct  value recovered (lenient)  evidence available (as recorded)  evidence available (corrected keys)  overflowed  empty answers
+-----------------------------  ---------  --------------  -------------------------  --------------------------------  -----------------------------------  ----------  -------------
+B-conventional+archive         33         27 (81.8%)      33 (100.0%)                33                                33                                   0           0            
+F-async-progressive+retrieval  33         26 (78.8%)      31 (93.9%)                 33                                32                                   0           1            
+G-hybrid                       33         28 (84.8%)      33 (100.0%)                33                                33                                   0           0            
 
 Interpretation:
 - With matched retrieval, the three strategies are within two questions of each other (strict). G has no QA advantage once the baselines get retrieval.
@@ -366,35 +392,35 @@ Interpretation:
 
 7.2 v2, extractive compaction, all strategies, seeds 1-2
 
-strategy             questions  grounded answer (strict)  value recovered (lenient)  evidence available  overflowed  empty answers
--------------------  ---------  ------------------------  -------------------------  ------------------  ----------  -------------
-A-uncompressed       64         0 (0.0%)                  0 (0.0%)                   0                   64          0            
-B-conventional       64         15 (23.4%)                15 (23.4%)                 15                  23          0            
-C-noa                64         9 (14.1%)                 9 (14.1%)                  9                   48          0            
-D-masking            64         0 (0.0%)                  0 (0.0%)                   0                   64          0            
-E-sync-summary       64         5 (7.8%)                  5 (7.8%)                   6                   0           0            
-F-async-progressive  64         5 (7.8%)                  5 (7.8%)                   7                   0           0            
-G-hybrid             64         57 (89.1%)                64 (100.0%)                64                  0           0            
+strategy             questions  strict correct  value recovered (lenient)  evidence available (as recorded)  evidence available (corrected keys)  overflowed  empty answers
+-------------------  ---------  --------------  -------------------------  --------------------------------  -----------------------------------  ----------  -------------
+A-uncompressed       64         0 (0.0%)        0 (0.0%)                   0                                 0                                    64          0            
+B-conventional       64         15 (23.4%)      15 (23.4%)                 15                                15                                   23          0            
+C-noa                64         9 (14.1%)       9 (14.1%)                  9                                 9                                    48          0            
+D-masking            64         0 (0.0%)        0 (0.0%)                   0                                 0                                    64          0            
+E-sync-summary       64         5 (7.8%)        5 (7.8%)                   6                                 5                                    0           0            
+F-async-progressive  64         5 (7.8%)        5 (7.8%)                   7                                 5                                    0           0            
+G-hybrid             64         57 (89.1%)      64 (100.0%)                64                                64                                   0           0            
 
 7.3 Haiku 5.5 summaries, E/F/G, seed 1
 
-strategy             questions  grounded answer (strict)  value recovered (lenient)  evidence available  overflowed  empty answers
--------------------  ---------  ------------------------  -------------------------  ------------------  ----------  -------------
-E-sync-summary       33         6 (18.2%)                 6 (18.2%)                  8                   0           0            
-F-async-progressive  33         6 (18.2%)                 6 (18.2%)                  8                   0           0            
-G-hybrid             33         25 (75.8%)                33 (100.0%)                33                  0           0            
+strategy             questions  strict correct  value recovered (lenient)  evidence available (as recorded)  evidence available (corrected keys)  overflowed  empty answers
+-------------------  ---------  --------------  -------------------------  --------------------------------  -----------------------------------  ----------  -------------
+E-sync-summary       33         6 (18.2%)       6 (18.2%)                  8                                 not checked                          0           0            
+F-async-progressive  33         6 (18.2%)       6 (18.2%)                  8                                 not checked                          0           0            
+G-hybrid             33         25 (75.8%)      33 (100.0%)                33                                not checked                          0           0            
 
 7.4 v1, superseded (120-token cap: empty answers; prompt and two keys changed afterwards), graded with the final grader
 
-strategy             questions  grounded answer (strict)  value recovered (lenient)  evidence available  overflowed  empty answers
--------------------  ---------  ------------------------  -------------------------  ------------------  ----------  -------------
-A-uncompressed       64         0 (0.0%)                  0 (0.0%)                   0                   64          0            
-B-conventional       64         14 (21.9%)                14 (21.9%)                 15                  23          12           
-C-noa                64         8 (12.5%)                 8 (12.5%)                  9                   48          2            
-D-masking            64         0 (0.0%)                  0 (0.0%)                   0                   64          0            
-E-sync-summary       64         5 (7.8%)                  5 (7.8%)                   6                   0           19           
-F-async-progressive  64         5 (7.8%)                  5 (7.8%)                   6                   0           15           
-G-hybrid             64         48 (75.0%)                48 (75.0%)                 64                  0           8            
+strategy             questions  strict correct  value recovered (lenient)  evidence available (as recorded)  evidence available (corrected keys)  overflowed  empty answers
+-------------------  ---------  --------------  -------------------------  --------------------------------  -----------------------------------  ----------  -------------
+A-uncompressed       64         0 (0.0%)        0 (0.0%)                   0                                 0                                    64          0            
+B-conventional       64         14 (21.9%)      14 (21.9%)                 15                                15                                   23          12           
+C-noa                64         8 (12.5%)       8 (12.5%)                  9                                 9                                    48          2            
+D-masking            64         0 (0.0%)        0 (0.0%)                   0                                 0                                    64          0            
+E-sync-summary       64         5 (7.8%)        5 (7.8%)                   6                                 5                                    0           19           
+F-async-progressive  64         5 (7.8%)        5 (7.8%)                   6                                 5                                    0           15           
+G-hybrid             64         48 (75.0%)      48 (75.0%)                 64                                64                                   0           8            
 
 Hedged answers that lenient grading accepts and strict grading rejects:
   [v2 extractive, G-hybrid, turn 76, symbol_batch] I don't know. The session shows a `flushLedgerBatch` method on `*Writer` in pkg/journal/writer.go (line 201), but nothing identifies it as performing fsync batching, and I never read its body.
@@ -451,7 +477,7 @@ Hedged answers that lenient grading accepts and strict grading rejects:
 - context-overflow requests: none observed for G and its ablations
 - synchronous summarization in normal operation: none (G's foreground wait is 0 s)
 - small-event overhead under 20 ms p95: met
-- lexical retrieval under 20 ms p95: met at 3.4k chunks, missed at 13.2k
+- lexical retrieval under 20 ms p95: met since v0.1.1 at both measured sizes (v0.1.0 missed it at 13.2k chunks)
 - at least 50% fewer tool-output tokens: met against summary-only strategies at 64k, partly at 200k (counts all tool tokens; "unnecessary" was not defined)
 - task success: NOT EVALUATED
 
@@ -461,7 +487,9 @@ Hedged answers that lenient grading accepts and strict grading rejects:
 
 - I built both the workload and the engine; the workload targets the problems the engine was designed for.
 - The trajectory is fixed; real task success could differ in either direction.
-- The retrieval policy uses one hand-written query per fact.
+- The retrieval policy uses one hand-written query per fact, and the harness decides when to retrieve because it knows whether the fact is visible. A real agent has to decide to search and pick the query itself.
+- Every reader run reuses the same generated questions (33 on seed 1 for v3 and v4).
+- Strict grading checks for the expected value and no hedging, not that the answer cites evidence or gets other details right.
 - Cache costs are simulated; output tokens of the main agent are excluded.
 - Baselines are reconstructions. The extractive summarizer is weak, which hurts summary-only baselines most.
 - Small samples, no significance tests.
@@ -482,6 +510,7 @@ Hedged answers that lenient grading accepts and strict grading rejects:
 4. The ablations suggest most efficiency comes from controlling what enters the context (externalization, masking cadence, cache layout) rather than better summaries. Is that a defensible central claim?
 5. What is the minimum real-agent experiment that would convince you? Please name concrete tasks, sample size, models, and the metrics to report.
 6. Is anything internally inconsistent or suspicious?
+7. New in revision 3: is the handling of the key error in the reader test sound (the corrected evidence columns from dry runs, and asking only the one changed question again under protocol v4.2)?
 
 
 12. RAW DATA AND CODE
