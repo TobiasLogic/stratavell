@@ -30,7 +30,7 @@ index 540c5dc..c1ff1a2 100644
  
      def _build_node_command(
 diff --git a/inference/run_react.py b/inference/run_react.py
-index 092dce0..a32e836 100644
+index 092dce0..fe8366b 100644
 --- a/inference/run_react.py
 +++ b/inference/run_react.py
 @@ -1269,6 +1269,12 @@ def run_single_task(
@@ -75,7 +75,7 @@ index 092dce0..a32e836 100644
                  context_awareness=context_awareness,
                  reasoning_effort=reasoning_effort,
                  reasoning_max_tokens=reasoning_max_tokens,
-@@ -1409,8 +1423,27 @@ def run_single_task(
+@@ -1409,8 +1423,30 @@ def run_single_task(
              if verbose:
                  print("response", response)
  
@@ -89,6 +89,7 @@ index 092dce0..a32e836 100644
 +                    mem_calls = [tc for tc in response.get("data", []) if tc.get("function", {}).get("name") in MEMORY_TOOLS]
 +                    if mem_calls:
 +                        memory_results = [sctx.run_memory_tool(tc) for tc in mem_calls]
++                        env.tool_use_counter += len(mem_calls)
 +                        env_calls = [tc for tc in response["data"] if tc not in mem_calls]
 +                        response = dict(response, data=env_calls)
 +
@@ -102,10 +103,12 @@ index 092dce0..a32e836 100644
 +                    next_obs = json.dumps(memory_results + json.loads(next_obs))
 +                except (TypeError, ValueError):
 +                    pass
++            if sctx is not None and not terminated and env.tool_use_counter >= max_tool_uses:
++                truncated = True
  
              if verbose:
                  print("next_obs", next_obs)
-@@ -1426,6 +1459,8 @@ def run_single_task(
+@@ -1426,6 +1462,8 @@ def run_single_task(
                  try:
                      tool_results = json.loads(next_obs)
                      messages.extend(tool_results)
