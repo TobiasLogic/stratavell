@@ -1,0 +1,263 @@
+diff --git a/gem/tools/mcp_server/config_loader.py b/gem/tools/mcp_server/config_loader.py
+index 540c5dc..c1ff1a2 100644
+--- a/gem/tools/mcp_server/config_loader.py
++++ b/gem/tools/mcp_server/config_loader.py
+@@ -5,6 +5,7 @@ replacing the individual helper.py files with declarative YAML configs.
+ """
+ 
+ import os
++import sys
+ import warnings
+ from pathlib import Path
+ from typing import Any, Dict, List, Optional
+@@ -171,6 +172,8 @@ class ServerConfigLoader:
+         args = ["--directory", str(project_root), "run", "python", str(script_path)]
+         args.extend(self._build_cli_args(config, params))
+ 
++        if os.environ.get("LOCA_UV_AS_PYTHON"):
++            return sys.executable, args[4:]
+         return "uv", args
+ 
+     def _build_uvx_command(
+@@ -186,6 +189,9 @@ class ServerConfigLoader:
+         args = [package_name]
+         args.extend(self._build_cli_args(config, params))
+ 
++        local = os.path.join(os.environ.get("LOCA_XVENV", ""), package_name, "bin", package_name)
++        if os.environ.get("LOCA_XVENV") and os.path.exists(local):
++            return local, args[1:]
+         return "uvx", args
+ 
+     def _build_node_command(
+diff --git a/inference/run_react.py b/inference/run_react.py
+index 092dce0..a32e836 100644
+--- a/inference/run_react.py
++++ b/inference/run_react.py
+@@ -1269,6 +1269,12 @@ def run_single_task(
+ 
+         messages = [{"role": "user", "content": enhanced_user_prompt}]
+         initial_user_message = {"role": "user", "content": enhanced_user_prompt}  # Save for context_summary
++        sctx = None
++        if os.environ.get("STRATAVELL_URL"):
++            from inference.stratavell_ctx import StratavellContext, MEMORY_TOOLS
++            sctx = StratavellContext(f"{config_name or config_id}-s{run_id}-{int(time.time())}", int(os.environ.get("STRATAVELL_WINDOW") or max_context_size or 64000), max_tokens)
++            sctx.append(messages[0])
++            sctx_log = task_workspace / "stratavell_assembly.jsonl"
+         full_messages_history.append(initial_user_message.copy())  # Add initial user prompt to full history
+         
+         # Prepare output path - save trajectory in task workspace
+@@ -1300,17 +1306,25 @@ def run_single_task(
+                 messages.append(cache_message)
+             
+             # Make API request
++            send_messages, send_tools, send_limit = messages, (tools[0] if tools else None), max_context_size
++            if sctx is not None and os.environ.get("STRATAVELL_MODE") == "passive":
++                send_tools = sctx.passive_tools(tools[0] if tools else None)
++            elif sctx is not None:
++                send_messages, send_tools = sctx.assemble(tools[0] if tools else None, model, max_tokens)
++                send_limit = None
++                with open(sctx_log, "a") as _f:
++                    _f.write(json.dumps(dict(sctx.recorder[-1], step=step_count)) + "\n")
+             response = make_aihubmix_api_request(
+-                messages=messages,
++                messages=send_messages,
+                 model_name=model,
+                 aihubmix_api_keys=api_key,
+                 aihubmix_api_url=f"{base_url}/chat/completions",
+-                tools=tools[0] if tools else None,
++                tools=send_tools,
+                 max_retries=max_retries,
+                 temperature=1.0,
+                 top_p=1.0,
+                 max_tokens=max_tokens,
+-                max_context_size=max_context_size,
++                max_context_size=send_limit,
+                 context_awareness=context_awareness,
+                 reasoning_effort=reasoning_effort,
+                 reasoning_max_tokens=reasoning_max_tokens,
+@@ -1409,8 +1423,27 @@ def run_single_task(
+             if verbose:
+                 print("response", response)
+ 
+-            with suppress_all_output():
+-                next_obs, reward, terminated, truncated, info = env.step_openai(response, verbose=False)
++            memory_results = []
++            if sctx is not None:
++                sctx.append(call_messages)
++                sctx.usage((response.get('raw_response') or {}).get('usage'))
++                if response.get("type") == "tool":
++                    mem_calls = [tc for tc in response.get("data", []) if tc.get("function", {}).get("name") in MEMORY_TOOLS]
++                    if mem_calls:
++                        memory_results = [sctx.run_memory_tool(tc) for tc in mem_calls]
++                        env_calls = [tc for tc in response["data"] if tc not in mem_calls]
++                        response = dict(response, data=env_calls)
++
++            if sctx is not None and response.get("type") == "tool" and not response.get("data"):
++                next_obs, reward, terminated, truncated, info = json.dumps([]), 0.0, False, False, {}
++            else:
++                with suppress_all_output():
++                    next_obs, reward, terminated, truncated, info = env.step_openai(response, verbose=False)
++            if memory_results:
++                try:
++                    next_obs = json.dumps(memory_results + json.loads(next_obs))
++                except (TypeError, ValueError):
++                    pass
+ 
+             if verbose:
+                 print("next_obs", next_obs)
+@@ -1426,6 +1459,8 @@ def run_single_task(
+                 try:
+                     tool_results = json.loads(next_obs)
+                     messages.extend(tool_results)
++                    if sctx is not None:
++                        sctx.append(*tool_results)
+                     # Also add to full history
+                     full_messages_history.extend(tool_results)
+ 
+diff --git a/inference/stratavell_ctx.py b/inference/stratavell_ctx.py
+new file mode 100644
+index 0000000..6a17e30
+--- /dev/null
++++ b/inference/stratavell_ctx.py
+@@ -0,0 +1,141 @@
++import json
++import os
++import time
++
++from stratavell import Client, Session
++
++MEMORY_TOOLS = {
++    "memory_search", "memory_expand", "memory_get_event", "memory_get_artifact",
++    "memory_get_task_state", "memory_get_summary_lineage", "memory_stats", "memory_update_task",
++}
++
++PASSIVE_TOOLS = ("memory_search", "memory_get_event", "memory_expand", "memory_get_artifact")
++
++READ_TOOLS = ("read_file", "read_text_file", "read_multiple_files", "read_media_file")
++WRITE_TOOLS = ("write_file", "edit_file", "create_directory", "move_file")
++
++
++def _text(content):
++    if content is None:
++        return ""
++    if isinstance(content, str):
++        return content
++    if isinstance(content, list):
++        out = []
++        for p in content:
++            if isinstance(p, dict) and p.get("type") == "text":
++                out.append(p.get("text", ""))
++            elif isinstance(p, str):
++                out.append(p)
++        return "\n".join(out)
++    return json.dumps(content)
++
++
++def _args(raw):
++    if isinstance(raw, dict):
++        return raw
++    try:
++        v = json.loads(raw or "{}")
++    except (TypeError, ValueError):
++        return {"_unparsed_arguments": str(raw)}
++    return v if isinstance(v, dict) else {"value": v}
++
++
++class StratavellContext:
++    def __init__(self, session_id, window, max_output, url=None, policy=None, recorder=None):
++        self.client = Client(url or os.environ.get("STRATAVELL_URL", "http://127.0.0.1:7077"), timeout=300)
++        pol = {"config_version": 2, "budget": {"context_window": int(window), "max_output_tokens": int(max_output)}}
++        for k, v in (policy or {}).items():
++            if isinstance(v, dict):
++                pol.setdefault(k, {}).update(v)
++            else:
++                pol[k] = v
++        self.client.request("POST", "/v1/sessions", {"id": session_id, "project": "loca-bench", "policy": pol})
++        self.agent = Session(self.client, session_id).agent("main")
++        self.names = {}
++        self.open = []
++        self.recorder = recorder if recorder is not None else []
++
++    def _convert(self, m):
++        role = m.get("role")
++        if role == "assistant":
++            parts = []
++            text = _text(m.get("content"))
++            if text:
++                parts.append({"type": "text", "text": text})
++            for tc in m.get("tool_calls") or []:
++                fn = tc.get("function", {})
++                self.names[tc["id"]] = fn.get("name", "")
++                parts.append({"type": "tool_call", "tool_call_id": tc["id"], "tool_name": fn.get("name", ""), "input": _args(fn.get("arguments"))})
++            if not parts:
++                parts.append({"type": "text", "text": "(no content)"})
++            return {"role": "assistant", "parts": parts}
++        if role == "tool":
++            cid = m.get("tool_call_id", "")
++            name = m.get("name") or self.names.get(cid, "")
++            text = _text(m.get("content"))
++            meta = {}
++            if name.endswith(READ_TOOLS):
++                meta["content_type"] = "file_read"
++            elif name.endswith(WRITE_TOOLS):
++                meta["content_type"] = "file_write"
++            elif "python" in name or "execute" in name or "run_command" in name:
++                meta["content_type"] = "command"
++            elif text[:1] in "[{":
++                meta["content_type"] = "json"
++            out = {"role": "tool", "parts": [{"type": "tool_result", "tool_call_id": cid, "tool_name": name, "text": text}]}
++            if meta:
++                out["meta"] = meta
++            return out
++        return {"role": "user", "parts": [{"type": "text", "text": _text(m.get("content"))}]}
++
++    def append(self, *openai_messages):
++        out = []
++        for m in openai_messages:
++            if not m:
++                continue
++            role = m.get("role")
++            if role == "tool":
++                cid = m.get("tool_call_id", "")
++                if cid not in self.open:
++                    continue
++                self.open.remove(cid)
++            else:
++                for cid in self.open:
++                    out.append({"role": "tool", "parts": [{"type": "tool_result", "tool_call_id": cid, "tool_name": self.names.get(cid, ""), "text": "(no result was returned for this call)", "is_error": True}]})
++                self.open = []
++                if role == "assistant":
++                    self.open = [tc["id"] for tc in m.get("tool_calls") or []]
++            out.append(self._convert(m))
++        if out:
++            self.agent.append(*out)
++
++    def assemble(self, openai_tools, model, max_tokens):
++        defs = []
++        for t in openai_tools or []:
++            fn = t.get("function", t)
++            defs.append({"name": fn.get("name"), "description": fn.get("description", ""), "input_schema": fn.get("parameters") or {"type": "object", "properties": {}}})
++        t0 = time.time()
++        out = self.agent.assemble(tools=defs, fmt="openai", model=model, max_tokens=max_tokens, include_memory_tools=True)
++        rep = out.get("report") or {}
++        self.recorder.append({"t": t0, "assemble_ms": round((time.time() - t0) * 1000, 1), "tokens": out.get("tokens"), "capacity": out.get("capacity"), "state": rep.get("state"), "actions": rep.get("actions"), "summary_tokens": rep.get("summary_tokens"), "pinned_tokens": rep.get("pinned_tokens"), "history_tokens": rep.get("history_tokens"), "masked": rep.get("masked"), "previewed": rep.get("previewed"), "wait_ms": rep.get("wait_ms")})
++        req = out["request"]
++        return req.get("messages", []), req.get("tools")
++
++    def passive_tools(self, openai_tools):
++        defs = self.client.request("GET", "/v1/tools")
++        extra = [{"type": "function", "function": {"name": d["name"], "description": d.get("description", ""), "parameters": d.get("input_schema") or {"type": "object", "properties": {}}}} for d in defs if d.get("name") in PASSIVE_TOOLS]
++        return list(openai_tools or []) + extra
++
++    def usage(self, usage):
++        if usage:
++            self.agent.usage({"input_tokens": int(usage.get("prompt_tokens") or 0), "output_tokens": int(usage.get("completion_tokens") or 0)})
++
++    def run_memory_tool(self, tool_call):
++        fn = tool_call.get("function", {})
++        try:
++            res = self.agent.tool(fn.get("name"), _args(fn.get("arguments")))
++            text = res.get("text", "")
++        except Exception as e:
++            text = "memory tool error: " + str(e)[:500]
++        return {"role": "tool", "tool_call_id": tool_call["id"], "content": text}
