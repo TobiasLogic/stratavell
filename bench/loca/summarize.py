@@ -48,7 +48,11 @@ def run_row(d):
         t = json.load(open(os.path.join(s, "trajectory.json"))) if os.path.exists(os.path.join(s, "trajectory.json")) else {}
         ev = t.get("events") or {}
         row["loca_events"] = {k: len(v) for k, v in ev.items() if v}
-        calls = [c for msg in t.get("messages", []) if msg.get("tool_calls") for c in msg["tool_calls"]]
+        conv = t.get("conversation") or {}
+        history = conv.get("full_messages_history") or t.get("messages", [])
+        calls = [c for msg in history if msg.get("tool_calls") for c in msg["tool_calls"]]
+        last = history[-1] if history else {}
+        row["ended"] = "context_lost" if "Context trimming removed all" in str(last.get("content", "")) else ("claim_done" if any(c["function"]["name"].startswith("claim_done") for c in calls[-1:]) else "other")
         names = collections.Counter(c["function"]["name"] for c in calls)
         row["tool_calls"] = sum(names.values())
         row["memory_calls"] = sum(v for k, v in names.items() if k in MEMORY)
