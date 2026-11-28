@@ -12,7 +12,7 @@ Summaries are produced in the background, and the request is laid out so that pr
 
 It runs fully locally as a Go library, an HTTP API over TCP or a Unix socket, an MCP server and a single static executable. It needs no external database, no embedding model and no API key.
 
-> **Research preview (v0.1.2).** The results below come from generated, fixed-trajectory workloads, reconstructed baselines and a simulated prompt-cache model. Real autonomous coding-task performance has not been evaluated yet. See [limitations](docs/limitations.md).
+> **Research preview (v0.1.3).** The results below come from generated, fixed-trajectory workloads, reconstructed baselines and a simulated prompt-cache model. Real autonomous coding-task performance has not been evaluated yet. See [limitations](docs/limitations.md).
 
 ## Why Stratavell?
 

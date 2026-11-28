@@ -2,7 +2,9 @@
 
 All notable changes are listed here. The project follows [Semantic Versioning](https://semver.org/). Until 1.0, minor releases may change the Go API, the HTTP API, the MCP tool set or the database schema; every such change is listed here with migration steps.
 
-## Unreleased
+## v0.1.3, 2026-11-28
+
+Security patch release. No API, MCP tool set, database schema or configuration changes.
 
 ### Security
 

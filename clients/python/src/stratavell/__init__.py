@@ -4,7 +4,7 @@ import socket
 import http.client
 import urllib.parse
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 __all__ = ["Client", "Session", "Agent", "StratavellError", "text", "tool_call", "tool_result", "__version__"]
 
