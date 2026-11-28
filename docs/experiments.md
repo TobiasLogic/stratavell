@@ -80,6 +80,18 @@ Seed 1 of the 64k main, matched and ablation suites (26 strategy runs) on dddc84
 
 The first attempt at the rerun started only the 64k main suite. The other three suites never ran, because of a shell error in the launch command, and were started again at 01:55.
 
+### Retrieval changes after the LOCA-bench agent test, 2026-11-28 (UTC+7)
+
+| time | build | run | outcome |
+|---|---|---|---|
+| about 13:20 | 0b41594 | `TestDeterministicSmoke` with `fresh_full_fraction` 0.20 and 0 | at 0.20, G cost 6% more and probe grounding rose from 0.449 to 0.526; at 0, G within 0.4% of the golden values |
+| about 13:35 | 0b41594 | four suites, `fresh_full_fraction` 0.20 by default | 64k main finished: G cost $6.48 to $7.51 (+16%), cache hit rate 68.1% to 63.0%, probes unchanged; stopped, superseded |
+| about 13:45 | 0b41594 tree and two variants | G, 64k main, seeds 1 and 2: show once (0.20), keep until the next mask epoch, off | once +18% cost, keep +25 to 33%, off within 3% of the published values; probe results the same or worse with either variant; the default became 0 (f6412da) |
+| 13:47 to 14:20 | f6412da | four suites | G -0.3%, F + retrieval +0.7%, other strategies within 0.3%, probes unchanged; superseded after the pilot changed `memory_query`'s definition (1a69d94) |
+| 19:54 to 20:09 | 1a69d94 | four suites, stored in `bench/results/2026-11-28/` | G -0.3% at 64k and -1.0% at 200k; every strategy within 1.3% except D at 200k (-2.6%); probe results within 0.7 points (G at 200k grounded 53.3% to 52.6%); these are the tables in `docs/benchmarks.md` |
+
+The agent in these sessions never calls a memory tool, so the suites measure the changed tool definitions, engine notice and structure hints, not the retrieval fixes themselves.
+
 ## Real-model runs
 
 Costs per run are estimates, because runs overlapped and OpenRouter reports one running total per key. The readings are listed below the table.

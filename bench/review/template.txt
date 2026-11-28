@@ -19,7 +19,8 @@ What moves the numbers:
 - Structure hints: previews and masked notes of long JSON or table outputs state their structure.
 
 What does not move them:
-- Trajectories, probes and graded answers are the same. The agent in these sessions never calls a memory tool, so the retrieval fixes themselves (token-sized pages, memory_query, hash prefixes) are not exercised here. Unit tests cover them; a first agent pilot is in docs/experiments.md.
+- Trajectories, probes and graded answers are the same. Probe results moved by at most 0.7 points (G at 200k: grounded 53.3% to 52.6%), because a shorter prompt shifts when masking and compaction start.
+- The agent in these sessions never calls a memory tool, so the retrieval fixes themselves (token-sized pages, memory_query, hash prefixes) are not exercised here. Unit tests cover them; a first agent pilot is in docs/experiments.md.
 - fresh_full_fraction (show a new large output in full once) is off by default. At 0.20, G at 64k cost about 18% more on seeds 1 and 2 with the same probe results, because turning a sent message into a preview breaks the prompt cache.
 
 Means over seeds, before -> after ("unchanged": every token, cache, cost and probe field is the same).
