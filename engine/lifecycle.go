@@ -81,8 +81,24 @@ type DeleteReport struct {
 	TaskItems int64 `json:"task_items"`
 }
 
+func (e *Engine) CloseSession(ctx context.Context, id string) (int, error) {
+	n := e.sched.dropSession(id)
+	var marked int64
+	err := e.db.Tx(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, "UPDATE jobs SET state='cancelled', error='session closed', finished_at=? WHERE session_id=? AND state IN ('queued','running')", e.now(), id)
+		if err != nil {
+			return err
+		}
+		marked, _ = res.RowsAffected()
+		return nil
+	})
+	e.ReleaseSession(id)
+	return max(n, int(marked)), err
+}
+
 func (e *Engine) DeleteSession(ctx context.Context, id string) (DeleteReport, error) {
 	var rep DeleteReport
+	e.sched.dropSession(id)
 	e.mu.Lock()
 	for k := range e.agents {
 		if k.session == id {

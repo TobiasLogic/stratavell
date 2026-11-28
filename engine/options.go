@@ -58,6 +58,7 @@ type Masking struct {
 	PreviewTail    int      `json:"preview_tail_lines"`
 	PreviewLineMax int      `json:"preview_line_max_bytes"`
 	DigestErrors   int      `json:"digest_max_errors"`
+	FreshFull      float64  `json:"fresh_full_fraction"`
 }
 
 type Compaction struct {
@@ -85,6 +86,7 @@ type Compaction struct {
 	TokensPerMinute   int      `json:"tokens_per_minute"`
 	ForegroundReserve float64  `json:"foreground_reserve"`
 	Emergency         bool     `json:"emergency"`
+	PassiveSummaries  bool     `json:"passive_summaries"`
 }
 
 type Retrieval struct {
@@ -149,6 +151,7 @@ func DefaultPolicy() Policy {
 			PreviewTail:    30,
 			PreviewLineMax: 240,
 			DigestErrors:   12,
+			FreshFull:      0,
 		},
 		Compaction: Compaction{
 			Enabled:          true,
@@ -207,6 +210,9 @@ func (p Policy) Validate() error {
 	}
 	if p.Compaction.Workers < 0 || p.Compaction.MaxQueued < 0 {
 		return fmt.Errorf("engine: negative worker or queue size")
+	}
+	if p.Masking.FreshFull < 0 || p.Masking.FreshFull > 0.6 {
+		return fmt.Errorf("engine: masking.fresh_full_fraction must be between 0 and 0.6, got %v", p.Masking.FreshFull)
 	}
 	return nil
 }

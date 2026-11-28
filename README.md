@@ -71,14 +71,15 @@ The comparison below is against **component-matched** baselines: asynchronous an
 
 | strategy | requests that fit | simulated input cost per session | facts recoverable | standing rules visible | foreground summarization wait |
 |---|---|---|---|---|---|
-| async progressive summaries + retrieval | 100% | $12.88 ± 0.44 | 97.2% | 7.3% | 0 s |
-| sync progressive summaries + retrieval | 100% | $11.36 ± 0.55 | 97.2% | 7.7% | 320 s |
-| **Stratavell** | **100%** | **$6.43 ± 0.20** | **100%** | **100%** | **0 s** |
+| async progressive summaries + retrieval | 100% | $12.92 ± 0.41 | 97.2% | 7.3% | 0 s |
+| sync progressive summaries + retrieval | 100% | $11.35 ± 0.51 | 97.2% | 7.6% | 320 s |
+| **Stratavell** | **100%** | **$6.42 ± 0.28** | **100%** | **100%** | **0 s** |
 
 How to read the table:
 - **Facts recoverable:** a planted fact and its supporting evidence are in the context, or are found by one fixed retrieval query.
 - **Standing rules visible:** the user's earlier rules appear in the assembled context. That is visibility, not compliance.
   - **Corrected on 2026-11-27:** an earlier version showed 21.9% and 22.0% for the baselines. The rule check also matched ordinary session text, such as the first line of Go files, so lost rules were counted as visible. Each rule is now matched on its own sentence. A full rerun changed only rule-visibility fields; every cost and token figure is identical. Details in [docs/benchmarks.md](docs/benchmarks.md).
+- **Rerun on 2026-11-28** after the retrieval changes from the LOCA-bench agent test: shorter memory-tool definitions moved these costs by under 1%, and probe results by under one point. Details in [docs/benchmarks.md](docs/benchmarks.md).
 - **The main result:** at comparable fact recoverability, Stratavell costs about half as much as retrieval-enabled asynchronous progressive summarization (50% lower).
   - In the ablations, most of the saving comes from externalizing oversized tool outputs at ingestion, from batched (epoch) masking and from the cache-aware layout.
 
@@ -89,7 +90,7 @@ Other results:
   - async summaries with retrieval: 26
 - **QA after the provenance fix:** the same pre-registered test with three free readers from NVIDIA, Baidu and Recursive gave 33, 33 and 32 of 33 for those three strategies, identical for every reader. The one miss traced to the rule-check error noted above: asked again with the corrected check (protocol v4.2), every reader answered it, so all three strategies scored 33 of 33. That is a tie at the test's ceiling.
 - **200k window** (400 turns, 3 seeds):
-  - Stratavell's simulated input cost was $10.44 per session, against $16.46 to $27.62 for conventional, sync and async compaction without retrieval.
+  - Stratavell's simulated input cost was $10.34 per session, against $16.46 to $27.62 for conventional, sync and async compaction without retrieval.
   - No component-matched variants were run at this size.
 - **Engine latency:** the measurements below used one 8-core laptop CPU, `synchronous=FULL`, pure-Go SQLite.
 

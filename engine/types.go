@@ -24,6 +24,7 @@ type storedMeta struct {
 	Lines    int                 `json:"lines,omitempty"`
 	CmdKey   string              `json:"cmd_key,omitempty"`
 	Oversize bool                `json:"oversize,omitempty"`
+	Shape    string              `json:"shape,omitempty"`
 }
 
 type Event struct {

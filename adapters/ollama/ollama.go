@@ -83,6 +83,7 @@ func (c *Client) Chat(ctx context.Context, msgs []message, format string, maxTok
 		return Result{}, err
 	}
 	req.Header.Set("content-type", "application/json")
+	engine.TagRequest(ctx, req.Header)
 	start := time.Now()
 	resp, err := c.HTTP.Do(req)
 	if err != nil {

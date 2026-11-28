@@ -279,10 +279,13 @@ func (a *Agent) planAppend(m msg.Message) (*appendPlan, error) {
 			}
 			meta.FileHash = fh
 		}
-		if a.pol.Masking.Externalize && ev.Tokens > a.pol.Budget.MaxObservationToken {
+		if a.pol.Masking.Externalize && ev.Tokens > a.pol.Budget.MaxObservationToken && ev.ContentType != msg.CTRetrieval {
 			meta.Oversize = true
 			pv := textproc.HeadTail(text, a.pol.Masking.PreviewHead, a.pol.Masking.PreviewTail, a.pol.Masking.PreviewLineMax)
 			meta.Preview = formatPreview(pv)
+		}
+		if ev.ContentType != msg.CTRetrieval && (meta.Oversize || lines > 40) && len(text) <= a.pol.Retrieval.IndexMaxBytes {
+			meta.Shape = describeShape(text)
 		}
 	}
 	if m.Role == msg.RoleUser && ev.Tokens > a.pol.Budget.MaxObservationToken && a.pol.Masking.Externalize {

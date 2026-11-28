@@ -295,6 +295,10 @@ func (a *Agent) maybeSchedule(ctx context.Context, why string) {
 	if !a.pol.Compaction.Enabled || !a.pol.Compaction.Async || a.e.getSummarizer() == nil {
 		return
 	}
+	if !a.assembled && !a.pol.Compaction.PassiveSummaries {
+		a.e.metrics.inc("passive_schedules_skipped", 1)
+		return
+	}
 	u := a.estimateUsage()
 	if !a.shouldCompact(u) {
 		return

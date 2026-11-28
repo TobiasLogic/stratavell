@@ -39,6 +39,7 @@ Stratavell is a local, single-tenant engine. It stores whatever an agent sends i
 **Memory tools**
 - An agent's memory tools return data from its own session only. Within a session, an agent sees its own and its sub-agents' private data, plus shared items and items granted in a handoff.
 - A refused id gets the same "not found" reply as an id that does not exist.
+- A sha256 hash or hash prefix is resolved only among outputs the caller can see, so a prefix that matches another session's data gets the same "not found" reply.
 - This applies to every memory tool. Before the fix listed in the changelog, `memory_get_summary_lineage` did not check it for summary ids.
 
 **Archived content is untrusted**

@@ -376,6 +376,7 @@ func (c *Client) Send(ctx context.Context, req Request) (Response, error) {
 	for _, b := range c.Betas {
 		hr.Header.Add("anthropic-beta", b)
 	}
+	engine.TagRequest(ctx, hr.Header)
 	resp, err := c.HTTP.Do(hr)
 	if err != nil {
 		return Response{}, err

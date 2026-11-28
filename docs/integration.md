@@ -59,6 +59,7 @@ POST /v1/sessions/task-42/agents/main/assemble     {"system": "...", "tools": [.
      -> {"request": <send this to the provider>, "tokens": ..., "report": {...}}
 POST /v1/sessions/task-42/agents/main/usage        {"input_tokens": ..., "output_tokens": ..., "cache_read_input_tokens": ..., "cache_creation_input_tokens": ...}
 POST /v1/sessions/task-42/agents/main/tools/memory_search   {"input": {"query": "..."}}
+POST /v1/sessions/task-42/close                    {}   (when the run ends: cancels its pending summaries)
 ```
 
 The complete contract is `docs/openapi.yaml`. Clients:
@@ -129,6 +130,7 @@ Tools exposed:
 
 - `memory_archive`: store notes, findings or large outputs
 - `memory_search`
+- `memory_query`: select records, fields or matching lines from one archived JSON, table or text output
 - `memory_expand`
 - `memory_get_event`
 - `memory_get_artifact`
