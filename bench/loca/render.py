@@ -21,7 +21,7 @@ def num(x):
     if isinstance(x, int):
         return f"{x:,}"
     if isinstance(x, float):
-        if x.is_integer() and abs(x) >= 100:
+        if x.is_integer():
             return f"{int(x):,}"
         if abs(x) >= 100:
             return f"{x:,.1f}"
@@ -67,8 +67,8 @@ def tables(a, runs, tries, fmt):
         rows = []
         for o in OTHERS:
             p = a["success_pairs"][key][o]
-            rows.append([f"stratavell vs {LABEL[o]}", p["both"], p["stratavell_only"], p["other_only"], p["neither"], f"{p['difference']:+.3f}", f"{p['bootstrap_95'][0]:+.3f} to {p['bootstrap_95'][1]:+.3f}", f"{p['mcnemar_p']:.3f}"])
-        T[name] = table(["pair", "both", "stratavell only", "other only", "neither", "difference", "bootstrap 95%", "McNemar p"], rows, fmt)
+            rows.append([f"stratavell vs {LABEL[o]}", p["both"], p["stratavell_only"], p["other_only"], p["neither"], f"{p['difference']:+.3f}", f"{p['bootstrap_95'][0]:+.3f} to {p['bootstrap_95'][1]:+.3f}", f"{p['mcnemar_p']:.3f}", f"{p['mcnemar_p_holm']:.3f}"])
+        T[name] = table(["pair", "both", "stratavell only", "other only", "neither", "difference", "bootstrap 95%", "McNemar p", "Holm p"], rows, fmt)
     e = a["expectations"]
     met = lambda x: "met" if x else "not met"
     T["expectations"] = table(["expectation", "primary (registered flag)", "narrow flag reading"], [
@@ -80,13 +80,14 @@ def tables(a, runs, tries, fmt):
     T["tokens"] = table(
         ["strategy", "median of per-run mean prompt per agent request", "median prompt tokens per run", "prompt tokens, 15 runs", "completion tokens, 15 runs", "cached prompt tokens, 15 runs"],
         [[LABEL[s], per[s]["median_agent_prompt_mean"], per[s]["median_prompt_tokens_per_run"], per[s]["prompt_tokens"], per[s]["completion_tokens"], per[s]["cached_tokens"]] for s in STRATS], fmt)
-    rows = []
-    for key, label in (("agent_prompt_mean", "mean prompt per agent request"), ("prompt_tokens", "prompt tokens per run")):
-        for o in OTHERS:
-            p = a["token_pairs"][key][o]
-            st = p["sign_test"]
-            rows.append([label, f"stratavell vs {LABEL[o]}", f"{p['median_difference']:+,.0f}", st["stratavell_lower"], st["stratavell_higher"], st["ties"], f"{st['p']:.3f}"])
-    T["token_pairs"] = table(["measure", "pair", "median difference", "states stratavell lower", "states stratavell higher", "ties", "sign test p"], rows, fmt)
+    for fam, name in (("token_pairs", "token_pairs"), ("token_pairs_without_over_budget_states", "token_pairs_sensitivity")):
+        rows = []
+        for key, label in (("agent_prompt_mean", "mean prompt per agent request"), ("prompt_tokens", "prompt tokens per run")):
+            for o in OTHERS:
+                p = a[fam][key][o]
+                st = p["sign_test"]
+                rows.append([label, f"stratavell vs {LABEL[o]}", f"{p['median_difference']:+,.0f}", st["stratavell_lower"], st["stratavell_higher"], st["ties"], f"{st['p']:.3f}", f"{st['p_holm']:.3f}"])
+        T[name] = table(["measure", "pair", "median difference", "states stratavell lower", "states stratavell higher", "ties", "sign test p", "Holm p"], rows, fmt)
     T["ended"] = table(
         ["strategy"] + [ENDING_LABEL[x] for x in ENDINGS] + ["tool calls", "memory calls"],
         [[LABEL[s]] + [per[s]["ended"].get(x, 0) for x in ENDINGS] + [per[s]["tool_calls"], per[s]["memory_calls"]] for s in STRATS], fmt)
@@ -95,15 +96,18 @@ def tables(a, runs, tries, fmt):
     kinds = [("page", "a page of an archived original"), ("search_hits", "search hits"), ("not_found", "not found"), ("repeat_notice", "repeat notice"), ("no_result", "no result"), ("other", "other")]
     T["memory_results"] = table(["strategy"] + [k[1] for k in kinds], [[LABEL[s]] + [per[s]["memory_results"].get(k[0], 0) for k in kinds] for s in ("compact_archive", "stratavell")], fmt)
     lim = a["over_budget_threshold"]
-    mark = lambda v: f"{v:,}" + (" (over)" if v > lim else "")
+    mark = lambda v: f"{v:,}" + (" (over 5%)" if v > lim else " (over target)" if v > a["target"] else "")
     T["budget"] = table(["state"] + [LABEL[s] for s in STRATS], [[short(st)] + [mark(by[(st, s)]["agent_prompt_max"]) for s in STRATS] for st in states] + [["largest"] + [mark(per[s]["max_agent_prompt"]) for s in STRATS]], fmt)
     T["requests"] = table(
-        ["strategy", "agent requests", "LOCA summary requests", "Stratavell summary requests", "replies at the 16,384 cap", "failed requests", "minutes, 15 runs"],
-        [[LABEL[s], per[s]["agent_requests"], per[s]["loca_summary_requests"], per[s]["stratavell_summary_requests"], per[s]["capped_replies"], per[s]["failed_requests"], per[s]["minutes"]] for s in STRATS], fmt)
+        ["strategy", "agent requests", "LOCA summary requests", "Stratavell summary requests", "of which sent after the run ended", "replies at the 16,384 cap", "failed requests", "minutes, 15 runs"],
+        [[LABEL[s], per[s]["agent_requests"], per[s]["loca_summary_requests"], per[s]["stratavell_summary_requests"], per[s]["stratavell_summary_requests_after_run"], per[s]["capped_replies"], per[s]["failed_requests"], per[s]["minutes"]] for s in STRATS], fmt)
     T["cost"] = table(
         ["strategy", "prompt tokens", "of which cached", "completion tokens", "estimate at list price, USD", "estimate with cached tokens at the cache price, USD"],
         [[LABEL[s], per[s]["prompt_tokens"], per[s]["cached_tokens"], per[s]["completion_tokens"], f"{per[s]['cost_estimate_usd']:.2f}", f"{per[s]['cost_estimate_with_cache_usd']:.2f}"] for s in STRATS]
-        + [["all", sum(per[s]["prompt_tokens"] for s in STRATS), sum(per[s]["cached_tokens"] for s in STRATS), sum(per[s]["completion_tokens"] for s in STRATS), f"{sum(per[s]['cost_estimate_usd'] for s in STRATS):.2f}", f"{sum(per[s]['cost_estimate_with_cache_usd'] for s in STRATS):.2f}"]], fmt)
+        + [["all", a["prompt_tokens_total"], a["cached_tokens_total"], a["completion_tokens_total"], f"{a['cost_estimate_total_usd']:.2f}", f"{a['cost_estimate_with_cache_total_usd']:.2f}"]], fmt)
+    T["overshoot"] = table(
+        ["run", "tool calls the model made", "before its last reply", "in its last reply", "calls to a tool that does not exist", "checker success"],
+        [[x["run"], x["tool_calls"], x["calls_before_last_reply"], x["last_reply_calls"], x["calls_to_unknown_tools"], "1" if x["success"] == 1.0 else "0"] for x in a["tool_cap_overshoot"]], fmt) if a["tool_cap_overshoot"] else "(none)"
     v = a["voids"]
     rows = [[x, n] for x, n in sorted(v["by_reason"].items())]
     T["voids"] = table(["void reason", "attempts"], rows, fmt)
@@ -133,7 +137,8 @@ def render(template, a, runs, tries, fmt):
     left = re.findall(r"\{\{[^}]*\}\}", text)
     if left:
         raise SystemExit("unfilled: " + ", ".join(sorted(set(left))))
-    return text
+    proto = os.path.join(os.path.dirname(os.path.dirname(template)), "review", "protocol-agent-loca-v1.2.md")
+    return text.replace("<!--protocol-->\n", open(proto).read())
 
 
 def main():

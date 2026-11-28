@@ -50,6 +50,17 @@
    "over_budget_states": [
     "PayableInvoiceCheckerS2LEnv"
    ],
+   "over_target_states": [
+    "CanvasArrangeExamS2LEnv",
+    "PayableInvoiceCheckerS2LEnv",
+    "WoocommerceStockAlertS2LEnv"
+   ],
+   "over_target_runs": 3,
+   "memory_calls_in_tool_cap_runs_sum": 0,
+   "tool_calls_in_tool_cap_runs_sum": 104,
+   "stratavell_summary_requests_after_run": 0,
+   "stratavell_summary_prompt_after_run": 0,
+   "stratavell_summary_completion_after_run": 0,
    "max_agent_prompt": 66708
   },
   "compact": {
@@ -93,6 +104,13 @@
    "cost_estimate_usd": 14.02,
    "cost_estimate_with_cache_usd": 7.08,
    "over_budget_states": [],
+   "over_target_states": [],
+   "over_target_runs": 0,
+   "memory_calls_in_tool_cap_runs_sum": 0,
+   "tool_calls_in_tool_cap_runs_sum": 900,
+   "stratavell_summary_requests_after_run": 0,
+   "stratavell_summary_prompt_after_run": 0,
+   "stratavell_summary_completion_after_run": 0,
    "max_agent_prompt": 50886
   },
   "compact_archive": {
@@ -146,6 +164,15 @@
    "over_budget_states": [
     "PayableInvoiceCheckerS2LEnv"
    ],
+   "over_target_states": [
+    "PayableInvoiceCheckerS2LEnv"
+   ],
+   "over_target_runs": 1,
+   "memory_calls_in_tool_cap_runs_sum": 20,
+   "tool_calls_in_tool_cap_runs_sum": 905,
+   "stratavell_summary_requests_after_run": 5,
+   "stratavell_summary_prompt_after_run": 28140,
+   "stratavell_summary_completion_after_run": 5698,
    "max_agent_prompt": 60804
   },
   "stratavell": {
@@ -200,6 +227,13 @@
    "cost_estimate_usd": 15.67,
    "cost_estimate_with_cache_usd": 6.89,
    "over_budget_states": [],
+   "over_target_states": [],
+   "over_target_runs": 0,
+   "memory_calls_in_tool_cap_runs_sum": 280,
+   "tool_calls_in_tool_cap_runs_sum": 600,
+   "stratavell_summary_requests_after_run": 8,
+   "stratavell_summary_prompt_after_run": 22422,
+   "stratavell_summary_completion_after_run": 9816,
    "max_agent_prompt": 47463
   }
  },
@@ -216,7 +250,8 @@
      -0.2,
      0.2
     ],
-    "mcnemar_p": 1.0
+    "mcnemar_p": 1.0,
+    "mcnemar_p_holm": 1.0
    },
    "compact": {
     "other": "compact",
@@ -229,7 +264,8 @@
      -0.2,
      0.2
     ],
-    "mcnemar_p": 1.0
+    "mcnemar_p": 1.0,
+    "mcnemar_p_holm": 1.0
    },
    "compact_archive": {
     "other": "compact_archive",
@@ -242,7 +278,8 @@
      -0.2,
      0.0
     ],
-    "mcnemar_p": 1.0
+    "mcnemar_p": 1.0,
+    "mcnemar_p_holm": 1.0
    }
   },
   "success_narrow": {
@@ -257,7 +294,8 @@
      -0.2,
      0.2
     ],
-    "mcnemar_p": 1.0
+    "mcnemar_p": 1.0,
+    "mcnemar_p_holm": 1.0
    },
    "compact": {
     "other": "compact",
@@ -270,7 +308,8 @@
      -0.2667,
      0.1333
     ],
-    "mcnemar_p": 1.0
+    "mcnemar_p": 1.0,
+    "mcnemar_p_holm": 1.0
    },
    "compact_archive": {
     "other": "compact_archive",
@@ -283,7 +322,8 @@
      -0.3333,
      0.0
     ],
-    "mcnemar_p": 0.5
+    "mcnemar_p": 0.5,
+    "mcnemar_p_holm": 1.0
    }
   }
  },
@@ -313,7 +353,8 @@
      "stratavell_lower": 12,
      "stratavell_higher": 3,
      "ties": 0,
-     "p": 0.03515625
+     "p": 0.03515625,
+     "p_holm": 0.105469
     }
    },
    "compact": {
@@ -340,7 +381,8 @@
      "stratavell_lower": 3,
      "stratavell_higher": 12,
      "ties": 0,
-     "p": 0.03515625
+     "p": 0.03515625,
+     "p_holm": 0.105469
     }
    },
    "compact_archive": {
@@ -367,7 +409,8 @@
      "stratavell_lower": 6,
      "stratavell_higher": 9,
      "ties": 0,
-     "p": 0.60723876953125
+     "p": 0.60723876953125,
+     "p_holm": 0.607239
     }
    }
   },
@@ -396,7 +439,8 @@
      "stratavell_lower": 6,
      "stratavell_higher": 9,
      "ties": 0,
-     "p": 0.60723876953125
+     "p": 0.60723876953125,
+     "p_holm": 1.0
     }
    },
    "compact": {
@@ -423,7 +467,8 @@
      "stratavell_lower": 7,
      "stratavell_higher": 8,
      "ties": 0,
-     "p": 1.0
+     "p": 1.0,
+     "p_holm": 1.0
     }
    },
    "compact_archive": {
@@ -450,7 +495,8 @@
      "stratavell_lower": 6,
      "stratavell_higher": 9,
      "ties": 0,
-     "p": 0.60723876953125
+     "p": 0.60723876953125,
+     "p_holm": 1.0
     }
    }
   }
@@ -489,8 +535,228 @@
  "runs_v12": 52,
  "first_start": "2026-11-27T13:40:44Z",
  "last_end": "2026-11-28T01:46:25Z",
- "cost_estimate_total_usd": 52.87,
+ "cost_estimate_total_usd": 52.88,
  "cost_estimate_with_cache_total_usd": 25.5,
+ "tokens_total": 98663969,
+ "prompt_tokens_total": 96574117,
+ "completion_tokens_total": 2089852,
+ "cached_tokens_total": 68469312,
+ "over_budget_states_any": [
+  "PayableInvoiceCheckerS2LEnv"
+ ],
+ "token_pairs_without_over_budget_states": {
+  "agent_prompt_mean": {
+   "trim": {
+    "other": "trim",
+    "median_difference": -9871.649999999998,
+    "differences": {
+     "ABTestingS2LEnv": -8364.999999999998,
+     "AcademicWarningS2LEnv": -13574.8,
+     "ApplyPhDEmailS2LEnv": -14770.500000000004,
+     "CanvasArrangeExamS2LEnv": -9952.699999999997,
+     "CanvasListTestS2LEnv": -12473.000000000004,
+     "CourseAssistantS2LEnv": 3400.2999999999993,
+     "ExcelMarketResearchS2LEnv": 16209.900000000001,
+     "FilterLowSellingProductsS2LEnv": -12697.200000000004,
+     "MachineOperatingS2LEnv": -14265.399999999998,
+     "NhlB2bAnalysisS2LEnv": 14606.600000000002,
+     "SetConfCrDdlS2LEnv": -6023.699999999997,
+     "UpdateMaterialInventoryS2LEnv": -7527.199999999997,
+     "WoocommerceNewWelcomeS2LEnv": -12427.900000000001,
+     "WoocommerceStockAlertS2LEnv": -9790.599999999999
+    },
+    "sign_test": {
+     "stratavell_lower": 11,
+     "stratavell_higher": 3,
+     "ties": 0,
+     "p": 0.057373046875,
+     "p_holm": 0.172119
+    }
+   },
+   "compact": {
+    "other": "compact",
+    "median_difference": 3398.600000000002,
+    "differences": {
+     "ABTestingS2LEnv": -6844.9,
+     "AcademicWarningS2LEnv": 5142.299999999999,
+     "ApplyPhDEmailS2LEnv": 2530.0999999999985,
+     "CanvasArrangeExamS2LEnv": 3880.7000000000044,
+     "CanvasListTestS2LEnv": -7381.299999999999,
+     "CourseAssistantS2LEnv": 9771.8,
+     "ExcelMarketResearchS2LEnv": 14453.800000000001,
+     "FilterLowSellingProductsS2LEnv": 8139.399999999998,
+     "MachineOperatingS2LEnv": 1611.0,
+     "NhlB2bAnalysisS2LEnv": 14408.400000000001,
+     "SetConfCrDdlS2LEnv": 2952.800000000003,
+     "UpdateMaterialInventoryS2LEnv": -3190.0999999999985,
+     "WoocommerceNewWelcomeS2LEnv": 1957.699999999997,
+     "WoocommerceStockAlertS2LEnv": 3844.4000000000015
+    },
+    "sign_test": {
+     "stratavell_lower": 3,
+     "stratavell_higher": 11,
+     "ties": 0,
+     "p": 0.057373046875,
+     "p_holm": 0.172119
+    }
+   },
+   "compact_archive": {
+    "other": "compact_archive",
+    "median_difference": 2530.7999999999993,
+    "differences": {
+     "ABTestingS2LEnv": -5066.999999999998,
+     "AcademicWarningS2LEnv": 553.7999999999993,
+     "ApplyPhDEmailS2LEnv": -5200.4000000000015,
+     "CanvasArrangeExamS2LEnv": 3899.4000000000015,
+     "CanvasListTestS2LEnv": -6620.700000000001,
+     "CourseAssistantS2LEnv": 13633.900000000001,
+     "ExcelMarketResearchS2LEnv": 14099.500000000002,
+     "FilterLowSellingProductsS2LEnv": 1162.199999999997,
+     "MachineOperatingS2LEnv": -9363.599999999999,
+     "NhlB2bAnalysisS2LEnv": 13737.000000000002,
+     "SetConfCrDdlS2LEnv": 9857.400000000001,
+     "UpdateMaterialInventoryS2LEnv": -4686.200000000001,
+     "WoocommerceNewWelcomeS2LEnv": 7597.5999999999985,
+     "WoocommerceStockAlertS2LEnv": 5462.799999999999
+    },
+    "sign_test": {
+     "stratavell_lower": 5,
+     "stratavell_higher": 9,
+     "ties": 0,
+     "p": 0.4239501953125,
+     "p_holm": 0.42395
+    }
+   }
+  },
+  "prompt_tokens": {
+   "trim": {
+    "other": "trim",
+    "median_difference": 240605.0,
+    "differences": {
+     "ABTestingS2LEnv": -117110,
+     "AcademicWarningS2LEnv": 106753,
+     "ApplyPhDEmailS2LEnv": 374457,
+     "CanvasArrangeExamS2LEnv": 2802103,
+     "CanvasListTestS2LEnv": -226246,
+     "CourseAssistantS2LEnv": 2822042,
+     "ExcelMarketResearchS2LEnv": 2713968,
+     "FilterLowSellingProductsS2LEnv": -598878,
+     "MachineOperatingS2LEnv": -35809,
+     "NhlB2bAnalysisS2LEnv": 2288704,
+     "SetConfCrDdlS2LEnv": 842909,
+     "UpdateMaterialInventoryS2LEnv": 68378,
+     "WoocommerceNewWelcomeS2LEnv": -158531,
+     "WoocommerceStockAlertS2LEnv": 2041949
+    },
+    "sign_test": {
+     "stratavell_lower": 5,
+     "stratavell_higher": 9,
+     "ties": 0,
+     "p": 0.4239501953125,
+     "p_holm": 1.0
+    }
+   },
+   "compact": {
+    "other": "compact",
+    "median_difference": 188346.5,
+    "differences": {
+     "ABTestingS2LEnv": -268550,
+     "AcademicWarningS2LEnv": -820920,
+     "ApplyPhDEmailS2LEnv": -473013,
+     "CanvasArrangeExamS2LEnv": 1134145,
+     "CanvasListTestS2LEnv": -670952,
+     "CourseAssistantS2LEnv": -134685,
+     "ExcelMarketResearchS2LEnv": 1640537,
+     "FilterLowSellingProductsS2LEnv": 946504,
+     "MachineOperatingS2LEnv": 228338,
+     "NhlB2bAnalysisS2LEnv": 1490526,
+     "SetConfCrDdlS2LEnv": 499054,
+     "UpdateMaterialInventoryS2LEnv": -1237873,
+     "WoocommerceNewWelcomeS2LEnv": 148355,
+     "WoocommerceStockAlertS2LEnv": 1299728
+    },
+    "sign_test": {
+     "stratavell_lower": 6,
+     "stratavell_higher": 8,
+     "ties": 0,
+     "p": 0.79052734375,
+     "p_holm": 1.0
+    }
+   },
+   "compact_archive": {
+    "other": "compact_archive",
+    "median_difference": 589141.0,
+    "differences": {
+     "ABTestingS2LEnv": -235657,
+     "AcademicWarningS2LEnv": 560574,
+     "ApplyPhDEmailS2LEnv": -1389836,
+     "CanvasArrangeExamS2LEnv": 1603641,
+     "CanvasListTestS2LEnv": -10690,
+     "CourseAssistantS2LEnv": 831145,
+     "ExcelMarketResearchS2LEnv": 1585023,
+     "FilterLowSellingProductsS2LEnv": 617708,
+     "MachineOperatingS2LEnv": -55388,
+     "NhlB2bAnalysisS2LEnv": 1398043,
+     "SetConfCrDdlS2LEnv": 1016729,
+     "UpdateMaterialInventoryS2LEnv": -1867229,
+     "WoocommerceNewWelcomeS2LEnv": 149618,
+     "WoocommerceStockAlertS2LEnv": 813966
+    },
+    "sign_test": {
+     "stratavell_lower": 5,
+     "stratavell_higher": 9,
+     "ties": 0,
+     "p": 0.4239501953125,
+     "p_holm": 1.0
+    }
+   }
+  }
+ },
+ "states_in_sensitivity": 14,
+ "multiplicity": "Holm, within each family of the three comparisons against stratavell. The protocol registered no correction, so the registered p-values are the unadjusted ones.",
+ "tool_cap_overshoot": [
+  {
+   "run": "v1.1-CanvasListTestS2LEnv-compact_archive",
+   "tool_calls": 103,
+   "calls_before_last_reply": 97,
+   "last_reply_calls": 6,
+   "calls_to_unknown_tools": 0,
+   "success": 0.0
+  },
+  {
+   "run": "v1.2-ExcelMarketResearchS2LEnv-compact_archive",
+   "tool_calls": 101,
+   "calls_before_last_reply": 99,
+   "last_reply_calls": 2,
+   "calls_to_unknown_tools": 0,
+   "success": 0.0
+  },
+  {
+   "run": "v1.2-FilterLowSellingProductsS2LEnv-trim",
+   "tool_calls": 104,
+   "calls_before_last_reply": 99,
+   "last_reply_calls": 5,
+   "calls_to_unknown_tools": 0,
+   "success": 0.0
+  },
+  {
+   "run": "v1.2-WoocommerceNewWelcomeS2LEnv-compact_archive",
+   "tool_calls": 101,
+   "calls_before_last_reply": 100,
+   "last_reply_calls": 1,
+   "calls_to_unknown_tools": 1,
+   "success": 0.0
+  }
+ ],
+ "tool_cap_overshoot_runs": 4,
+ "states_failed_by_all": 12,
+ "isolation_check": {
+  "runs_checked": 30,
+  "runs_with_ids": 16,
+  "ids_own_session": 199,
+  "ids_other_session": 0,
+  "ids_not_in_database": 0
+ },
  "requests_with_reasoning_reported": 2932,
  "requests_counted": 3651,
  "attempts": 214,

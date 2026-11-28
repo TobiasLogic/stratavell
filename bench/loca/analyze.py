@@ -4,6 +4,7 @@ import json
 import math
 import os
 import random
+import re
 import shutil
 import sqlite3
 import statistics
@@ -34,6 +35,8 @@ PRICE = {
 BOOT = 10000
 SEED = 0
 NARROW_STRIP = "agent_workspace/files/"
+MEMORY_ID = re.compile(r"\b(?:ev|sm)_[0-9A-Z]{26}\b")
+_db = []
 
 
 def load_jsonl(path):
@@ -183,6 +186,46 @@ def memory_results(hist):
     return dict(out)
 
 
+def memory_ids(hist):
+    names = {c["id"]: c["function"]["name"] for m in hist for c in m.get("tool_calls") or []}
+    out = set()
+    for m in hist:
+        if m.get("role") == "tool" and names.get(m.get("tool_call_id")) in summarize.MEMORY:
+            out.update(MEMORY_ID.findall(str(m.get("content"))))
+    return out
+
+
+def id_session(ref):
+    if not _db:
+        _db.append(sqlite3.connect(f"file:{DB}?mode=ro", uri=True))
+    table = "events" if ref.startswith("ev_") else "summaries"
+    row = _db[0].execute(f"select session_id from {table} where id=?", (ref,)).fetchone()
+    return row[0] if row else None
+
+
+def isolation(hist, run, tries):
+    own = other = missing = 0
+    for ref in memory_ids(hist):
+        sess = id_session(ref)
+        if sess is None:
+            missing += 1
+        elif session_owner(sess, tries) == run:
+            own += 1
+        else:
+            other += 1
+    return {"own_session": own, "other_session": other, "not_in_database": missing}
+
+
+def holm(ps):
+    order = sorted(range(len(ps)), key=lambda i: ps[i])
+    out = [0.0] * len(ps)
+    running = 0.0
+    for rank, i in enumerate(order):
+        running = max(running, min(1.0, (len(ps) - rank) * ps[i]))
+        out[i] = round(running, 6)
+    return out
+
+
 def cost(prompt, completion, cached):
     plain = prompt * PRICE["prompt_per_million"] / 1e6 + completion * PRICE["completion_per_million"] / 1e6
     cached = min(cached, prompt)
@@ -190,7 +233,7 @@ def cost(prompt, completion, cached):
     return round(plain, 4), round(with_cache, 4)
 
 
-def run_metrics(a, owner, summary_log):
+def run_metrics(a, owner, summary_log, tries):
     d = a["dir"]
     m = schedule.manifest(os.path.join(d, "RUN"))
     base = summarize.run_row(d)
@@ -233,6 +276,8 @@ def run_metrics(a, owner, summary_log):
     hist = (t.get("conversation") or {}).get("full_messages_history") or t.get("messages", [])
     calls = [c for msg in hist if msg.get("tool_calls") for c in msg["tool_calls"]]
     reg, narrow = flags(calls)
+    batches = [len(msg["tool_calls"]) for msg in hist if msg.get("tool_calls")]
+    not_found = sum(1 for msg in hist if msg.get("role") == "tool" and str(msg.get("content", "")).startswith("Tool '") and str(msg.get("content", "")).endswith("' not found"))
     success = base.get("success")
     agent_prompts = [r.get("prompt_tokens") or 0 for r in agent]
     reasoning_known = [r for r in counted if r.get("reasoning_tokens") is not None]
@@ -258,6 +303,10 @@ def run_metrics(a, owner, summary_log):
         "memory_calls": base.get("memory_calls"),
         "memory_calls_by_tool": dict(collections.Counter(c["function"]["name"] for c in calls if c["function"]["name"] in summarize.MEMORY)),
         "memory_results": memory_results(hist),
+        "memory_isolation": isolation(hist, mine, tries) if a["strategy"] in ("compact_archive", "stratavell") else None,
+        "calls_before_last_reply": len(calls) - (batches[-1] if batches else 0),
+        "last_reply_calls": batches[-1] if batches else 0,
+        "calls_to_unknown_tools": not_found,
         "agent_requests": len(agent),
         "agent_prompt_mean": round(statistics.mean(agent_prompts), 1) if agent_prompts else 0,
         "agent_prompt_median": statistics.median(agent_prompts) if agent_prompts else 0,
@@ -272,6 +321,8 @@ def run_metrics(a, owner, summary_log):
         "stratavell_summary_prompt_sum": P(strat_summ),
         "stratavell_summary_completion_sum": C(strat_summ),
         "stratavell_summary_outside_run_window": len(outside),
+        "stratavell_summary_outside_prompt_sum": P(outside),
+        "stratavell_summary_outside_completion_sum": C(outside),
         "spilled_in_excluded": len(spilled_in),
         "failed_requests": dict(failed),
         "capped_agent_replies": sum(1 for r in agent if (r.get("completion_tokens") or 0) >= OUTPUT_CAP),
@@ -369,9 +420,16 @@ def analysis(rows, tries):
             "minutes": round(sum(r["minutes"] or 0 for r in rs), 1),
             "capped_replies": sum(r["capped_agent_replies"] + r["capped_summary_replies"] for r in rs),
             "failed_requests": sum(sum(r["failed_requests"].values()) for r in rs),
-            "cost_estimate_usd": round(sum(r["cost_estimate_usd"] for r in rs), 2),
-            "cost_estimate_with_cache_usd": round(sum(r["cost_estimate_with_cache_usd"] for r in rs), 2),
+            "cost_estimate_usd": round(cost(sum(r["prompt_tokens"] for r in rs), sum(r["completion_tokens"] for r in rs), sum(r["cached_tokens"] for r in rs))[0], 2),
+            "cost_estimate_with_cache_usd": round(cost(sum(r["prompt_tokens"] for r in rs), sum(r["completion_tokens"] for r in rs), sum(r["cached_tokens"] for r in rs))[1], 2),
             "over_budget_states": sorted(r["state"] for r in rs if r["agent_prompt_max"] > TARGET * OVER),
+            "over_target_states": sorted(r["state"] for r in rs if r["agent_prompt_max"] > TARGET),
+            "over_target_runs": sum(1 for r in rs if r["agent_prompt_max"] > TARGET),
+            "memory_calls_in_tool_cap_runs_sum": sum(r["memory_calls"] or 0 for r in rs if r["ended"] == "tool_cap"),
+            "tool_calls_in_tool_cap_runs_sum": sum(r["tool_calls"] for r in rs if r["ended"] == "tool_cap"),
+            "stratavell_summary_requests_after_run": sum(r["stratavell_summary_outside_run_window"] for r in rs),
+            "stratavell_summary_prompt_after_run": sum(r["stratavell_summary_outside_prompt_sum"] for r in rs),
+            "stratavell_summary_completion_after_run": sum(r["stratavell_summary_outside_completion_sum"] for r in rs),
             "max_agent_prompt": max(r["agent_prompt_max"] for r in rs),
         }
     succ = {k: {o: pair(rows, o, k) for o in OTHERS} for k in ("success_primary", "success_narrow")}
@@ -379,6 +437,18 @@ def analysis(rows, tries):
         "agent_prompt_mean": {o: token_pair(rows, o, "agent_prompt_mean") for o in OTHERS},
         "prompt_tokens": {o: token_pair(rows, o, "prompt_tokens") for o in OTHERS},
     }
+    over_states = sorted({r["state"] for r in rows if r["agent_prompt_max"] > TARGET * OVER})
+    kept = [r for r in rows if r["state"] not in over_states]
+    sens = {k: {o: token_pair(kept, o, k) for o in OTHERS} for k in ("agent_prompt_mean", "prompt_tokens")}
+    for fam in (tok, sens):
+        for k in fam:
+            for o, p in zip(OTHERS, holm([fam[k][o]["sign_test"]["p"] for o in OTHERS])):
+                fam[k][o]["sign_test"]["p_holm"] = p
+    for k in succ:
+        for o, p in zip(OTHERS, holm([succ[k][o]["mcnemar_p"] for o in OTHERS])):
+            succ[k][o]["mcnemar_p_holm"] = p
+    iso = [r["memory_isolation"] for r in rows if r["memory_isolation"]]
+    total_p, total_c, total_k = (sum(r[k] for r in rows) for k in ("prompt_tokens", "completion_tokens", "cached_tokens"))
     exp = {}
     for k in ("success_primary", "success_narrow"):
         n = {s: per[s][k] for s in STRATS}
@@ -413,8 +483,26 @@ def analysis(rows, tries):
         "runs_v12": sum(1 for r in rows if r["protocol"] == "v1.2"),
         "first_start": min(r["start"] for r in rows),
         "last_end": max(r["end"] for r in rows),
-        "cost_estimate_total_usd": round(sum(per[s]["cost_estimate_usd"] for s in STRATS), 2),
-        "cost_estimate_with_cache_total_usd": round(sum(per[s]["cost_estimate_with_cache_usd"] for s in STRATS), 2),
+        "cost_estimate_total_usd": round(cost(total_p, total_c, total_k)[0], 2),
+        "cost_estimate_with_cache_total_usd": round(cost(total_p, total_c, total_k)[1], 2),
+        "tokens_total": total_p + total_c,
+        "prompt_tokens_total": total_p,
+        "completion_tokens_total": total_c,
+        "cached_tokens_total": total_k,
+        "over_budget_states_any": over_states,
+        "token_pairs_without_over_budget_states": sens,
+        "states_in_sensitivity": len({r["state"] for r in kept}),
+        "multiplicity": "Holm, within each family of the three comparisons against stratavell. The protocol registered no correction, so the registered p-values are the unadjusted ones.",
+        "tool_cap_overshoot": [{"run": r["run"], "tool_calls": r["tool_calls"], "calls_before_last_reply": r["calls_before_last_reply"], "last_reply_calls": r["last_reply_calls"], "calls_to_unknown_tools": r["calls_to_unknown_tools"], "success": r["success"]} for r in rows if r["tool_calls"] > TOOL_CAP],
+        "tool_cap_overshoot_runs": sum(1 for r in rows if r["tool_calls"] > TOOL_CAP),
+        "states_failed_by_all": len({r["state"] for r in rows}) - len({r["state"] for r in rows if r["success"] == 1.0}),
+        "isolation_check": {
+            "runs_checked": len(iso),
+            "runs_with_ids": sum(1 for x in iso if sum(x.values())),
+            "ids_own_session": sum(x["own_session"] for x in iso),
+            "ids_other_session": sum(x["other_session"] for x in iso),
+            "ids_not_in_database": sum(x["not_in_database"] for x in iso),
+        },
         "requests_with_reasoning_reported": sum(r["requests_with_reasoning_count"] for r in rows),
         "requests_counted": sum(r["agent_requests"] + r["loca_summary_requests"] + r["stratavell_summary_requests"] for r in rows),
         "attempts": len(tries),
@@ -462,7 +550,7 @@ def main():
         chosen.append(valid[-1])
     jobs = stratavell_jobs()
     owner, summary_log, how = attribute(tries, jobs)
-    rows = [run_metrics(a, owner, summary_log) for a in chosen if a]
+    rows = [run_metrics(a, owner, summary_log, tries) for a in chosen if a]
     first = min(summarize.ts(a["start"]) for a in tries)
     unowned = [j for j in jobs if j["run"] is None]
     summary_requests = [r for r in summary_log if r["t"] >= first]

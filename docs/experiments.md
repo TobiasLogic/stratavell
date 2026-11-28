@@ -142,6 +142,7 @@ All runs used free endpoints, $0. Pilots, amendments and their reasons are recor
 | 11-27 about 22:15 | DNS outage | the ninth run ended with LOCA's API error and was marked valid by mistake; 153 attempts then failed preflight within 4 minutes, with no model request |
 | 11-27 23:46 | protocol v1.2 (b6604bc, 0b94971), schedule resumed | 52 runs, all valid, no void |
 | 11-28 08:46 | schedule complete | 60 scored runs; analysis in `bench/results/2026-11-28/loca-v1.2/` |
+| 11-28 | outside review of the packet, then revision 2 | all its numbers reproduced; it caught a cost total rounded from rounded parts ($52.87, now $52.88) and 4 runs past the 100-call cap (LOCA checks the cap once per reply); added Holm p-values, a sensitivity analysis without the over-budget state, a session isolation check and the protocol text in the packet, all secondary |
 
 ## Grading changes, all applied to stored answers offline
 
