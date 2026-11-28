@@ -56,6 +56,11 @@
     "WoocommerceStockAlertS2LEnv"
    ],
    "over_target_runs": 3,
+   "max_loca_summary_prompt": 0,
+   "max_stratavell_summary_prompt": 0,
+   "summary_over_budget_states": [],
+   "stratavell_summary_requests_after_last_agent_request": 0,
+   "tool_calls_counted_by_loca_over_cap_runs": 1,
    "memory_calls_in_tool_cap_runs_sum": 0,
    "tool_calls_in_tool_cap_runs_sum": 104,
    "stratavell_summary_requests_after_run": 0,
@@ -106,6 +111,13 @@
    "over_budget_states": [],
    "over_target_states": [],
    "over_target_runs": 0,
+   "max_loca_summary_prompt": 75553,
+   "max_stratavell_summary_prompt": 0,
+   "summary_over_budget_states": [
+    "PayableInvoiceCheckerS2LEnv"
+   ],
+   "stratavell_summary_requests_after_last_agent_request": 0,
+   "tool_calls_counted_by_loca_over_cap_runs": 0,
    "memory_calls_in_tool_cap_runs_sum": 0,
    "tool_calls_in_tool_cap_runs_sum": 900,
    "stratavell_summary_requests_after_run": 0,
@@ -168,6 +180,13 @@
     "PayableInvoiceCheckerS2LEnv"
    ],
    "over_target_runs": 1,
+   "max_loca_summary_prompt": 75428,
+   "max_stratavell_summary_prompt": 19731,
+   "summary_over_budget_states": [
+    "PayableInvoiceCheckerS2LEnv"
+   ],
+   "stratavell_summary_requests_after_last_agent_request": 10,
+   "tool_calls_counted_by_loca_over_cap_runs": 2,
    "memory_calls_in_tool_cap_runs_sum": 20,
    "tool_calls_in_tool_cap_runs_sum": 905,
    "stratavell_summary_requests_after_run": 5,
@@ -229,6 +248,11 @@
    "over_budget_states": [],
    "over_target_states": [],
    "over_target_runs": 0,
+   "max_loca_summary_prompt": 0,
+   "max_stratavell_summary_prompt": 10617,
+   "summary_over_budget_states": [],
+   "stratavell_summary_requests_after_last_agent_request": 14,
+   "tool_calls_counted_by_loca_over_cap_runs": 0,
    "memory_calls_in_tool_cap_runs_sum": 280,
    "tool_calls_in_tool_cap_runs_sum": 600,
    "stratavell_summary_requests_after_run": 8,
@@ -718,6 +742,7 @@
   {
    "run": "v1.1-CanvasListTestS2LEnv-compact_archive",
    "tool_calls": 103,
+   "calls_counted_by_loca": 103,
    "calls_before_last_reply": 97,
    "last_reply_calls": 6,
    "calls_to_unknown_tools": 0,
@@ -726,6 +751,7 @@
   {
    "run": "v1.2-ExcelMarketResearchS2LEnv-compact_archive",
    "tool_calls": 101,
+   "calls_counted_by_loca": 101,
    "calls_before_last_reply": 99,
    "last_reply_calls": 2,
    "calls_to_unknown_tools": 0,
@@ -734,6 +760,7 @@
   {
    "run": "v1.2-FilterLowSellingProductsS2LEnv-trim",
    "tool_calls": 104,
+   "calls_counted_by_loca": 104,
    "calls_before_last_reply": 99,
    "last_reply_calls": 5,
    "calls_to_unknown_tools": 0,
@@ -742,12 +769,14 @@
   {
    "run": "v1.2-WoocommerceNewWelcomeS2LEnv-compact_archive",
    "tool_calls": 101,
+   "calls_counted_by_loca": 100,
    "calls_before_last_reply": 100,
    "last_reply_calls": 1,
    "calls_to_unknown_tools": 1,
    "success": 0.0
   }
  ],
+ "tool_cap_deviations": 3,
  "tool_cap_overshoot_runs": 4,
  "states_failed_by_all": 12,
  "isolation_check": {
@@ -829,5 +858,64 @@
   "unmatched": 0,
   "trim_runs_with_summary_requests_left": 0,
   "stratavell_runs_with_loca_summary_requests": 0
+ },
+ "outside_scored_runs": {
+  "requests_in_log_since_first_scored_run": 3790,
+  "scored_requests": 3651,
+  "failed_requests_in_scored_runs": 7,
+  "counted_void_requests": 77,
+  "counted_void_replies": 27,
+  "counted_void_prompt_tokens": 629225,
+  "counted_void_completion_tokens": 10703,
+  "counted_void_cost_estimate_usd": 0.34,
+  "counted_void_cost_estimate_with_cache_usd": 0.2,
+  "readiness_probes": 53,
+  "smoke_requests": 2,
+  "unaccounted": 0
+ },
+ "isolation_probe": {
+  "sessions": 31,
+  "sessions_with_unique_terms": 23,
+  "unique_terms": 65,
+  "sessions_with_summaries": 26,
+  "sessions_with_unshared_blobs": 29,
+  "sessions_with_a_pending_call_closed_before_assembly": 27,
+  "controls": {
+   "own event read": 31,
+   "own summary expanded": 26,
+   "own unique term found by search": 65
+  },
+  "probes": {
+   "memory_get_event with another session's event id": 930,
+   "memory_get_artifact with another session's event id": 930,
+   "memory_expand with another session's event id": 930,
+   "memory_search for another session's event id": 930,
+   "memory_expand with another session's summary id": 780,
+   "memory_get_summary_lineage with another session's summary id": 780,
+   "memory_get_artifact with a hash only another session holds": 870,
+   "memory_search for a term only another session contains": 1950,
+   "assembled context": 31,
+   "memory_get_task_state": 31,
+   "memory_stats": 31
+  },
+  "probes_total": 8193,
+  "database_checks": {
+   "summary sources in another session": 0,
+   "jobs whose summary is in another session": 0,
+   "summaries whose job is in another session": 0,
+   "blob references whose event is in another session": 0,
+   "search documents whose event is in another session": 0,
+   "search documents whose summary is in another session": 0,
+   "path records whose event is in another session": 0,
+   "symbol records whose event is in another session": 0,
+   "task items whose source event is in another session": 0,
+   "grants": 0,
+   "events not private": 0
+  },
+  "failures_by_probe": {
+   "memory_get_summary_lineage with another session's summary id": 780
+  },
+  "failures": 780,
+  "database_checks_nonzero": 0
  }
 }

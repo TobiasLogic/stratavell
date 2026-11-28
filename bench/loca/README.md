@@ -97,6 +97,13 @@ The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinne
 
    - Stratavell's summary requests run in the background, so some land in the next run's request log or between runs. `analyze.py` gives each one to the run that made it, using the server's job table.
    - The trajectories stay in `LOCA_ROOT`. The results directory keeps each run's manifest, request log, evaluation and assembly report.
+   - `isolation_probe.py` tests session isolation directly. Start the study's binary on a fresh copy of the database with `-summarizer none`, then run the probe with LOCA's Python, which has the `stratavell` client. Run `analyze.py` again afterwards to include its results:
+
+     ```
+     $LOCA_ROOT/venv/bin/python -I bench/loca/isolation_probe.py COPY.db http://127.0.0.1:PORT bench/results/2026-11-28/loca-v1.2/isolation-probe.json
+     ```
+
+   - Use a new copy for every probe run. The probes change the copy, and Stratavell answers a repeated request with a notice instead of the data.
 
 ## Sandbox
 

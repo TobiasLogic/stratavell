@@ -277,6 +277,8 @@ def run_metrics(a, owner, summary_log, tries):
     calls = [c for msg in hist if msg.get("tool_calls") for c in msg["tool_calls"]]
     reg, narrow = flags(calls)
     batches = [len(msg["tool_calls"]) for msg in hist if msg.get("tool_calls")]
+    parse_failed = sum(1 for msg in hist if msg.get("role") == "tool" and str(msg.get("content", "")).startswith("[Tool execution failed"))
+    last_agent = max((r["t"] for r in agent), default=None)
     not_found = sum(1 for msg in hist if msg.get("role") == "tool" and str(msg.get("content", "")).startswith("Tool '") and str(msg.get("content", "")).endswith("' not found"))
     success = base.get("success")
     agent_prompts = [r.get("prompt_tokens") or 0 for r in agent]
@@ -307,12 +309,15 @@ def run_metrics(a, owner, summary_log, tries):
         "calls_before_last_reply": len(calls) - (batches[-1] if batches else 0),
         "last_reply_calls": batches[-1] if batches else 0,
         "calls_to_unknown_tools": not_found,
+        "calls_with_unparsable_arguments": parse_failed,
+        "calls_counted_by_loca": len(calls) - not_found - parse_failed,
         "agent_requests": len(agent),
         "agent_prompt_mean": round(statistics.mean(agent_prompts), 1) if agent_prompts else 0,
         "agent_prompt_median": statistics.median(agent_prompts) if agent_prompts else 0,
         "agent_prompt_max": max(agent_prompts, default=0),
         "agent_prompt_sum": sum(agent_prompts),
         "agent_completion_sum": C(agent),
+        "agent_completion_mean": round(C(agent) / len(agent), 1) if agent else 0,
         "loca_summary_requests": len(loca_summ),
         "loca_summary_prompt_sum": P(loca_summ),
         "loca_summary_completion_sum": C(loca_summ),
@@ -320,6 +325,8 @@ def run_metrics(a, owner, summary_log, tries):
         "stratavell_summary_requests": len(strat_summ),
         "stratavell_summary_prompt_sum": P(strat_summ),
         "stratavell_summary_completion_sum": C(strat_summ),
+        "stratavell_summary_prompt_max": max((r.get("prompt_tokens") or 0 for r in strat_summ), default=0),
+        "stratavell_summary_after_last_agent_request": sum(1 for r in strat_summ if last_agent is not None and r["t"] + (r.get("seconds") or 0) > last_agent),
         "stratavell_summary_outside_run_window": len(outside),
         "stratavell_summary_outside_prompt_sum": P(outside),
         "stratavell_summary_outside_completion_sum": C(outside),
@@ -425,6 +432,11 @@ def analysis(rows, tries):
             "over_budget_states": sorted(r["state"] for r in rs if r["agent_prompt_max"] > TARGET * OVER),
             "over_target_states": sorted(r["state"] for r in rs if r["agent_prompt_max"] > TARGET),
             "over_target_runs": sum(1 for r in rs if r["agent_prompt_max"] > TARGET),
+            "max_loca_summary_prompt": max(r["loca_summary_prompt_max"] for r in rs),
+            "max_stratavell_summary_prompt": max(r["stratavell_summary_prompt_max"] for r in rs),
+            "summary_over_budget_states": sorted(r["state"] for r in rs if max(r["loca_summary_prompt_max"], r["stratavell_summary_prompt_max"]) > TARGET * OVER),
+            "stratavell_summary_requests_after_last_agent_request": sum(r["stratavell_summary_after_last_agent_request"] for r in rs),
+            "tool_calls_counted_by_loca_over_cap_runs": sum(1 for r in rs if r["calls_counted_by_loca"] > TOOL_CAP),
             "memory_calls_in_tool_cap_runs_sum": sum(r["memory_calls"] or 0 for r in rs if r["ended"] == "tool_cap"),
             "tool_calls_in_tool_cap_runs_sum": sum(r["tool_calls"] for r in rs if r["ended"] == "tool_cap"),
             "stratavell_summary_requests_after_run": sum(r["stratavell_summary_outside_run_window"] for r in rs),
@@ -493,7 +505,8 @@ def analysis(rows, tries):
         "token_pairs_without_over_budget_states": sens,
         "states_in_sensitivity": len({r["state"] for r in kept}),
         "multiplicity": "Holm, within each family of the three comparisons against stratavell. The protocol registered no correction, so the registered p-values are the unadjusted ones.",
-        "tool_cap_overshoot": [{"run": r["run"], "tool_calls": r["tool_calls"], "calls_before_last_reply": r["calls_before_last_reply"], "last_reply_calls": r["last_reply_calls"], "calls_to_unknown_tools": r["calls_to_unknown_tools"], "success": r["success"]} for r in rows if r["tool_calls"] > TOOL_CAP],
+        "tool_cap_overshoot": [{"run": r["run"], "tool_calls": r["tool_calls"], "calls_counted_by_loca": r["calls_counted_by_loca"], "calls_before_last_reply": r["calls_before_last_reply"], "last_reply_calls": r["last_reply_calls"], "calls_to_unknown_tools": r["calls_to_unknown_tools"], "success": r["success"]} for r in rows if r["tool_calls"] > TOOL_CAP],
+        "tool_cap_deviations": sum(1 for r in rows if r["calls_counted_by_loca"] > TOOL_CAP),
         "tool_cap_overshoot_runs": sum(1 for r in rows if r["tool_calls"] > TOOL_CAP),
         "states_failed_by_all": len({r["state"] for r in rows}) - len({r["state"] for r in rows if r["success"] == 1.0}),
         "isolation_check": {
@@ -516,6 +529,37 @@ def analysis(rows, tries):
         "load_1min": [min(min(r["load_start"], r["load_end"]) for r in rows), max(max(r["load_start"], r["load_end"]) for r in rows)],
         "flagged_registered": [{"run": r["run"], "tools": r["flagged_registered"], "success": r["success"]} for r in rows if r["flagged_registered"]],
         "flagged_narrow": [{"run": r["run"], "tools": r["flagged_narrow"], "success": r["success"]} for r in rows if r["flagged_narrow"]],
+    }
+
+
+def outside_usage(rows, tries, first):
+    log = [r for r in load_jsonl(PROXY_LOG) if r["t"] >= first]
+    void_t = set()
+    for a in tries:
+        if a["void"] and a["counted"]:
+            void_t.update(round(r["t"], 4) for r in load_jsonl(os.path.join(a["dir"], "requests.jsonl")))
+    void = [r for r in log if round(r["t"], 4) in void_t]
+    ready = [r for r in log if r.get("tag") == "ready"]
+    smoke = [r for r in log if r.get("tag") and "smoke" in r["tag"]]
+    scored = sum(r["agent_requests"] + r["loca_summary_requests"] + r["stratavell_summary_requests"] for r in rows)
+    failed_scored = sum(sum(r["failed_requests"].values()) for r in rows)
+    P = lambda rs: sum(r.get("prompt_tokens") or 0 for r in rs if r.get("status") == 200)
+    C = lambda rs: sum(r.get("completion_tokens") or 0 for r in rs if r.get("status") == 200)
+    K = lambda rs: sum(r.get("cached_tokens") or 0 for r in rs if r.get("status") == 200)
+    plain, with_cache = cost(P(void), C(void), K(void))
+    return {
+        "requests_in_log_since_first_scored_run": len(log),
+        "scored_requests": scored,
+        "failed_requests_in_scored_runs": failed_scored,
+        "counted_void_requests": len(void),
+        "counted_void_replies": sum(1 for r in void if r.get("status") == 200),
+        "counted_void_prompt_tokens": P(void),
+        "counted_void_completion_tokens": C(void),
+        "counted_void_cost_estimate_usd": round(plain, 2),
+        "counted_void_cost_estimate_with_cache_usd": round(with_cache, 2),
+        "readiness_probes": len(ready),
+        "smoke_requests": len(smoke),
+        "unaccounted": len(log) - scored - failed_scored - len(void) - len(ready) - len(smoke),
     }
 
 
@@ -570,6 +614,14 @@ def main():
     }
     res = analysis(rows, tries)
     res["attribution_check"] = check
+    res["outside_scored_runs"] = outside_usage(rows, tries, first)
+    probe = os.path.join(out, "isolation-probe.json")
+    if os.path.exists(probe):
+        p = json.load(open(probe))
+        res["isolation_probe"] = {k: v for k, v in p.items() if k != "failures"}
+        res["isolation_probe"]["failures_by_probe"] = dict(collections.Counter(f["probe"] for f in p["failures"]))
+        res["isolation_probe"]["failures"] = len(p["failures"])
+        res["isolation_probe"]["database_checks_nonzero"] = sum(1 for k, v in p["database_checks"].items() if v)
     res["excluded_slots"] = [f"{i['state']} {i['strategy']}" for i, a in zip(order, chosen) if not a]
     with open(os.path.join(out, "runs.jsonl"), "w") as f:
         for r in rows:

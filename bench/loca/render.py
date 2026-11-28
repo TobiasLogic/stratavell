@@ -106,8 +106,27 @@ def tables(a, runs, tries, fmt):
         [[LABEL[s], per[s]["prompt_tokens"], per[s]["cached_tokens"], per[s]["completion_tokens"], f"{per[s]['cost_estimate_usd']:.2f}", f"{per[s]['cost_estimate_with_cache_usd']:.2f}"] for s in STRATS]
         + [["all", a["prompt_tokens_total"], a["cached_tokens_total"], a["completion_tokens_total"], f"{a['cost_estimate_total_usd']:.2f}", f"{a['cost_estimate_with_cache_total_usd']:.2f}"]], fmt)
     T["overshoot"] = table(
-        ["run", "tool calls the model made", "before its last reply", "in its last reply", "calls to a tool that does not exist", "checker success"],
-        [[x["run"], x["tool_calls"], x["calls_before_last_reply"], x["last_reply_calls"], x["calls_to_unknown_tools"], "1" if x["success"] == 1.0 else "0"] for x in a["tool_cap_overshoot"]], fmt) if a["tool_cap_overshoot"] else "(none)"
+        ["run", "tool calls the model made", "counted by LOCA", "before its last reply", "in its last reply", "calls to a tool that does not exist", "checker success"],
+        [[x["run"], x["tool_calls"], x["calls_counted_by_loca"], x["calls_before_last_reply"], x["last_reply_calls"], x["calls_to_unknown_tools"], "1" if x["success"] == 1.0 else "0"] for x in a["tool_cap_overshoot"]], fmt) if a["tool_cap_overshoot"] else "(none)"
+    T["summary_budget"] = table(
+        ["strategy", "largest LOCA summary request", "largest Stratavell summary request", "states over 5%"],
+        [[LABEL[s], per[s]["max_loca_summary_prompt"] or "(none)", per[s]["max_stratavell_summary_prompt"] or "(none)", ", ".join(short(x) for x in per[s]["summary_over_budget_states"]) or "(none)"] for s in STRATS], fmt)
+    ip = a.get("isolation_probe")
+    if ip:
+        fails = ip["failures_by_probe"]
+        T["isolation_probe"] = table(["probe, from each session", "probes", "failed"], [[k, n, fails.get(k, 0)] for k, n in ip["probes"].items()], fmt)
+        cfail = {"own event read": fails.get("control: own event read refused", 0), "own summary expanded": fails.get("control: own summary expand refused", 0), "own unique term found by search": ip["controls"].get("own unique term not in search reply", 0)}
+        T["isolation_controls"] = table(["control, in the session's own memory", "probes", "failed"], [[k, n, cfail.get(k, 0)] for k, n in ip["controls"].items() if k in cfail], fmt)
+    def assembly(r, k):
+        x = r["stratavell_assembly"]
+        return x["states"].get(k, 0) if x else "-"
+    T["runs_requests"] = table(
+        ["state", "strategy", "steps", "completion tokens", "completion per agent request", "LOCA summary requests", "Stratavell summary requests", "largest summary request", "agent replies at the cap", "summary replies at the cap"],
+        [[short(r["state"]), LABEL[r["strategy"]], r["steps"], r["completion_tokens"], r["agent_completion_mean"], r["loca_summary_requests"], r["stratavell_summary_requests"], max(r["loca_summary_prompt_max"], r["stratavell_summary_prompt_max"]), r["capped_agent_replies"], r["capped_summary_replies"]] for r in runs], fmt)
+    T["runs_compaction"] = table(
+        ["state", "strategy", "LOCA trim events", "LOCA summary events", "Stratavell assemblies normal / soft / aggressive", "with summaries", "with masking", "load at start", "load at end"],
+        [[short(r["state"]), LABEL[r["strategy"]], (r["loca_events"] or {}).get("trim", 0), (r["loca_events"] or {}).get("summary", 0),
+          " / ".join(str(assembly(r, k)) for k in ("normal", "soft", "aggressive")) if r["stratavell_assembly"] else "-", r["stratavell_assembly"]["with_summaries"] if r["stratavell_assembly"] else "-", r["stratavell_assembly"]["with_masking"] if r["stratavell_assembly"] else "-", f"{r['load_start']:.2f}", f"{r['load_end']:.2f}"] for r in runs], fmt)
     v = a["voids"]
     rows = [[x, n] for x, n in sorted(v["by_reason"].items())]
     T["voids"] = table(["void reason", "attempts"], rows, fmt)
