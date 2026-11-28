@@ -68,6 +68,7 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@v1.14.3
         with:
           packages-dir: dist-py
+          skip-existing: true
 
   npm:
     needs: build
@@ -86,4 +87,4 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@latest
-      - run: npm stage publish dist-npm/stratavell-*.tgz --access public --provenance
+      - run: npm stage publish ./dist-npm/stratavell-*.tgz --access public --provenance
