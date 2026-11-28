@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -58,6 +60,77 @@ type scheduler struct {
 	ctx      context.Context
 
 	gate *rateGate
+
+	cancels      map[string]context.CancelFunc
+	cancelled    map[string]bool
+	runningSpecs map[string]*jobSpec
+}
+
+type jobTagKey struct{}
+
+type JobTag struct {
+	ID      string
+	Attempt int
+}
+
+func JobTagFrom(ctx context.Context) (JobTag, bool) {
+	t, ok := ctx.Value(jobTagKey{}).(JobTag)
+	return t, ok
+}
+
+func WithJobTag(ctx context.Context, t JobTag) context.Context {
+	return context.WithValue(ctx, jobTagKey{}, t)
+}
+
+func TagRequest(ctx context.Context, h http.Header) {
+	if t, ok := JobTagFrom(ctx); ok {
+		h.Set("X-Stratavell-Job", t.ID)
+		h.Set("X-Stratavell-Attempt", strconv.Itoa(t.Attempt))
+	}
+}
+
+func (s *scheduler) dropSession(session string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for ak, q := range s.queues {
+		if ak.session != session {
+			continue
+		}
+		for _, j := range q {
+			delete(s.keys, j.key())
+			s.queued--
+			n++
+		}
+		delete(s.queues, ak)
+	}
+	for id, cancel := range s.cancels {
+		if s.cancelled[id] {
+			continue
+		}
+		if j := s.runningJob(id); j != nil && j.Session == session {
+			s.cancelled[id] = true
+			cancel()
+			n++
+		}
+	}
+	order := s.order[:0]
+	for _, ak := range s.order {
+		if ak.session != session {
+			order = append(order, ak)
+		}
+	}
+	s.order = order
+	if s.rr >= len(s.order) {
+		s.rr = 0
+	}
+	s.e.metrics.set("queue_depth", float64(s.queued))
+	s.e.metrics.inc("jobs_cancelled", float64(n))
+	return n
+}
+
+func (s *scheduler) runningJob(id string) *jobSpec {
+	return s.runningSpecs[id]
 }
 
 func newScheduler(e *Engine, cfg Compaction, manual bool) *scheduler {
@@ -69,6 +142,10 @@ func newScheduler(e *Engine, cfg Compaction, manual bool) *scheduler {
 		inflight: map[agentKey]int{},
 		keys:     map[string]bool{},
 		gate:     newRateGate(cfg.RatePerMinute, cfg.TokensPerMinute, cfg.ForegroundReserve, e.clock),
+
+		cancels:      map[string]context.CancelFunc{},
+		cancelled:    map[string]bool{},
+		runningSpecs: map[string]*jobSpec{},
 	}
 	s.cond = sync.NewCond(&s.mu)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
@@ -159,6 +236,10 @@ func (s *scheduler) done(j *jobSpec, requeue bool) {
 	ak := agentKey{j.Session, j.Agent}
 	s.inflight[ak]--
 	s.running--
+	if s.cancelled[j.ID] {
+		requeue = false
+		delete(s.cancelled, j.ID)
+	}
 	if requeue && !s.stopped {
 		s.queues[ak] = append(s.queues[ak], j)
 		s.queued++
@@ -274,8 +355,28 @@ func (s *scheduler) run(parent context.Context, j *jobSpec) bool {
 	start := time.Now()
 	ctx, cancel := context.WithTimeout(parent, s.cfg.JobTimeout.D())
 	defer cancel()
+	s.mu.Lock()
+	if s.cancelled[j.ID] {
+		s.mu.Unlock()
+		return false
+	}
+	s.cancels[j.ID], s.runningSpecs[j.ID] = cancel, j
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.cancels, j.ID)
+		delete(s.runningSpecs, j.ID)
+		s.mu.Unlock()
+	}()
+	ctx = WithJobTag(ctx, JobTag{ID: j.ID, Attempt: j.Attempts + 1})
+	in := j.Input
+	in.JobID, in.Attempt = j.ID, j.Attempts+1
 	_ = e.markJob(ctx, j.ID, "running", "")
-	out, err := summ.Summarize(ctx, j.Input)
+	out, err := summ.Summarize(ctx, in)
+	if s.isCancelled(j.ID) {
+		_ = e.markJob(context.Background(), j.ID, "cancelled", "session closed")
+		return false
+	}
 	lat := time.Since(start)
 	e.metrics.observe("summarize_ms", float64(lat.Microseconds())/1000)
 	if err == nil {
@@ -322,6 +423,12 @@ func (s *scheduler) run(parent context.Context, j *jobSpec) bool {
 		return false
 	}
 	return false
+}
+
+func (s *scheduler) isCancelled(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cancelled[id]
 }
 
 func (e *Engine) markJob(ctx context.Context, id, state, errText string) error {

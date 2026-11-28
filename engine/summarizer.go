@@ -25,6 +25,8 @@ type SummarizeInput struct {
 	MaxTokens     int
 	PromptVersion string
 	Strict        bool
+	JobID         string
+	Attempt       int
 }
 
 type SummarizeOutput struct {

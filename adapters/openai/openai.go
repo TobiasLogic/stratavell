@@ -249,6 +249,7 @@ func (c *Client) Send(ctx context.Context, req Request) (Response, error) {
 	for k, v := range c.Headers {
 		hr.Header.Set(k, v)
 	}
+	engine.TagRequest(ctx, hr.Header)
 	resp, err := c.HTTP.Do(hr)
 	if err != nil {
 		return Response{}, err

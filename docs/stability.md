@@ -9,9 +9,9 @@ These are the interfaces that integrations should depend on.
 | interface | scope |
 |---|---|
 | HTTP API `/v1` | routes, request and response fields in `docs/openapi.yaml`. New fields may appear in responses; removing or changing a field means `/v2`. |
-| MCP tool names and arguments | `memory_search`, `memory_expand`, `memory_get_event`, `memory_get_artifact`, `memory_get_task_state`, `memory_get_summary_lineage`, `memory_stats`, `memory_update_task`, and `memory_archive` in passive mode |
+| MCP tool names and arguments | `memory_search`, `memory_query`, `memory_expand`, `memory_get_event`, `memory_get_artifact`, `memory_get_task_state`, `memory_get_summary_lineage`, `memory_stats`, `memory_update_task`, and `memory_archive` in passive mode |
 | `msg` package | `Message`, `Part`, `Meta` and their JSON form, which is also the HTTP wire format |
-| `engine` core | `Open`, `Options`, `Engine.OpenSession`, `LookupSession`, `Session.Agent`, `LookupAgent`, `Agent.Append`, `Assemble`, `ObserveUsage`, `HandleTool`, `Search`, `GetEvent`, `TaskState`, `Engine.Verify`, `DeleteSession`, `Close` |
+| `engine` core | `Open`, `Options`, `Engine.OpenSession`, `LookupSession`, `Session.Agent`, `LookupAgent`, `Agent.Append`, `Assemble`, `ObserveUsage`, `HandleTool`, `Search`, `GetEvent`, `TaskState`, `Engine.Verify`, `CloseSession`, `DeleteSession`, `Close` |
 | CLI commands | `serve`, `mcp`, `stats`, `inspect`, `search`, `show`, `verify`, `delete-session`, `vacuum`, `migrate`, `config`, `version` and their documented flags |
 | policy JSON | fields in `docs/configuration.md`; older `config_version` values are migrated on read |
 | database files | migrations only add; a database is never rewritten in a way an older 0.1.x build cannot detect, and a build refuses a schema newer than it knows |

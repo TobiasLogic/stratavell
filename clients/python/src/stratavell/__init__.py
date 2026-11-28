@@ -74,6 +74,9 @@ class Session:
         self.client.request("POST", f"/v1/sessions/{self.id}/agents", body)
         return Agent(self.client, self.id, agent_id)
 
+    def close(self):
+        return self.client.request("POST", f"/v1/sessions/{self.id}/close", {})
+
 
 class Agent:
     def __init__(self, client, session_id, agent_id):
@@ -83,10 +86,11 @@ class Agent:
     def append(self, *messages):
         return self.c.request("POST", self.base + "/events", {"messages": list(messages)})["events"]
 
-    def assemble(self, system="", tools=None, fmt="neutral", model="", max_tokens=0, include_memory_tools=True):
+    def assemble(self, system="", tools=None, fmt="neutral", model="", max_tokens=0, include_memory_tools=True, all_memory_tools=False):
         return self.c.request("POST", self.base + "/assemble", {
             "system": system, "tools": tools or [], "format": fmt, "model": model,
             "max_tokens": max_tokens, "include_memory_tools": include_memory_tools,
+            "all_memory_tools": all_memory_tools,
         })
 
     def usage(self, usage):

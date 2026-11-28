@@ -2,6 +2,45 @@
 
 All notable changes are listed here. The project follows [Semantic Versioning](https://semver.org/). Until 1.0, minor releases may change the Go API, the HTTP API, the MCP tool set or the database schema; every such change is listed here with migration steps.
 
+## Unreleased
+
+Retrieval and background-summary changes from the LOCA-bench agent test (`docs/agent-test.md`). In that test, Stratavell's agent spent 291 of its 325 memory calls reading archived outputs page by page, and 17 of its artifact lookups failed. Behavior changes are listed with the setting that restores the old behavior.
+
+### Retrieval
+
+- **Retrieval results stay visible.** In the test, 247 of the 351 memory-tool results were over the 6,000-token observation limit, so Stratavell replaced the page the agent had just asked for with a short preview.
+  - Results of memory tools are no longer externalized.
+  - `memory_get_event` pages are sized in tokens (`max_result_tokens`, 6,000), not bytes. The old 18,000-byte page of dense JSON came to about 7,700 tokens.
+  - A page ends at a line break when one is near the end.
+- **`memory_get_event` takes `max_tokens`,** up to 4 times `max_result_tokens`, limited by the room left under the aggressive threshold. The reply says when the limit applied.
+- **New tool `memory_query`** selects records from one archived output instead of paging through it:
+  - JSON: it finds the largest list of records, or the one named by `path`. A list of rows with a header row, as spreadsheet APIs return it, becomes records keyed by the header. JSON inside a Python-style wrapper such as `result='...'` is read too.
+  - CSV, TSV and Markdown tables
+  - plain text, by line, with `grep` and `context`
+  - `where` with `value`, `~part`, `>n`, `>=n`, `<n`, `<=n` or `!=v` on dotted field names; `fields`; `sort` (`-field` for descending); `offset` and `limit`. Records come back as compact JSON, one per line, within `max_result_tokens`.
+  - With only an id, it lists the fields and the first records.
+- **Structure hints.** Previews and masked notes of large structured outputs state their shape, for example "JSON, 120 records; fields: id, name, sku, ...", and point to `memory_query`.
+- **Hash prefixes resolve.** Event pages and notes show `sha256` and 12 hex characters, but `memory_get_artifact` matched only full blob hashes, and the hash in an event header was never a blob hash. Every such lookup in the test failed.
+  - `memory_get_artifact`, `memory_get_event` and `memory_query` now accept a full hash or a prefix of at least 8 hex characters, with or without `sha256:`.
+  - A prefix is matched only against outputs the caller can see. When it matches outputs with different content, the reply asks for a longer prefix.
+- **New outputs are shown once in full.** `masking.fresh_full_fraction` (default 0.20): an oversized output the model has not answered yet goes into the next context in full, if the new outputs together fit in that share of the capacity and the context stays under the aggressive threshold. After the model's next message it is previewed, as before. `0` restores immediate externalization.
+- **Repeated requests.** The repeat check compares parsed arguments, so `{"id": x}` and `{"id": x, "offset": 0}` count as the same request. Asking `memory_get_event` for an output that the last context included in full returns a short notice instead of a second copy.
+
+### Background summaries
+
+- **Agents that never assemble are not summarized.** A host that keeps its own context and only archives into Stratavell never shows a summary to its model, yet in the test such runs made 136 summary requests. They are now skipped. `compaction.passive_summaries: true` restores them.
+- **Closing a session cancels its jobs.** `POST /v1/sessions/{sid}/close`, `Engine.CloseSession`, `Session.close()` in Python and `closeSession()` in TypeScript cancel the session's queued and running summary jobs, record them as `cancelled` and unload the session. Its data stays, and the next request reopens it. `DeleteSession` cancels the session's jobs first, too.
+- **Summary requests are tagged.** The OpenAI, Anthropic and Ollama adapters send `X-Stratavell-Job` and `X-Stratavell-Attempt` with each summary request. `SummarizeInput` carries `JobID` and `Attempt`, and `engine.JobTagFrom(ctx)` reads them in a custom summarizer.
+- **Summary use is counted.** `memory_stats` and `Agent.Stats` report how many summaries were shown in an assembled context, expanded, or returned by search since the agent was loaded.
+
+### Tool definitions
+
+- **`include_memory_tools` sends six core tools:** `memory_search`, `memory_query`, `memory_get_event`, `memory_get_artifact`, `memory_expand` and `memory_update_task`.
+  - `memory_get_task_state`, `memory_get_summary_lineage` and `memory_stats` are still answered and listed over MCP. `all_memory_tools` (`AssembleRequest.AllMemoryTools`) sends them too.
+  - No agent in the LOCA test called them, and the task state is already in the context.
+- **Shorter descriptions and schemas.** Arguments that the schemas no longer list, such as search's `roles` and `seq_from`, are still accepted.
+- **Measured with the engine's estimator,** the memory tools and the engine notice take 1,140 tokens per request by default, down from 1,335, including the new tool. With all tools, 1,312.
+
 ## v0.1.3, 2026-11-28
 
 Security patch release. No API, MCP tool set, database schema or configuration changes.

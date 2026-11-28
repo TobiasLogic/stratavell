@@ -133,29 +133,32 @@ func (e *Engine) flushMetrics(ctx context.Context) error {
 }
 
 type AgentStats struct {
-	Session          string  `json:"session"`
-	Agent            string  `json:"agent"`
-	Generation       int64   `json:"generation"`
-	HeadSeq          int64   `json:"head_seq"`
-	BoundarySeq      int64   `json:"boundary_seq"`
-	MaskSeq          int64   `json:"mask_seq"`
-	ActiveTokens     int     `json:"active_tokens_estimate"`
-	Capacity         int     `json:"effective_capacity"`
-	RawItems         int     `json:"raw_items"`
-	FrontierNodes    int     `json:"frontier_nodes"`
-	FrontierTokens   int     `json:"frontier_tokens"`
-	ArchivedEvents   int64   `json:"archived_events"`
-	ArchivedTokens   int64   `json:"archived_tokens"`
-	TotalEvents      int64   `json:"total_events"`
-	TotalTokens      int64   `json:"total_tokens"`
-	CompressionRatio float64 `json:"compression_ratio"`
-	SummaryNodes     int64   `json:"summary_nodes"`
-	DAGDepth         int     `json:"dag_depth"`
-	PendingJobs      int     `json:"pending_jobs"`
-	ReadyResults     int     `json:"ready_results"`
-	CalibrationRatio float64 `json:"calibration_ratio"`
-	GrowthPerTurn    float64 `json:"growth_tokens_per_turn"`
-	SummarizerLatS   float64 `json:"summarizer_latency_s"`
+	Session           string  `json:"session"`
+	Agent             string  `json:"agent"`
+	Generation        int64   `json:"generation"`
+	HeadSeq           int64   `json:"head_seq"`
+	BoundarySeq       int64   `json:"boundary_seq"`
+	MaskSeq           int64   `json:"mask_seq"`
+	ActiveTokens      int     `json:"active_tokens_estimate"`
+	Capacity          int     `json:"effective_capacity"`
+	RawItems          int     `json:"raw_items"`
+	FrontierNodes     int     `json:"frontier_nodes"`
+	FrontierTokens    int     `json:"frontier_tokens"`
+	ArchivedEvents    int64   `json:"archived_events"`
+	ArchivedTokens    int64   `json:"archived_tokens"`
+	TotalEvents       int64   `json:"total_events"`
+	TotalTokens       int64   `json:"total_tokens"`
+	CompressionRatio  float64 `json:"compression_ratio"`
+	SummaryNodes      int64   `json:"summary_nodes"`
+	DAGDepth          int     `json:"dag_depth"`
+	PendingJobs       int     `json:"pending_jobs"`
+	ReadyResults      int     `json:"ready_results"`
+	CalibrationRatio  float64 `json:"calibration_ratio"`
+	GrowthPerTurn     float64 `json:"growth_tokens_per_turn"`
+	SummarizerLatS    float64 `json:"summarizer_latency_s"`
+	SummariesShown    int     `json:"summaries_shown"`
+	SummariesExpanded int     `json:"summaries_expanded"`
+	SummarySearchHits int     `json:"summary_search_hits"`
 }
 
 func (a *Agent) Stats(ctx context.Context) (AgentStats, error) {
@@ -164,6 +167,7 @@ func (a *Agent) Stats(ctx context.Context) (AgentStats, error) {
 	for _, n := range a.frontier {
 		st.DAGDepth = max(st.DAGDepth, n.Level)
 	}
+	st.SummariesShown, st.SummariesExpanded, st.SummarySearchHits = len(a.sumShown), len(a.sumExpanded), a.sumHits
 	boundary := a.boundary
 	a.mu.Unlock()
 	q := a.e.db.R

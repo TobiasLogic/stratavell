@@ -49,7 +49,8 @@ Effective capacity = `context_window - max_output_tokens - reasoning_tokens - ma
 | `rolling_keep` | 10 | observations kept in rolling mode |
 | `dedupe` | true | replace exact duplicate observations with a reference |
 | `unchanged_reads` | true | replace re-reads of unchanged files with a reference |
-| `externalize` | true | preview oversized outputs at ingestion |
+| `externalize` | true | preview outputs above `max_observation_tokens`; results of memory tools are never externalized |
+| `fresh_full_fraction` | 0.20 | an oversized output the model has not answered yet is shown in full once, if the new outputs together fit in this fraction of the capacity and the context stays under the aggressive threshold; 0 previews them at once, as before 0.2 |
 | `mask_tool_inputs` | true | shrink large tool-call inputs of masked assistant turns |
 | `input_mask_min_tokens` | 400 | input size worth masking |
 | `preview_head_lines`, `preview_tail_lines` | 40, 30 | preview shape |
@@ -84,6 +85,7 @@ Effective capacity = `context_window - max_output_tokens - reasoning_tokens - ma
 | `rate_per_minute` | 30 | summarizer requests per minute |
 | `tokens_per_minute` | 400000 | summarizer plus foreground tokens per minute when they share a provider budget |
 | `foreground_reserve` | 0 | share of `tokens_per_minute` kept for the foreground model |
+| `passive_summaries` | false | summarize agents that never call `assemble` (passive hosts that keep their own context); off by default, since nothing shows those summaries to the model |
 
 ## retrieval
 
@@ -96,9 +98,9 @@ Effective capacity = `context_window - max_output_tokens - reasoning_tokens - ma
 | `dedup_window_turns` | 6 | identical memory calls within this window are answered with a pointer to the earlier result |
 | `chunk_bytes` | 1600 | retrieval chunk size |
 | `index_max_bytes` | 2097152 | bytes of one event that are indexed; the digest of the rest is indexed |
-| `max_result_tokens` | 6000 | bound on one tool result |
+| `max_result_tokens` | 6000 | bound on one tool result, and the default `memory_get_event` page size in tokens; `max_tokens` asks for up to 4 times this, limited by the room left under the aggressive threshold |
 | `default_limit`, `max_limit` | 8, 25 | search result counts |
-| `artifact_max_length` | 32768 | bytes per `memory_get_artifact` call |
+| `artifact_max_length` | 32768 | bytes per `memory_get_artifact` call, also bounded by `max_result_tokens` |
 
 ## cache
 

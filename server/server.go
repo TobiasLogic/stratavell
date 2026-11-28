@@ -88,6 +88,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /v1/stats", s.engineStats)
 	m.HandleFunc("POST /v1/sessions", s.createSession)
 	m.HandleFunc("DELETE /v1/sessions/{sid}", s.deleteSession)
+	m.HandleFunc("POST /v1/sessions/{sid}/close", s.closeSession)
 	m.HandleFunc("GET /v1/sessions/{sid}/verify", s.verify)
 	m.HandleFunc("POST /v1/sessions/{sid}/agents", s.createAgent)
 	m.HandleFunc("POST /v1/sessions/{sid}/agents/{aid}/events", s.appendEvents)
@@ -205,6 +206,15 @@ func (s *Server) deleteSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, rep)
 }
 
+func (s *Server) closeSession(w http.ResponseWriter, r *http.Request) {
+	n, err := s.E.CloseSession(r.Context(), r.PathValue("sid"))
+	if err != nil {
+		classify(w, err)
+		return
+	}
+	writeJSON(w, 200, map[string]int{"cancelled_jobs": n})
+}
+
 func (s *Server) verify(w http.ResponseWriter, r *http.Request) {
 	rep, err := s.E.Verify(r.Context(), r.PathValue("sid"))
 	if err != nil {
@@ -317,6 +327,7 @@ type assembleReq struct {
 	System             string          `json:"system"`
 	Tools              []msg.ToolDef   `json:"tools"`
 	IncludeMemoryTools bool            `json:"include_memory_tools"`
+	AllMemoryTools     bool            `json:"all_memory_tools,omitempty"`
 	Query              string          `json:"query"`
 	Format             string          `json:"format"`
 	Model              string          `json:"model"`
@@ -335,7 +346,7 @@ func (s *Server) assemble(w http.ResponseWriter, r *http.Request) {
 		classify(w, err)
 		return
 	}
-	cx, err := a.Assemble(r.Context(), engine.AssembleRequest{System: req.System, Tools: req.Tools, IncludeMemoryTools: req.IncludeMemoryTools, Query: req.Query})
+	cx, err := a.Assemble(r.Context(), engine.AssembleRequest{System: req.System, Tools: req.Tools, IncludeMemoryTools: req.IncludeMemoryTools, AllMemoryTools: req.AllMemoryTools, Query: req.Query})
 	if err != nil {
 		classify(w, err)
 		return

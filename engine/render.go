@@ -36,6 +36,7 @@ type renderState struct {
 	writesAfter  map[string]int64
 	rollingFloor int64
 	squeeze      bool
+	fresh        map[string]bool
 }
 
 func (a *Agent) newRenderState() *renderState {
@@ -72,7 +73,35 @@ func (a *Agent) newRenderState() *renderState {
 	if a.emergencyMask > rs.maskSeq {
 		rs.maskSeq = a.emergencyMask
 	}
+	rs.fresh = a.freshOversize(rs.maskSeq)
 	return rs
+}
+
+func (a *Agent) freshOversize(maskSeq int64) map[string]bool {
+	frac := a.pol.Masking.FreshFull
+	if frac <= 0 || a.freshOff || a.squeeze || a.pol.Masking.Mode == MaskOff {
+		return nil
+	}
+	last := int64(0)
+	for i := len(a.raw) - 1; i >= 0; i-- {
+		if a.raw[i].ev.Role == msg.RoleAssistant {
+			last = a.raw[i].ev.Seq
+			break
+		}
+	}
+	budget := int(frac * float64(a.capacity()))
+	var out map[string]bool
+	for _, it := range a.raw {
+		if it.ev.Seq <= last || it.ev.Seq <= maskSeq || it.ev.Role != msg.RoleTool || !it.meta.Oversize || it.ev.Tokens > budget {
+			continue
+		}
+		if out == nil {
+			out = map[string]bool{}
+		}
+		out[it.ev.ID] = true
+		budget -= it.ev.Tokens
+	}
+	return out
 }
 
 var sentinelTags = []string{"<standing_instructions", "</standing_instructions", "<archive", "</archive", "<task_state", "</task_state", "<retrieved_evidence", "</retrieved_evidence"}
@@ -119,6 +148,7 @@ func (a *Agent) squeezedObservation(it *item) msg.Message {
 
 func (a *Agent) renderRaw() []rendered {
 	rs := a.newRenderState()
+	a.freshKept = len(rs.fresh)
 	out := make([]rendered, 0, len(a.raw))
 	lastWriteSeq := map[string]int64{}
 	for _, it := range a.raw {
@@ -160,7 +190,7 @@ func (a *Agent) renderItem(it *item, rs *renderState, lastWriteSeq map[string]in
 				return rendered{m: m, src: it, mode: modeUnchanged, tokens: a.e.messageTokens(m), modified: true}
 			}
 		}
-		if it.meta.Oversize {
+		if it.meta.Oversize && !rs.fresh[ev.ID] {
 			m := a.previewObservation(it, false)
 			return rendered{m: m, src: it, mode: modePreview, tokens: a.e.messageTokens(m), modified: true}
 		}
@@ -302,6 +332,9 @@ func (a *Agent) maskedObservation(it *item) msg.Message {
 			fmt.Fprintf(&b, "\n%s", d.SummaryLine)
 		}
 	}
+	if it.meta.Shape != "" {
+		fmt.Fprintf(&b, "\nstructure: %s; memory_query(%q) selects rows and fields.", it.meta.Shape, it.ev.ID)
+	}
 	fmt.Fprintf(&b, "\nmemory_get_event(%q) returns the original.", it.ev.ID)
 	return a.stubObservation(it, b.String())
 }
@@ -313,6 +346,9 @@ func (a *Agent) previewObservation(it *item, activeFailure bool) msg.Message {
 		label = "active failure evidence kept"
 	}
 	fmt.Fprintf(&b, "[%s: %s]\n", label, a.obsHeader(it))
+	if it.meta.Shape != "" {
+		fmt.Fprintf(&b, "structure: %s\n", it.meta.Shape)
+	}
 	if d := it.meta.Digest; d != nil {
 		b.WriteString(textproc.FormatDigest(*d))
 		b.WriteString("\n")
@@ -331,7 +367,11 @@ func (a *Agent) previewObservation(it *item, activeFailure bool) msg.Message {
 		b.WriteString(pv)
 		b.WriteString("\n")
 	}
-	fmt.Fprintf(&b, "[full output: memory_get_event(%q), memory_get_artifact for byte ranges, or memory_search]", it.ev.ID)
+	if it.meta.Shape != "" {
+		fmt.Fprintf(&b, "[select rows and fields: memory_query(%q); full output in pages: memory_get_event(%q)]", it.ev.ID, it.ev.ID)
+	} else {
+		fmt.Fprintf(&b, "[full output: memory_get_event(%q), memory_get_artifact for byte ranges, or memory_search]", it.ev.ID)
+	}
 	return a.stubObservation(it, b.String())
 }
 

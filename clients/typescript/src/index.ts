@@ -48,6 +48,10 @@ export class Client {
     await this.request("POST", `/v1/sessions/${session}/agents`, { id: agent });
     return new Agent(this, `/v1/sessions/${session}/agents/${agent}`);
   }
+
+  closeSession(session: string) {
+    return this.request<{ cancelled_jobs: number }>("POST", `/v1/sessions/${session}/close`, {});
+  }
 }
 
 export class Agent {
@@ -62,7 +66,7 @@ export class Agent {
     return this.c.request<{ events: { id: string; seq: number; tokens: number }[] }>("POST", `${this.base}/events`, { messages });
   }
 
-  assemble(opts: { system?: string; tools?: unknown[]; format?: "neutral" | "anthropic" | "openai"; model?: string; max_tokens?: number }) {
+  assemble(opts: { system?: string; tools?: unknown[]; format?: "neutral" | "anthropic" | "openai"; model?: string; max_tokens?: number; all_memory_tools?: boolean }) {
     return this.c.request<any>("POST", `${this.base}/assemble`, { include_memory_tools: true, ...opts });
   }
 

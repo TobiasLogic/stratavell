@@ -730,43 +730,56 @@ func (a *Agent) GetArtifact(ctx context.Context, ref string, offset, length int)
 	if offset < 0 {
 		offset = 0
 	}
-	hash := ref
-	if strings.HasPrefix(ref, "ev_") {
-		var body []byte
-		if _, err := a.checkEventAccess(ctx, ref); err != nil {
-			return nil, 0, err
+	if !strings.HasPrefix(ref, "ev_") {
+		if data, total, ok, err := a.visibleBlob(ctx, ref, offset, length); err != nil || ok {
+			return data, total, err
 		}
-		_, m, _, err := a.e.loadEvent(ctx, a.e.db.R, ref)
+		id, err := a.resolveRef(ctx, ref)
 		if err != nil {
 			return nil, 0, err
 		}
-		body = []byte(m.PlainText())
-		return sliceBytes(body, offset, length), len(body), nil
+		ref = id
+	}
+	if _, err := a.checkEventAccess(ctx, ref); err != nil {
+		return nil, 0, err
+	}
+	_, m, _, err := a.e.loadEvent(ctx, a.e.db.R, ref)
+	if err != nil {
+		return nil, 0, err
+	}
+	body := []byte(m.PlainText())
+	return sliceBytes(body, offset, length), len(body), nil
+}
+
+func (a *Agent) visibleBlob(ctx context.Context, ref string, offset, length int) ([]byte, int, bool, error) {
+	hash, ok := hashPrefix(ref)
+	if !ok || len(hash) != 64 {
+		return nil, 0, false, nil
 	}
 	vis, err := a.visibility(ctx)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 	rows, err := a.e.db.R.QueryContext(ctx, "SELECT r.event_id, r.agent_id, e.scope FROM blob_refs r JOIN events e ON e.id=r.event_id WHERE r.blob_hash=? AND r.session_id=?", hash, a.s.id)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
-	ok := false
+	found := false
 	for rows.Next() {
 		var ev, agent, scope string
 		if rows.Scan(&ev, &agent, &scope) == nil && vis.allows(a.s.id, agent, scope, ev) {
-			ok = true
+			found = true
 		}
 	}
 	rows.Close()
-	if !ok {
-		return nil, 0, fmt.Errorf("%w: artifact %s", ErrNotFound, short(hash))
+	if !found {
+		return nil, 0, false, nil
 	}
 	data, err := getBlob(ctx, a.e, hash)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
-	return sliceBytes(data, offset, length), len(data), nil
+	return sliceBytes(data, offset, length), len(data), true, nil
 }
 
 func sliceBytes(b []byte, off, n int) []byte {

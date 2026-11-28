@@ -283,6 +283,7 @@ func (s *Session) agent(ctx context.Context, id, parent, role string, pol *Polic
 	if err := a.load(ctx); err != nil {
 		return nil, err
 	}
+	a.assembled = a.gen > 0
 	e.mu.Lock()
 	if prev, ok := e.agents[k]; ok {
 		e.mu.Unlock()
@@ -359,23 +360,34 @@ type Agent struct {
 	taskSnapTok   int
 	taskSnapAt    int64
 	pinnedInit    bool
+
+	assembled   bool
+	freshOff    bool
+	freshKept   int
+	lastFull    map[string]bool
+	sumShown    map[string]bool
+	sumExpanded map[string]bool
+	sumHits     int
 }
 
 func newAgent(s *Session, id string, pol Policy) *Agent {
 	return &Agent{
-		e:         s.e,
-		s:         s,
-		id:        id,
-		pol:       pol,
-		calib:     tokens.NewCalibrator(),
-		pairing:   msg.NewPairingState(),
-		calls:     map[string]openCall{},
-		lastRead:  map[string]readInfo{},
-		lastWrite: map[string]int64{},
-		ready:     map[string]*readyResult{},
-		leafJobs:  map[string]jobSpec{},
-		failCount: map[[2]int64]int{},
-		retr:      retrievalLog{seen: map[string]retrievalSeen{}},
+		e:           s.e,
+		s:           s,
+		id:          id,
+		pol:         pol,
+		calib:       tokens.NewCalibrator(),
+		pairing:     msg.NewPairingState(),
+		calls:       map[string]openCall{},
+		lastRead:    map[string]readInfo{},
+		lastWrite:   map[string]int64{},
+		ready:       map[string]*readyResult{},
+		leafJobs:    map[string]jobSpec{},
+		failCount:   map[[2]int64]int{},
+		retr:        retrievalLog{seen: map[string]retrievalSeen{}},
+		lastFull:    map[string]bool{},
+		sumShown:    map[string]bool{},
+		sumExpanded: map[string]bool{},
 	}
 }
 
