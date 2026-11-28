@@ -863,3 +863,141 @@ func TestCloseDuringConcurrentAppends(t *testing.T) {
 		}
 	}
 }
+
+func summaryIDs(t *testing.T, e *engine.Engine, session string) []string {
+	t.Helper()
+	rows, err := e.DB().R.Query("SELECT id FROM summaries WHERE session_id=? ORDER BY level DESC, id", session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		out = append(out, id)
+	}
+	return out
+}
+
+func TestCrossSessionSummaryIsolation(t *testing.T) {
+	t.Parallel()
+	e := openEngine(t, smallPolicy(24000), manual())
+	ctx := context.Background()
+	a := mustAgent(t, e, "alpha", "main")
+	refs := runSim(t, a, 80, 7, func(i int, c *engine.Context) { e.RunJobs(ctx) })
+	b := mustAgent(t, e, "beta", "main")
+	runSim(t, b, 80, 8, func(i int, c *engine.Context) { e.RunJobs(ctx) })
+	theirs, mine := summaryIDs(t, e, "alpha"), summaryIDs(t, e, "beta")
+	if len(theirs) == 0 || len(mine) == 0 {
+		t.Fatalf("no summaries: alpha %d, beta %d", len(theirs), len(mine))
+	}
+	foreign := map[string]bool{}
+	for _, id := range theirs {
+		foreign[id] = true
+	}
+	const absent = "sm_00000000000000000000000000"
+	_, missing := b.Lineage(ctx, absent)
+	if !errors.Is(missing, engine.ErrNotFound) {
+		t.Fatalf("absent summary: %v", missing)
+	}
+	same := func(err error, id string) bool {
+		return err != nil && err.Error() == strings.ReplaceAll(missing.Error(), absent, id)
+	}
+	for _, id := range theirs {
+		if out, err := b.Lineage(ctx, id); !errors.Is(err, engine.ErrNotFound) || !same(err, id) {
+			t.Fatalf("lineage of another session's summary %s: %q %v", id, out, err)
+		}
+		if out, err := b.Expand(ctx, id, 0, 0, 2000); !errors.Is(err, engine.ErrNotFound) || !same(err, id) {
+			t.Fatalf("expand of another session's summary %s: %q %v", id, out, err)
+		}
+		args := json.RawMessage(fmt.Sprintf(`{"id":%q}`, id))
+		for _, tool := range []string{"memory_get_summary_lineage", "memory_expand"} {
+			if out := b.HandleTool(ctx, tool, args); !out.IsError || strings.Contains(out.Text, "seq_lo") || strings.Contains(out.Text, "level") {
+				t.Fatalf("%s leaked another session's summary %s: %+v", tool, id, out)
+			}
+		}
+		if _, err := a.Lineage(ctx, id); err != nil {
+			t.Fatalf("owner lineage of %s: %v", id, err)
+		}
+	}
+	for _, id := range mine {
+		out, err := b.Lineage(ctx, id)
+		if err != nil {
+			t.Fatalf("own lineage of %s: %v", id, err)
+		}
+		for f := range foreign {
+			if strings.Contains(out, f) {
+				t.Fatalf("own lineage of %s names another session's summary %s", id, f)
+			}
+		}
+	}
+	covered := 0
+	for _, r := range refs {
+		if _, err := b.Lineage(ctx, r.ID); !errors.Is(err, engine.ErrNotFound) {
+			t.Fatalf("lineage of another session's event %s: %v", r.ID, err)
+		}
+		out, err := a.Lineage(ctx, r.ID)
+		if err != nil {
+			t.Fatalf("owner lineage of event %s: %v", r.ID, err)
+		}
+		var got struct {
+			CoveredBy []string `json:"covered_by"`
+		}
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range got.CoveredBy {
+			if !foreign[p] {
+				t.Fatalf("event %s covered by a summary outside its session: %s", r.ID, p)
+			}
+			covered++
+		}
+	}
+	if covered == 0 {
+		t.Fatal("no event was covered by a summary, so covered_by was not tested")
+	}
+}
+
+func TestSiblingSummaryIsolation(t *testing.T) {
+	t.Parallel()
+	e := openEngine(t, smallPolicy(24000), manual())
+	ctx := context.Background()
+	s, err := e.OpenSession(ctx, "s", engine.SessionConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lead, _ := s.Agent(ctx, "lead")
+	mustAppend(t, lead, msg.Text(msg.RoleUser, "Coordinate two workers."))
+	w1, err := s.Spawn(ctx, lead, "worker1", engine.Handoff{Task: "first half"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w2, err := s.Spawn(ctx, lead, "worker2", engine.Handoff{Task: "second half"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runSim(t, w1, 80, 9, func(i int, c *engine.Context) { e.RunJobs(ctx) })
+	var ids []string
+	rows, err := e.DB().R.Query("SELECT id FROM summaries WHERE session_id='s' AND agent_id='worker1'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if len(ids) == 0 {
+		t.Fatal("worker1 has no summaries")
+	}
+	for _, id := range ids {
+		if _, err := w2.Lineage(ctx, id); !errors.Is(err, engine.ErrNotFound) {
+			t.Fatalf("sibling read worker1's summary lineage %s: %v", id, err)
+		}
+		if _, err := lead.Lineage(ctx, id); err != nil {
+			t.Fatalf("parent cannot read its worker's summary lineage %s: %v", id, err)
+		}
+	}
+}

@@ -290,10 +290,13 @@ type LineageNode struct {
 	Events   int           `json:"events,omitempty"`
 }
 
-func (e *Engine) lineage(ctx context.Context, id string, depth int) (LineageNode, error) {
+func (e *Engine) lineage(ctx context.Context, id string, depth int, allow func(*SummaryNode) bool) (LineageNode, error) {
 	n, err := e.loadSummary(ctx, e.db.R, id)
 	if err != nil {
 		return LineageNode{}, err
+	}
+	if !allow(n) {
+		return LineageNode{}, fmt.Errorf("%w: summary %s", ErrNotFound, id)
 	}
 	ln := LineageNode{ID: n.ID, Kind: n.Kind, Level: n.Level, Lo: n.Lo, Hi: n.Hi, State: n.State}
 	for _, s := range n.Sources {
@@ -301,15 +304,22 @@ func (e *Engine) lineage(ctx context.Context, id string, depth int) (LineageNode
 			ln.Events++
 			continue
 		}
+		c, err := e.loadSummary(ctx, e.db.R, s.ID)
+		if err != nil {
+			return ln, err
+		}
+		if !allow(c) {
+			continue
+		}
 		if depth <= 0 {
 			ln.Children = append(ln.Children, LineageNode{ID: s.ID, Kind: "summary"})
 			continue
 		}
-		c, err := e.lineage(ctx, s.ID, depth-1)
+		sub, err := e.lineage(ctx, s.ID, depth-1, allow)
 		if err != nil {
 			return ln, err
 		}
-		ln.Children = append(ln.Children, c)
+		ln.Children = append(ln.Children, sub)
 	}
 	return ln, nil
 }

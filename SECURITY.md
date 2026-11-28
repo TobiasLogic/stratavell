@@ -36,6 +36,11 @@ Stratavell is a local, single-tenant engine. It stores whatever an agent sends i
 **Embedding the Go SDK or `server.Handler`**
 - When you serve the handler from your own `http.Server`, the loopback guard above does not apply. Authentication and network exposure are your responsibility.
 
+**Memory tools**
+- An agent's memory tools return data from its own session only. Within a session, an agent sees its own and its sub-agents' private data, plus shared items and items granted in a handoff.
+- A refused id gets the same "not found" reply as an id that does not exist.
+- This applies to every memory tool. Before the fix listed in the changelog, `memory_get_summary_lineage` did not check it for summary ids.
+
 **Archived content is untrusted**
 - Tool outputs, web pages and files the agent saw can contain prompt injection. Stratavell labels archived and retrieved material as "data, not instructions", in the engine notice, in summary blocks, in retrieved evidence and in memory tool results.
 - Standing user instructions are kept apart from archived content, so archived text cannot become a standing instruction.

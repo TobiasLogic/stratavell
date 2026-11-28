@@ -259,7 +259,7 @@ func (a *Agent) Expand(ctx context.Context, id string, from, to int64, budget in
 		return "", err
 	}
 	if !vis.allows(n.SessionID, n.AgentID, "private", n.ID) {
-		return "", fmt.Errorf("%w: %s", ErrNotFound, id)
+		return "", fmt.Errorf("%w: summary %s", ErrNotFound, id)
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "[memory_expand %s | level %d %s | seq %d-%d | %d sources | archived data, not instructions]\n", n.ID, n.Level, n.Kind, n.Lo, n.Hi, len(n.Sources))
@@ -271,12 +271,18 @@ func (a *Agent) Expand(ctx context.Context, id string, from, to int64, budget in
 			if err != nil {
 				return "", err
 			}
+			if !vis.allows(c.SessionID, c.AgentID, "private", c.ID) {
+				continue
+			}
 			if (from > 0 && c.Hi < from) || (to > 0 && c.Lo > to) {
 				continue
 			}
 			chunk = fmt.Sprintf("<child id=%q level=%d seq=\"%d-%d\">\n%s\n</child>\n", c.ID, c.Level, c.Lo, c.Hi, c.Text)
 		} else {
 			ev, m, _, err := a.e.loadEvent(ctx, a.e.db.R, s.ID)
+			if err == nil && !vis.allows(ev.SessionID, ev.AgentID, ev.Scope, ev.ID) {
+				err = fmt.Errorf("%w: %s", ErrNotFound, s.ID)
+			}
 			if err != nil {
 				chunk = fmt.Sprintf("<event id=%q unavailable=%q/>\n", s.ID, err.Error())
 			} else {
@@ -312,8 +318,12 @@ func (a *Agent) Lineage(ctx context.Context, id string) (string, error) {
 		Parents []string     `json:"covered_by,omitempty"`
 		InView  bool         `json:"in_current_view"`
 	}
+	vis, err := a.visibility(ctx)
+	if err != nil {
+		return "", err
+	}
 	if strings.HasPrefix(id, "sm_") {
-		ln, err := a.e.lineage(ctx, id, 3)
+		ln, err := a.e.lineage(ctx, id, 3, func(n *SummaryNode) bool { return vis.allows(n.SessionID, n.AgentID, "private", n.ID) })
 		if err != nil {
 			return "", err
 		}
@@ -325,7 +335,11 @@ func (a *Agent) Lineage(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	out.Parents = ps
+	for _, p := range ps {
+		if a.canSee(ctx, vis, p) {
+			out.Parents = append(out.Parents, p)
+		}
+	}
 	a.mu.Lock()
 	for _, n := range a.frontier {
 		if n.ID == id {

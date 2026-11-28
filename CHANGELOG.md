@@ -4,6 +4,16 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 
 ## Unreleased
 
+### Security
+
+- **`memory_get_summary_lineage` checked access only for event ids.** v0.1.2 and earlier are affected, through the Go SDK, HTTP, the Unix socket and MCP.
+  - Given a summary id from another session, or from a sibling agent in the same session, it returned that summary's structure: kind, level, sequence range, number of source events, and the ids of related summaries.
+  - It returned no summary text and no event content.
+  - It now gives the same "not found" reply as for a summary that does not exist. Its child and covering-summary lists leave out summaries the agent cannot see.
+  - Found by a cross-session probe during the LOCA-bench agent test.
+- **`memory_expand` refused such a summary with a different message** than a summary that does not exist, so the reply showed that the id exists. Both now get the same reply. It also leaves out child summaries and events the agent cannot see.
+- Regression tests cover the engine, the HTTP API and the MCP server.
+
 ### Benchmark
 
 - **Fixed standing-rule visibility keys.** The three standing rules were detected by short keys (`vendor/`, `package store`, `go vet`) that also match ordinary session text: the vendor file listing, the first line of Go files in package `store`, and the `go vet ./...` command.
