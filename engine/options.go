@@ -151,7 +151,7 @@ func DefaultPolicy() Policy {
 			PreviewTail:    30,
 			PreviewLineMax: 240,
 			DigestErrors:   12,
-			FreshFull:      0.20,
+			FreshFull:      0,
 		},
 		Compaction: Compaction{
 			Enabled:          true,

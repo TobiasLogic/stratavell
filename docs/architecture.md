@@ -62,7 +62,8 @@ The full schema is in `docs/schema.md`.
    - code symbols for file contents and messages (for command output, the failing test names stand in for symbols)
    - paths from the first 64 KB
    - a file hash for reads
-   - a preview if the output is over `max_observation_tokens`
+   - a preview if the output is over `max_observation_tokens`, except for results of memory tools
+   - for long outputs, a one-line description of their structure when they are JSON or a table
 4. Writes blobs, the event, blob references, path and symbol rows, and task items in one transaction, then advances the agent head.
 5. Updates in-memory state, queues the event for indexing, and asks the scheduler whether background compaction should start.
 
@@ -75,7 +76,8 @@ Within the raw region, each event renders in one of these modes:
 | mode | when | what the model sees |
 |---|---|---|
 | full | default | the original parts |
-| preview | output over `max_observation_tokens`, decided at ingestion | header with id, tool, command, path, exit code, size and hash; the digest; head and tail lines; how to fetch the rest |
+| fresh | off by default; with `fresh_full_fraction` above 0, an output over `max_observation_tokens` that arrived after the model's last message, when the new outputs fit in that fraction of the capacity and the context stays under the aggressive threshold | the original parts, once |
+| preview | output over `max_observation_tokens`, decided at ingestion | header with id, tool, command, path, exit code, size and hash; the structure, for JSON and tables; the digest; head and tail lines; how to fetch the rest |
 | unchanged | a re-read of a file whose hash matches an earlier visible read with no write in between | one line pointing at the earlier read |
 | duplicate | a non-file observation identical to an earlier visible one | one line pointing at the earlier event |
 | masked | observation at or before the mask cutoff | header plus the first failing tests and error lines and the event id |
@@ -136,6 +138,8 @@ Leaf jobs cover the oldest raw events outside the recent window (about 20% of ca
 
 The scheduler keeps a FIFO queue per agent, serves agents round-robin, bounds in-flight jobs per agent and queued jobs overall, deduplicates jobs by range, and applies a per-minute request and token gate that can keep a share of the provider budget for the foreground model. Jobs have timeouts, exponential retry with jitter, and one stricter retry when a summary does not shrink its source to `min_reduction`. A summary that still fails validation becomes a deterministic pointer node. After restart, queued and running jobs are rebuilt from the current view if their range is still eligible, or marked abandoned.
 
+Only agents that have called `assemble` at least once are summarized in the background, since a host that keeps its own context never shows the summaries to its model; `passive_summaries` changes this. `CloseSession` cancels a session's queued and running jobs and marks them cancelled, so a run that has ended does not keep paying for summaries. Each summarizer call carries its job id and attempt in the context, and the bundled adapters send them as `X-Stratavell-Job` and `X-Stratavell-Attempt` headers.
+
 ## Emergency ladder
 
 All steps are deterministic and monotonic:
@@ -173,10 +177,17 @@ Pinned instructions are directives and constraints whose source event is no long
 
 Reciprocal rank fusion (k = 60) merges the lists. Small priors adjust for source reliability, files changed since they were read, and recency. Results are bounded snippets with provenance labels and an "already in context" flag.
 
-Expansion and retrieval tools page their output under a token budget. Every tool result is labeled as archived data.
+Expansion and retrieval tools page their output under a token budget. `memory_get_event` pages are sized in tokens, and `max_tokens` asks for a larger page within the room left under the aggressive threshold. Results of memory tools are never externalized, so a page the model asked for stays in its context.
+
+`memory_query` reads one archived output as records instead of pages: the largest list in JSON (or the one named by `path`), rows of a CSV, TSV or Markdown table, or lines of text. It filters with `where`, keeps `fields`, sorts, and greps, and returns compact JSON records within the result budget.
+
+`memory_get_artifact`, `memory_get_event` and `memory_query` accept an event id, a full sha256 hash, or a hash prefix of at least 8 hex characters, resolved only among outputs the caller can see.
+
+Every tool result is labeled as archived data.
 
 Loop control:
-- the same memory call repeated within six turns is answered with a pointer to the earlier result
+- the same memory call repeated within six turns is answered with a pointer to the earlier result; arguments are compared after parsing, so default values spelled out do not make a new request
+- a `memory_get_event` call for an output that the last context included in full is answered with a notice
 - each turn has a call budget
 
 ## Multi-agent model

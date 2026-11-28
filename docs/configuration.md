@@ -50,7 +50,7 @@ Effective capacity = `context_window - max_output_tokens - reasoning_tokens - ma
 | `dedupe` | true | replace exact duplicate observations with a reference |
 | `unchanged_reads` | true | replace re-reads of unchanged files with a reference |
 | `externalize` | true | preview outputs above `max_observation_tokens`; results of memory tools are never externalized |
-| `fresh_full_fraction` | 0.20 | an oversized output the model has not answered yet is shown in full once, if the new outputs together fit in this fraction of the capacity and the context stays under the aggressive threshold; 0 previews them at once, as before 0.2 |
+| `fresh_full_fraction` | 0 | above 0, an oversized output the model has not answered yet is shown in full once, if the new outputs together fit in this fraction of the capacity and the context stays under the aggressive threshold. It rewrites that message on the next turn, which breaks the prompt cache: at 0.20, G's cost in the 64k suite rose by about 18% (seeds 1 and 2), with no change in the probe results. It is meant for real agents, where seeing an output once may save retrieval calls; that has not been measured |
 | `mask_tool_inputs` | true | shrink large tool-call inputs of masked assistant turns |
 | `input_mask_min_tokens` | 400 | input size worth masking |
 | `preview_head_lines`, `preview_tail_lines` | 40, 30 | preview shape |

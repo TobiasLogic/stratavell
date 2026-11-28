@@ -190,14 +190,14 @@
   {
     "strategy": "G-hybrid",
     "raw_session_tokens": 1300096,
-    "input_tokens": 1764071,
-    "cache_read_tokens": 963357,
-    "cache_write_tokens": 790617,
-    "uncached_tokens": 10097,
+    "input_tokens": 1701471,
+    "cache_read_tokens": 944605,
+    "cache_write_tokens": 746907,
+    "uncached_tokens": 9959,
     "extra_primary_calls": 0,
     "extra_primary_output_tokens": 0,
-    "tool_tokens_sent": 704855,
-    "max_context": 19898,
+    "tool_tokens_sent": 651422,
+    "max_context": 19214,
     "overflow_turns": 0,
     "probes": 78,
     "probe_by_kind": {
@@ -226,10 +226,10 @@
         18
       ]
     },
-    "input_cost_usd": "2.0931",
-    "total_cost_usd": "2.1105",
+    "input_cost_usd": "1.9816",
+    "total_cost_usd": "1.9998",
     "completion_rate": "1.0000",
-    "probe_grounded": "0.5256",
+    "probe_grounded": "0.4487",
     "probe_recoverable": "1.0000",
     "standing_retention": "1.0000",
     "exact_recovery": "1.0000"

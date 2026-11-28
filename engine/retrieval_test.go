@@ -281,6 +281,7 @@ func TestFreshOutputKeptOnce(t *testing.T) {
 	p.Budget.ContextWindow = 64000
 	p.Budget.MaxOutputTokens = 4000
 	p.Budget.MaxObservationToken = 2000
+	p.Masking.FreshFull = 0.2
 	e := openEngine(t, p, manual())
 	a := mustAgent(t, e, "s", "main")
 	ctx := context.Background()
@@ -307,7 +308,9 @@ func TestFreshOutputKeptOnce(t *testing.T) {
 	q.Budget.ContextWindow = 64000
 	q.Budget.MaxOutputTokens = 4000
 	q.Budget.MaxObservationToken = 2000
-	q.Masking.FreshFull = 0
+	if q.Masking.FreshFull != 0 {
+		t.Fatal("fresh_full_fraction should default to 0")
+	}
 	e2 := openEngine(t, q, manual())
 	b := mustAgent(t, e2, "s", "main")
 	mustAppend(t, b, msg.Text(msg.RoleUser, "list products"))
@@ -317,7 +320,7 @@ func TestFreshOutputKeptOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	if view.Report.FreshFull != 0 || strings.Contains(contextText(view), `"sku": "SKU-0012"`) {
-		t.Fatal("fresh_full_fraction 0 should restore immediate externalization")
+		t.Fatal("fresh_full_fraction 0, the default, should externalize at once")
 	}
 }
 

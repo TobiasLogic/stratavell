@@ -23,7 +23,9 @@ Retrieval and background-summary changes from the LOCA-bench agent test (`docs/a
 - **Hash prefixes resolve.** Event pages and notes show `sha256` and 12 hex characters, but `memory_get_artifact` matched only full blob hashes, and the hash in an event header was never a blob hash. Every such lookup in the test failed.
   - `memory_get_artifact`, `memory_get_event` and `memory_query` now accept a full hash or a prefix of at least 8 hex characters, with or without `sha256:`.
   - A prefix is matched only against outputs the caller can see. When it matches outputs with different content, the reply asks for a longer prefix.
-- **New outputs are shown once in full.** `masking.fresh_full_fraction` (default 0.20): an oversized output the model has not answered yet goes into the next context in full, if the new outputs together fit in that share of the capacity and the context stays under the aggressive threshold. After the model's next message it is previewed, as before. `0` restores immediate externalization.
+- **New option to show new outputs once in full.** With `masking.fresh_full_fraction` above 0, an oversized output the model has not answered yet goes into the next context in full, if the new outputs together fit in that share of the capacity and the context stays under the aggressive threshold. After the model's next message it is previewed.
+  - It is off by default. Turning a full message into a preview on the next turn breaks the prompt cache: at 0.20, G's cost in the 64k suite rose by about 18% on seeds 1 and 2, with the same probe results. Keeping such outputs in full until the next mask epoch cost 25 to 33% more.
+  - It is meant for real agents, where seeing an output once may save retrieval calls. That has not been measured yet.
 - **Repeated requests.** The repeat check compares parsed arguments, so `{"id": x}` and `{"id": x, "offset": 0}` count as the same request. Asking `memory_get_event` for an output that the last context included in full returns a short notice instead of a second copy.
 
 ### Background summaries
