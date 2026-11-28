@@ -1,0 +1,11 @@
+name=v1.2-UpdateMaterialInventoryS2LEnv-compact
+start=2026-11-27T22:44:49Z
+load_start=16.57 15.51 15.20
+stratavell_url=
+stratavell_window=
+stratavell_mode=
+args=-c /mnt/storage/code2/loca/work/configs/UpdateMaterialInventoryS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --context-summary --reset-size 47474 --max-context-size 72236 
+end=2026-11-27T22:55:41Z
+load_end=14.16 14.52 14.83
+preflight=0
+exit=0

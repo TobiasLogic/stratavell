@@ -1,0 +1,11 @@
+name=v1.1-CanvasListTestS2LEnv-trim
+start=2026-11-27T14:57:41Z
+load_start=14.15 14.50 14.95
+stratavell_url=
+stratavell_window=
+stratavell_mode=
+args=-c /mnt/storage/code2/loca/work/configs/CanvasListTestS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --max-context-size 72159 
+end=2026-11-27T15:07:02Z
+load_end=14.63 14.89 14.97
+preflight=0
+exit=0

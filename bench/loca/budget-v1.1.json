@@ -1,0 +1,152 @@
+{
+ "CanvasArrangeExamS2LEnv": {
+  "loca_limit": 53434,
+  "loca_max_context_size": 69818,
+  "loca_reset_size": 45419,
+  "passive_limit": 53272,
+  "passive_max_context_size": 69656,
+  "passive_reset_size": 45281,
+  "stratavell_capacity": 61932,
+  "stratavell_window": 80616
+ },
+ "CanvasListTestS2LEnv": {
+  "loca_limit": 55775,
+  "loca_max_context_size": 72159,
+  "loca_reset_size": 47409,
+  "passive_limit": 55613,
+  "passive_max_context_size": 71997,
+  "passive_reset_size": 47271,
+  "stratavell_capacity": 61796,
+  "stratavell_window": 80480
+ },
+ "CourseAssistantS2LEnv": {
+  "loca_limit": 56124,
+  "loca_max_context_size": 72508,
+  "loca_reset_size": 47705,
+  "passive_limit": 55962,
+  "passive_max_context_size": 72346,
+  "passive_reset_size": 47568,
+  "stratavell_capacity": 61089,
+  "stratavell_window": 79773
+ },
+ "ABTestingS2LEnv": {
+  "loca_limit": 57463,
+  "loca_max_context_size": 73847,
+  "loca_reset_size": 48844,
+  "passive_limit": 57301,
+  "passive_max_context_size": 73685,
+  "passive_reset_size": 48706,
+  "stratavell_capacity": 60950,
+  "stratavell_window": 79634
+ },
+ "AcademicWarningS2LEnv": {
+  "loca_limit": 57464,
+  "loca_max_context_size": 73848,
+  "loca_reset_size": 48844,
+  "passive_limit": 57302,
+  "passive_max_context_size": 73686,
+  "passive_reset_size": 48707,
+  "stratavell_capacity": 60929,
+  "stratavell_window": 79613
+ },
+ "ApplyPhDEmailS2LEnv": {
+  "loca_limit": 57169,
+  "loca_max_context_size": 73553,
+  "loca_reset_size": 48594,
+  "passive_limit": 57006,
+  "passive_max_context_size": 73390,
+  "passive_reset_size": 48455,
+  "stratavell_capacity": 61659,
+  "stratavell_window": 80343
+ },
+ "MachineOperatingS2LEnv": {
+  "loca_limit": 55947,
+  "loca_max_context_size": 72331,
+  "loca_reset_size": 47555,
+  "passive_limit": 55785,
+  "passive_max_context_size": 72169,
+  "passive_reset_size": 47417,
+  "stratavell_capacity": 60915,
+  "stratavell_window": 79599
+ },
+ "SetConfCrDdlS2LEnv": {
+  "loca_limit": 57413,
+  "loca_max_context_size": 73797,
+  "loca_reset_size": 48801,
+  "passive_limit": 57251,
+  "passive_max_context_size": 73635,
+  "passive_reset_size": 48663,
+  "stratavell_capacity": 61151,
+  "stratavell_window": 79835
+ },
+ "ExcelMarketResearchS2LEnv": {
+  "loca_limit": 56958,
+  "loca_max_context_size": 73342,
+  "loca_reset_size": 48414,
+  "passive_limit": 56795,
+  "passive_max_context_size": 73179,
+  "passive_reset_size": 48276,
+  "stratavell_capacity": 60951,
+  "stratavell_window": 79635
+ },
+ "FilterLowSellingProductsS2LEnv": {
+  "loca_limit": 55600,
+  "loca_max_context_size": 71984,
+  "loca_reset_size": 47260,
+  "passive_limit": 55438,
+  "passive_max_context_size": 71822,
+  "passive_reset_size": 47122,
+  "stratavell_capacity": 62125,
+  "stratavell_window": 80809
+ },
+ "UpdateMaterialInventoryS2LEnv": {
+  "loca_limit": 55852,
+  "loca_max_context_size": 72236,
+  "loca_reset_size": 47474,
+  "passive_limit": 55691,
+  "passive_max_context_size": 72075,
+  "passive_reset_size": 47337,
+  "stratavell_capacity": 62194,
+  "stratavell_window": 80878
+ },
+ "WoocommerceNewWelcomeS2LEnv": {
+  "loca_limit": 54577,
+  "loca_max_context_size": 70961,
+  "loca_reset_size": 46390,
+  "passive_limit": 54415,
+  "passive_max_context_size": 70799,
+  "passive_reset_size": 46253,
+  "stratavell_capacity": 62165,
+  "stratavell_window": 80849
+ },
+ "WoocommerceStockAlertS2LEnv": {
+  "loca_limit": 55033,
+  "loca_max_context_size": 71417,
+  "loca_reset_size": 46778,
+  "passive_limit": 54871,
+  "passive_max_context_size": 71255,
+  "passive_reset_size": 46640,
+  "stratavell_capacity": 62382,
+  "stratavell_window": 81066
+ },
+ "NhlB2bAnalysisS2LEnv": {
+  "loca_limit": 57900,
+  "loca_max_context_size": 74284,
+  "loca_reset_size": 49215,
+  "passive_limit": 57738,
+  "passive_max_context_size": 74122,
+  "passive_reset_size": 49077,
+  "stratavell_capacity": 61188,
+  "stratavell_window": 79872
+ },
+ "PayableInvoiceCheckerS2LEnv": {
+  "loca_limit": 57346,
+  "loca_max_context_size": 73730,
+  "loca_reset_size": 48744,
+  "passive_limit": 57184,
+  "passive_max_context_size": 73568,
+  "passive_reset_size": 48606,
+  "stratavell_capacity": 61303,
+  "stratavell_window": 79987
+ }
+}

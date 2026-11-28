@@ -1,0 +1,11 @@
+name=v1.2-CourseAssistantS2LEnv-stratavell
+start=2026-11-27T16:54:11Z
+load_start=14.56 15.27 15.43
+stratavell_url=http://127.0.0.1:7077
+stratavell_window=79773
+stratavell_mode=
+args=-c /mnt/storage/code2/loca/work/configs/CourseAssistantS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 
+end=2026-11-27T17:01:56Z
+load_end=14.57 14.96 15.22
+preflight=0
+exit=0

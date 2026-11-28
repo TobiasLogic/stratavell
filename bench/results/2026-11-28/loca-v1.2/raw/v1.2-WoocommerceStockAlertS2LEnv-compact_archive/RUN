@@ -1,0 +1,11 @@
+name=v1.2-WoocommerceStockAlertS2LEnv-compact_archive
+start=2026-11-28T00:33:25Z
+load_start=15.53 15.84 15.58
+stratavell_url=http://127.0.0.1:7077
+stratavell_window=81066
+stratavell_mode=passive
+args=-c /mnt/storage/code2/loca/work/configs/WoocommerceStockAlertS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --context-summary --reset-size 46640 --max-context-size 71255 
+end=2026-11-28T00:54:37Z
+load_end=14.41 14.68 14.98
+preflight=0
+exit=0

@@ -1,0 +1,11 @@
+name=v1.2-AcademicWarningS2LEnv-compact
+start=2026-11-27T19:00:27Z
+load_start=14.58 14.74 14.87
+stratavell_url=
+stratavell_window=
+stratavell_mode=
+args=-c /mnt/storage/code2/loca/work/configs/AcademicWarningS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --context-summary --reset-size 48844 --max-context-size 73848 
+end=2026-11-27T19:07:22Z
+load_end=13.98 14.48 14.74
+preflight=0
+exit=0

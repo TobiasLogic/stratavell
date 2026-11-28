@@ -1,0 +1,11 @@
+name=v1.2-SetConfCrDdlS2LEnv-trim
+start=2026-11-27T20:26:06Z
+load_start=14.91 15.48 15.57
+stratavell_url=
+stratavell_window=
+stratavell_mode=
+args=-c /mnt/storage/code2/loca/work/configs/SetConfCrDdlS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --max-context-size 73797 
+end=2026-11-27T20:29:04Z
+load_end=15.42 15.53 15.57
+preflight=0
+exit=0

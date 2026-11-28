@@ -1,0 +1,11 @@
+name=v1.1-CanvasArrangeExamS2LEnv-compact
+start=2026-11-27T13:48:55Z
+load_start=15.61 15.63 15.41
+stratavell_url=
+stratavell_window=
+stratavell_mode=
+args=-c /mnt/storage/code2/loca/work/configs/CanvasArrangeExamS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --context-summary --reset-size 45419 --max-context-size 69818 
+end=2026-11-27T13:57:00Z
+load_end=14.25 14.85 15.16
+preflight=0
+exit=0
