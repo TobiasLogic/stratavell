@@ -3,6 +3,7 @@ import json, statistics as st, collections, sys, os, re
 root = sys.argv[1]
 res = os.path.join(root, "bench/results/2026-11-26")
 det = os.path.join(root, "bench/results/2026-11-27")
+sim = os.path.join(root, "bench/results/2026-11-28")
 here = os.path.join(root, "bench/review")
 HEDGE = re.compile(r"(?i)\b(i )?(don't|do not) know\b|not (stated|shown|present|mentioned)|cannot (confirm|determine)|can't (confirm|determine)")
 LABEL = {
@@ -43,8 +44,8 @@ def txt(headers, rows):
     return "\n".join(lines)
 
 
-def suite(name):
-    path = os.path.join(det, name, "runs.jsonl")
+def suite(name, base=None):
+    path = os.path.join(base or sim, name, "runs.jsonl")
     if not os.path.exists(path):
         return None
     by = collections.OrderedDict()
@@ -75,6 +76,35 @@ def main_rows(by, sep, label):
             ms(g("engine_ms_p95"), 2, sep),
         ])
     return rows
+
+
+def change_rows(name, label):
+    old, new = suite(name, det), suite(name, sim)
+    if old is None or new is None:
+        return []
+    rows = []
+    for s, rs in new.items():
+        os_ = old.get(s)
+        if not os_:
+            continue
+        m = lambda rows, k: st.mean([r[k] for r in rows])
+        keys = ["total_cost_usd", "input_tokens", "cache_hit_rate", "probe_grounded", "probe_recoverable", "standing_retention", "overflow_turns"]
+        if all(m(os_, k) == m(rs, k) for k in keys):
+            rows.append([LABEL.get(s, s) if label else s, "unchanged", "", "", "", ""])
+            continue
+        c0, c1 = m(os_, "total_cost_usd"), m(rs, "total_cost_usd")
+        rows.append([
+            LABEL.get(s, s) if label else s,
+            f"{c0:.2f} to {c1:.2f} ({100 * (c1 / c0 - 1):+.1f}%)",
+            f"{m(os_, 'input_tokens') / 1e6:.2f} to {m(rs, 'input_tokens') / 1e6:.2f}",
+            f"{100 * m(os_, 'cache_hit_rate'):.1f} to {100 * m(rs, 'cache_hit_rate'):.1f}",
+            f"{100 * m(os_, 'probe_grounded'):.1f} to {100 * m(rs, 'probe_grounded'):.1f}",
+            f"{100 * m(os_, 'probe_recoverable'):.1f} to {100 * m(rs, 'probe_recoverable'):.1f}",
+        ])
+    return rows
+
+
+CHANGE_H = ["strategy", "total cost $", "input Mtok", "cache hit %", "grounded %", "recoverable %"]
 
 
 MAIN_H = ["strategy", "completion %", "input cost $", "total cost $", "input Mtok", "cache hit %", "overflow turns", "fg wait s", "visible %", "grounded %", "recoverable %", "standing rules %", "tool Mtok", "extra primary calls", "engine p95 ms"]
@@ -313,6 +343,8 @@ def build(template, out, fmt):
         text = text.replace("{{" + name + ".acct}}", T(ACCT_H, acct_rows(by, md_mode)))
         text = text.replace("{{" + name + ".kind}}", T(KIND_H, kind_rows(by, md_mode)))
         text = text.replace("{{" + name + ".savings}}", savings(by))
+        rows = change_rows(name, md_mode)
+        text = text.replace("{{" + name + ".change}}", T(CHANGE_H, rows) if rows else "(no earlier run)")
         g = by.get("G-hybrid")
         if g:
             raw = [r["raw_session_tokens"] for r in g]
@@ -328,7 +360,7 @@ def build(template, out, fmt):
     text = text.replace("{{reader.v4.2}}", T(V42_H, rows) if rows else "(not run yet)")
     hz = hedged([("v2 extractive", os.path.join(res, "reader-extractive/reader.regraded.jsonl")), ("Haiku summaries", os.path.join(res, "reader-haiku-summaries/reader.regraded.jsonl")), ("v3", os.path.join(res, "reader-v3/reader.jsonl"))] + [(name, os.path.join(res, rel, "reader.jsonl")) for rel, name in readers_v4()])
     text = text.replace("{{spend}}", sys.argv[2] if len(sys.argv) > 2 else "unknown")
-    build_file = os.path.join(det, "BUILD")
+    build_file = os.path.join(sim, "BUILD")
     text = text.replace("{{build}}", open(build_file).read().strip() if os.path.exists(build_file) else "unknown")
     text = text.replace("{{hedged}}", "\n".join(("- " if md_mode else "  ") + h for h in hz) if hz else "(none)")
     left = re.findall(r"\{\{[^}]+\}\}", text)

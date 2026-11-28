@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/TobiasLogic/stratavell/internal/store"
@@ -16,7 +17,7 @@ func schema(s string) json.RawMessage { return json.RawMessage(s) }
 func MemoryTools() []msg.ToolDef {
 	return []msg.ToolDef{
 		{Name: "memory_search", Description: "Search this session's archive: events, tool outputs and summaries. Returns snippets with ids.", Schema: schema(`{"type":"object","properties":{"query":{"type":"string"},"limit":{"type":"integer"},"filters":{"type":"object","properties":{"kinds":{"type":"array","items":{"type":"string"}},"tools":{"type":"array","items":{"type":"string"}},"path":{"type":"string"}}}},"required":["query"]}`)},
-		{Name: "memory_query", Description: "Select records from one archived JSON, table or text output instead of paging. where: {field: value, ~part, >n, <n or !=v}; fields to keep; sort by field or -field; grep a regex. With only id, lists its fields.", Schema: schema(`{"type":"object","properties":{"id":{"type":"string"},"where":{"type":"object"},"fields":{"type":"array","items":{"type":"string"}},"sort":{"type":"string"},"grep":{"type":"string"},"path":{"type":"string"},"offset":{"type":"integer"}},"required":["id"]}`)},
+		{Name: "memory_query", Description: "Select records from one archived JSON, table or text output instead of paging. where: {field: value, ~part, >n, <n or !=v}; fields to keep (returned as CSV); sort by field or -field; grep a regex. Returns as many records as fit; max_tokens for more.", Schema: schema(`{"type":"object","properties":{"id":{"type":"string"},"where":{"type":"object"},"fields":{"type":"array","items":{"type":"string"}},"sort":{"type":"string"},"grep":{"type":"string"},"path":{"type":"string"},"offset":{"type":"integer"},"max_tokens":{"type":"integer"}},"required":["id"]}`)},
 		{Name: "memory_get_event", Description: "Exact original content of one event, in pages. offset continues; max_tokens sets the page size.", Schema: schema(`{"type":"object","properties":{"id":{"type":"string"},"offset":{"type":"integer"},"max_tokens":{"type":"integer"}},"required":["id"]}`)},
 		{Name: "memory_get_artifact", Description: "Byte range of an archived output, by event id or sha256 hash or hash prefix.", Schema: schema(`{"type":"object","properties":{"id":{"type":"string"},"offset":{"type":"integer"},"length":{"type":"integer"}},"required":["id"]}`)},
 		{Name: "memory_expand", Description: "Expand a summary into its child summaries or original events.", Schema: schema(`{"type":"object","properties":{"id":{"type":"string"},"token_budget":{"type":"integer"}},"required":["id"]}`)},
@@ -42,7 +43,8 @@ func CoreMemoryTools() []msg.ToolDef {
 func IsMemoryTool(name string) bool { return strings.HasPrefix(name, "memory_") }
 
 type retrievalSeen struct {
-	turn int64
+	turn     int64
+	textHash string
 }
 
 type retrievalLog struct {
@@ -66,11 +68,13 @@ func (a *Agent) HandleTool(ctx context.Context, name string, input json.RawMessa
 	}
 	a.retr.calls++
 	calls := a.retr.calls
-	key := name + "\x00" + canonicalArgs(input)
-	prev, dup := a.retr.seen[store.HashBytes([]byte(key))]
+	input = lenientArgs(input)
+	key := store.HashBytes([]byte(name + "\x00" + canonicalArgs(input)))
+	prev, dup := a.retr.seen[key]
 	window := int64(a.pol.Retrieval.DedupWindowTurns)
 	turn := a.turn
-	a.retr.seen[store.HashBytes([]byte(key))] = retrievalSeen{turn: turn}
+	a.retr.seen[key] = retrievalSeen{turn: turn, textHash: prev.textHash}
+	visible := dup && a.resultVisibleLocked(prev.textHash)
 	if len(a.retr.seen) > 512 {
 		for k, v := range a.retr.seen {
 			if turn-v.turn > window {
@@ -84,7 +88,7 @@ func (a *Agent) HandleTool(ctx context.Context, name string, input json.RawMessa
 			a.e.metrics.inc("retrieval_budget_blocks", 1)
 			return ToolOutput{Text: fmt.Sprintf("retrieval budget for this turn is used up (%d calls). Continue with the information already retrieved.", a.pol.Retrieval.MaxCallsPerTurn), IsError: true}
 		}
-		if dup && turn-prev.turn <= window && turn != prev.turn {
+		if visible && turn-prev.turn <= window && turn != prev.turn {
 			a.e.metrics.inc("retrieval_loops_blocked", 1)
 			return ToolOutput{Text: fmt.Sprintf("this exact %s request was already answered %d turn(s) ago and that result is still in recent context; it would return the same data. Use the earlier result or change the request.", name, turn-prev.turn)}
 		}
@@ -93,7 +97,25 @@ func (a *Agent) HandleTool(ctx context.Context, name string, input json.RawMessa
 	if err != nil {
 		return ToolOutput{Text: err.Error(), IsError: true}
 	}
+	a.mu.Lock()
+	if s, ok := a.retr.seen[key]; ok {
+		s.textHash = store.HashBytes([]byte(out))
+		a.retr.seen[key] = s
+	}
+	a.mu.Unlock()
 	return ToolOutput{Text: out}
+}
+
+func (a *Agent) resultVisibleLocked(textHash string) bool {
+	if textHash == "" || a.lastFullText[textHash] {
+		return true
+	}
+	for _, it := range a.raw {
+		if it.meta.TextHash == textHash {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *Agent) handleTool(ctx context.Context, name string, input json.RawMessage) (string, error) {
@@ -311,6 +333,46 @@ func (a *Agent) alreadyInContext(id string, offset int) (string, bool) {
 	}
 	a.e.metrics.inc("retrieval_in_context", 1)
 	return fmt.Sprintf("[memory_get_event %s: this output is already in your context in full, unchanged; not repeated. Use memory_query to select rows or fields from it.]", id), true
+}
+
+var intArgs = map[string]bool{"offset": true, "limit": true, "length": true, "max_tokens": true, "token_budget": true, "context": true, "seq_from": true, "seq_to": true, "expected_version": true}
+
+func lenientArgs(input json.RawMessage) json.RawMessage {
+	var m map[string]any
+	if len(input) == 0 || json.Unmarshal(input, &m) != nil {
+		return input
+	}
+	changed := false
+	for k, v := range m {
+		s, ok := v.(string)
+		if !ok {
+			continue
+		}
+		switch {
+		case intArgs[k]:
+			if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil {
+				m[k] = n
+				changed = true
+			}
+		case k == "fields":
+			var fs []string
+			for _, f := range strings.Split(s, ",") {
+				if f = strings.TrimSpace(f); f != "" {
+					fs = append(fs, f)
+				}
+			}
+			m[k] = fs
+			changed = true
+		}
+	}
+	if !changed {
+		return input
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return input
+	}
+	return b
 }
 
 func canonicalArgs(input json.RawMessage) string {

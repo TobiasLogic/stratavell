@@ -16,15 +16,16 @@ import (
 )
 
 type QueryRequest struct {
-	ID      string         `json:"id"`
-	Path    string         `json:"path,omitempty"`
-	Where   map[string]any `json:"where,omitempty"`
-	Fields  []string       `json:"fields,omitempty"`
-	Sort    string         `json:"sort,omitempty"`
-	Grep    string         `json:"grep,omitempty"`
-	Context int            `json:"context,omitempty"`
-	Offset  int            `json:"offset,omitempty"`
-	Limit   int            `json:"limit,omitempty"`
+	ID        string         `json:"id"`
+	Path      string         `json:"path,omitempty"`
+	Where     map[string]any `json:"where,omitempty"`
+	Fields    []string       `json:"fields,omitempty"`
+	Sort      string         `json:"sort,omitempty"`
+	Grep      string         `json:"grep,omitempty"`
+	Context   int            `json:"context,omitempty"`
+	Offset    int            `json:"offset,omitempty"`
+	Limit     int            `json:"limit,omitempty"`
+	MaxTokens int            `json:"max_tokens,omitempty"`
 }
 
 type records struct {
@@ -578,24 +579,6 @@ func compactJSON(v any) string {
 	return strings.TrimRight(buf.String(), "\n")
 }
 
-func project(rec any, fields []string) any {
-	if len(fields) == 0 {
-		return rec
-	}
-	out := make(map[string]any, len(fields))
-	for _, f := range fields {
-		vals := fieldValues(rec, f)
-		switch len(vals) {
-		case 0:
-		case 1:
-			out[f] = vals[0]
-		default:
-			out[f] = vals
-		}
-	}
-	return out
-}
-
 func sortRows(idx []int, rows []any, key string) {
 	desc := strings.HasPrefix(key, "-")
 	key = strings.TrimPrefix(key, "-")
@@ -674,19 +657,19 @@ func (a *Agent) Query(ctx context.Context, q QueryRequest) (string, error) {
 		}
 	}
 	r := parseRecords(text, q.Path)
-	maxTok := a.pol.Retrieval.MaxResultTokens
+	maxTok, note := a.pageTokens(q.MaxTokens)
 	limit := q.Limit
 	if limit <= 0 {
-		limit = 50
+		limit = 1000
 	}
-	limit = min(limit, 1000)
+	limit = min(limit, 5000)
 	re := compileGrep(q.Grep)
 	var b strings.Builder
 	if r.kind == shapeText {
 		if q.Path != "" || len(q.Where) > 0 || len(q.Fields) > 0 {
 			return "", fmt.Errorf("%s is plain text, not JSON or a table; use grep, or memory_get_event for pages", ev.ID)
 		}
-		return a.queryLines(ev, r.lines, re, q, limit, maxTok), nil
+		return a.queryLines(ev, r.lines, re, q, limit, maxTok) + note, nil
 	}
 	conds := parseConditions(q.Where)
 	idx := make([]int, 0, len(r.rows))
@@ -716,12 +699,18 @@ func (a *Agent) Query(ctx context.Context, q QueryRequest) (string, error) {
 	fmt.Fprintf(&b, "[memory_query %s | %s%s | %d records, %d match", ev.ID, r.kind, at, len(r.rows), len(idx))
 	header := b.String()
 	b.Reset()
-	if len(r.columns) > 0 && len(q.Fields) == 0 {
-		cols := r.columns
-		if len(cols) > 40 {
-			cols = cols[:40]
+	cols := q.Fields
+	if len(cols) == 0 && r.kind == shapeTable {
+		cols = r.columns
+	}
+	if len(cols) > 0 {
+		b.WriteString("csv: " + csvLine(append([]string{"#"}, cols...)))
+	} else if len(r.columns) > 0 {
+		shownCols := r.columns
+		if len(shownCols) > 40 {
+			shownCols = shownCols[:40]
 		}
-		fmt.Fprintf(&b, "fields: %s\n", strings.Join(cols, ", "))
+		fmt.Fprintf(&b, "fields: %s\n", strings.Join(shownCols, ", "))
 	}
 	used := a.e.count(header) + a.e.count(b.String()) + 24
 	shown, end := 0, start
@@ -729,7 +718,24 @@ func (a *Agent) Query(ctx context.Context, q QueryRequest) (string, error) {
 		if shown >= limit {
 			break
 		}
-		line := fmt.Sprintf("#%d %s\n", i, compactJSON(project(r.rows[i], q.Fields)))
+		var line string
+		if len(cols) > 0 {
+			cells := []string{strconv.Itoa(i)}
+			for _, c := range cols {
+				vals := fieldValues(r.rows[i], c)
+				switch len(vals) {
+				case 0:
+					cells = append(cells, "")
+				case 1:
+					cells = append(cells, scalarString(vals[0]))
+				default:
+					cells = append(cells, compactJSON(vals))
+				}
+			}
+			line = csvLine(cells)
+		} else {
+			line = fmt.Sprintf("#%d %s\n", i, compactJSON(r.rows[i]))
+		}
 		t := a.e.count(line)
 		if used+t > maxTok && shown > 0 {
 			break
@@ -754,7 +760,15 @@ func (a *Agent) Query(ctx context.Context, q QueryRequest) (string, error) {
 	if len(idx) == 0 {
 		out += "no records match; check field names against the fields line, or loosen where\n"
 	}
-	return out, nil
+	return out + note, nil
+}
+
+func csvLine(cells []string) string {
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	_ = w.Write(cells)
+	w.Flush()
+	return buf.String()
 }
 
 func (a *Agent) queryLines(ev Event, lines []string, re *regexp.Regexp, q QueryRequest, limit, maxTok int) string {

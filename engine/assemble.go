@@ -252,9 +252,13 @@ func (a *Agent) Assemble(ctx context.Context, req AssembleRequest) (*Context, er
 	a.assembled = true
 	rep.FreshFull = a.freshKept
 	clear(a.lastFull)
+	clear(a.lastFullText)
 	for _, r := range p.hist {
 		if r.mode == modeFull && r.src.ev.Role == msg.RoleTool {
 			a.lastFull[r.src.ev.ID] = true
+			if r.src.meta.TextHash != "" {
+				a.lastFullText[r.src.meta.TextHash] = true
+			}
 		}
 	}
 	for _, n := range a.frontier {

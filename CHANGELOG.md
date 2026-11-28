@@ -17,7 +17,8 @@ Retrieval and background-summary changes from the LOCA-bench agent test (`docs/a
   - JSON: it finds the largest list of records, or the one named by `path`. A list of rows with a header row, as spreadsheet APIs return it, becomes records keyed by the header. JSON inside a Python-style wrapper such as `result='...'` is read too.
   - CSV, TSV and Markdown tables
   - plain text, by line, with `grep` and `context`
-  - `where` with `value`, `~part`, `>n`, `>=n`, `<n`, `<=n` or `!=v` on dotted field names; `fields`; `sort` (`-field` for descending); `offset` and `limit`. Records come back as compact JSON, one per line, within `max_result_tokens`.
+  - `where` with `value`, `~part`, `>n`, `>=n`, `<n`, `<=n` or `!=v` on dotted field names; `fields`; `sort` (`-field` for descending); `offset` and `limit`.
+  - It returns as many records as fit in `max_result_tokens`, and `max_tokens` asks for more, as for `memory_get_event`. Rows of a table, and any query with `fields`, come back as CSV under one header line; other records as compact JSON, one per line.
   - With only an id, it lists the fields and the first records.
 - **Structure hints.** Previews and masked notes of large structured outputs state their shape, for example "JSON, 120 records; fields: id, name, sku, ...", and point to `memory_query`.
 - **Hash prefixes resolve.** Event pages and notes show `sha256` and 12 hex characters, but `memory_get_artifact` matched only full blob hashes, and the hash in an event header was never a blob hash. Every such lookup in the test failed.
@@ -26,7 +27,11 @@ Retrieval and background-summary changes from the LOCA-bench agent test (`docs/a
 - **New option to show new outputs once in full.** With `masking.fresh_full_fraction` above 0, an oversized output the model has not answered yet goes into the next context in full, if the new outputs together fit in that share of the capacity and the context stays under the aggressive threshold. After the model's next message it is previewed.
   - It is off by default. Turning a full message into a preview on the next turn breaks the prompt cache: at 0.20, G's cost in the 64k suite rose by about 18% on seeds 1 and 2, with the same probe results. Keeping such outputs in full until the next mask epoch cost 25 to 33% more.
   - It is meant for real agents, where seeing an output once may save retrieval calls. That has not been measured yet.
-- **Repeated requests.** The repeat check compares parsed arguments, so `{"id": x}` and `{"id": x, "offset": 0}` count as the same request. Asking `memory_get_event` for an output that the last context included in full returns a short notice instead of a second copy.
+- **Repeated requests.**
+  - The repeat check compares parsed arguments, so `{"id": x}` and `{"id": x, "offset": 0}` count as the same request.
+  - A repeat is refused only while the earlier result is still in the context in full. Before, it was refused for six turns even after masking had removed the result, which told the agent it still had data it no longer saw.
+  - Asking `memory_get_event` for an output that the last context included in full returns a short notice instead of a second copy.
+- **Numbers sent as strings are accepted.** `"limit": "1200"` failed with a JSON type error, as did `offset`, `length` and `max_tokens`. `fields` may also be a comma-separated string.
 
 ### Background summaries
 
@@ -41,7 +46,7 @@ Retrieval and background-summary changes from the LOCA-bench agent test (`docs/a
   - `memory_get_task_state`, `memory_get_summary_lineage` and `memory_stats` are still answered and listed over MCP. `all_memory_tools` (`AssembleRequest.AllMemoryTools`) sends them too.
   - No agent in the LOCA test called them, and the task state is already in the context.
 - **Shorter descriptions and schemas.** Arguments that the schemas no longer list, such as search's `roles` and `seq_from`, are still accepted.
-- **Measured with the engine's estimator,** the memory tools and the engine notice take 1,140 tokens per request by default, down from 1,335, including the new tool. With all tools, 1,312.
+- **Measured with the engine's estimator,** the memory tools and the engine notice take 1,167 tokens per request by default, down from 1,335, including the new tool. With all tools, 1,339.
 
 ## v0.1.3, 2026-11-28
 

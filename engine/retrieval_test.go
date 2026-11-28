@@ -71,18 +71,12 @@ func TestQueryStructuredOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "table at valueRanges.0.values | 300 records") {
+	if !strings.Contains(out, "table at valueRanges.0.values | 300 records") || !strings.Contains(out, "csv: #,Date,Score,Home\n") {
 		t.Fatalf("sheet header not detected:\n%s", out)
 	}
-	for _, l := range strings.Split(out, "\n")[1:] {
-		if l == "" || strings.HasPrefix(l, "[") {
-			continue
-		}
-		if !strings.Contains(l, `"Score":"4"`) && !strings.Contains(l, `"Score":"5"`) {
-			t.Fatalf("row does not satisfy Score>=4: %s", l)
-		}
-		if strings.Contains(l, "Visitor") {
-			t.Fatalf("fields did not project: %s", l)
+	for _, rec := range csvRows(t, out) {
+		if len(rec) != 4 || (rec[2] != "4" && rec[2] != "5") {
+			t.Fatalf("row does not satisfy Score>=4 or was not projected: %v", rec)
 		}
 	}
 
@@ -94,16 +88,13 @@ func TestQueryStructuredOutputs(t *testing.T) {
 		t.Fatalf("product query:\n%s", out)
 	}
 	var prev = 1000
-	for _, l := range strings.Split(out, "\n")[1:] {
-		i := strings.Index(l, " {")
-		if i < 0 {
-			continue
-		}
-		var rec map[string]any
-		if err := json.Unmarshal([]byte(l[i+1:]), &rec); err != nil {
-			t.Fatalf("record is not compact JSON: %q", l)
-		}
-		q := int(rec["stock_quantity"].(float64))
+	rows := csvRows(t, out)
+	if len(rows) == 0 {
+		t.Fatalf("no product rows:\n%s", out)
+	}
+	for _, rec := range rows {
+		var q int
+		fmt.Sscanf(rec[3], "%d", &q)
 		if q >= 5 || q > prev {
 			t.Fatalf("filter or descending sort broken at %v", rec)
 		}
@@ -114,7 +105,7 @@ func TestQueryStructuredOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "3 match") || !strings.Contains(out, `{"address":"B7","value":700}`) {
+	if !strings.Contains(out, "3 match") || !strings.Contains(out, ",B7,700\n") {
 		t.Fatalf("python-wrapped excel output not parsed:\n%s", out)
 	}
 
@@ -144,7 +135,7 @@ func TestQueryTextAndTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "table | 50 records, 5 match") || !strings.Contains(out, `#49 {"name":"item49","region":"south","sales":"490"}`) {
+	if !strings.Contains(out, "table | 50 records, 5 match") || !strings.Contains(out, "\n49,item49,south,490\n") {
 		t.Fatalf("csv query:\n%s", out)
 	}
 	md := "| a | b |\n|---|---|\n| 1 | x |\n| 2 | y |\n| 3 | x |\n"
@@ -187,7 +178,7 @@ func TestQueryPagesWithinBudget(t *testing.T) {
 	var next int
 	fmt.Sscanf(out.Text[i+len("offset "):], "%d", &next)
 	out2 := a.HandleTool(context.Background(), "memory_query", json.RawMessage(fmt.Sprintf(`{"id":%q,"fields":["id","sku"],"offset":%d}`, ref.ID, next)))
-	if !strings.Contains(out2.Text, fmt.Sprintf("#%d ", next)) {
+	if !strings.Contains(out2.Text, fmt.Sprintf("\n%d,", next)) {
 		t.Fatalf("second page should start at record %d:\n%s", next, out2.Text[:200])
 	}
 }
@@ -275,6 +266,74 @@ func TestRetrievalPagesStayVisible(t *testing.T) {
 }
 
 func estimate(s string) int { return len(s) / 3 }
+
+func csvRows(t *testing.T, out string) [][]string {
+	t.Helper()
+	var rows [][]string
+	in := false
+	for _, l := range strings.Split(out, "\n") {
+		if strings.HasPrefix(l, "csv: ") {
+			in = true
+			continue
+		}
+		if !in || l == "" || strings.HasPrefix(l, "[") {
+			continue
+		}
+		rows = append(rows, strings.Split(l, ","))
+	}
+	return rows
+}
+
+func TestQueryArgumentsAsStrings(t *testing.T) {
+	e := openEngine(t, engine.DefaultPolicy(), manual())
+	a := mustAgent(t, e, "s", "main")
+	ref := callAndResult(t, a, "c1", "woo_products_list", `{}`, productsJSON(40))
+	out := a.HandleTool(context.Background(), "memory_query", json.RawMessage(fmt.Sprintf(`{"id":%q,"fields":"id, sku","limit":"5","offset":"2"}`, ref.ID)))
+	if out.IsError || !strings.Contains(out.Text, "csv: #,id,sku\n") || !strings.Contains(out.Text, "showing 3-7") {
+		t.Fatalf("numbers and fields sent as strings should work: %s", out.Text)
+	}
+	page := a.HandleTool(context.Background(), "memory_get_event", json.RawMessage(fmt.Sprintf(`{"id":%q,"max_tokens":"300"}`, ref.ID)))
+	if page.IsError || estimate(page.Text) > 600 {
+		t.Fatalf("max_tokens as a string should apply: %d", estimate(page.Text))
+	}
+}
+
+func TestRepeatAnsweredAfterMasking(t *testing.T) {
+	p := smallPolicy(16000)
+	e := openEngine(t, p, manual())
+	a := mustAgent(t, e, "s", "main")
+	ctx := context.Background()
+	mustAppend(t, a, msg.Text(msg.RoleUser, "go"))
+	ref := callAndResult(t, a, "c0", "bash", `{"command":"inventory"}`, strings.Repeat("widget 42 in bin A7\n", 30))
+	if _, err := a.Assemble(ctx, engine.AssembleRequest{IncludeMemoryTools: true}); err != nil {
+		t.Fatal(err)
+	}
+	args := map[string]any{"id": ref.ID, "grep": "widget"}
+	if out := memoryCall(t, a, "m1", "memory_query", args); out.IsError {
+		t.Fatal(out.Text)
+	}
+	masked, turns := false, 0
+	for i := 0; i < 40 && !masked; i++ {
+		turns++
+		for j := 0; j < 2; j++ {
+			callAndResult(t, a, fmt.Sprintf("f%d-%d", i, j), "bash", `{"command":"step"}`, strings.Repeat(fmt.Sprintf("filler %d.%d output line\n", i, j), 150))
+		}
+		mustAppend(t, a, msg.Text(msg.RoleAssistant, "next"))
+		view, err := a.Assemble(ctx, engine.AssembleRequest{IncludeMemoryTools: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		masked = strings.Contains(strings.Join(view.Report.Actions, ","), "mask_epoch") && !strings.Contains(contextText(view), "L1: widget 42 in bin A7")
+	}
+	if !masked || turns >= e.Policy().Retrieval.DedupWindowTurns {
+		t.Fatalf("setup: the earlier query result must be masked within the repeat window (masked %v after %d turns)", masked, turns)
+	}
+	in, _ := json.Marshal(args)
+	out := a.HandleTool(ctx, "memory_query", in)
+	if strings.Contains(out.Text, "already answered") || !strings.Contains(out.Text, "widget 42") {
+		t.Fatalf("a repeat whose earlier result was masked should be answered: %s", out.Text)
+	}
+}
 
 func TestFreshOutputKeptOnce(t *testing.T) {
 	p := engine.DefaultPolicy()

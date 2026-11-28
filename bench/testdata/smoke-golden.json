@@ -143,14 +143,14 @@
   {
     "strategy": "F-async-progressive+retrieval",
     "raw_session_tokens": 1300096,
-    "input_tokens": 1289785,
-    "cache_read_tokens": 598862,
-    "cache_write_tokens": 687977,
+    "input_tokens": 1293025,
+    "cache_read_tokens": 602075,
+    "cache_write_tokens": 688004,
     "uncached_tokens": 2946,
     "extra_primary_calls": 0,
     "extra_primary_output_tokens": 0,
     "tool_tokens_sent": 857432,
-    "max_context": 21590,
+    "max_context": 21617,
     "overflow_turns": 0,
     "probes": 78,
     "probe_by_kind": {
@@ -179,8 +179,8 @@
         18
       ]
     },
-    "input_cost_usd": "1.7857",
-    "total_cost_usd": "1.7932",
+    "input_cost_usd": "1.7861",
+    "total_cost_usd": "1.7936",
     "completion_rate": "1.0000",
     "probe_grounded": "0.0256",
     "probe_recoverable": "0.9872",
@@ -190,14 +190,14 @@
   {
     "strategy": "G-hybrid",
     "raw_session_tokens": 1300096,
-    "input_tokens": 1701471,
-    "cache_read_tokens": 944605,
-    "cache_write_tokens": 746907,
+    "input_tokens": 1704711,
+    "cache_read_tokens": 947818,
+    "cache_write_tokens": 746934,
     "uncached_tokens": 9959,
     "extra_primary_calls": 0,
     "extra_primary_output_tokens": 0,
     "tool_tokens_sent": 651422,
-    "max_context": 19214,
+    "max_context": 19241,
     "overflow_turns": 0,
     "probes": 78,
     "probe_by_kind": {
@@ -226,8 +226,8 @@
         18
       ]
     },
-    "input_cost_usd": "1.9816",
-    "total_cost_usd": "1.9998",
+    "input_cost_usd": "1.9820",
+    "total_cost_usd": "2.0001",
     "completion_rate": "1.0000",
     "probe_grounded": "0.4487",
     "probe_recoverable": "1.0000",

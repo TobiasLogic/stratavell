@@ -361,33 +361,35 @@ type Agent struct {
 	taskSnapAt    int64
 	pinnedInit    bool
 
-	assembled   bool
-	freshOff    bool
-	freshKept   int
-	lastFull    map[string]bool
-	sumShown    map[string]bool
-	sumExpanded map[string]bool
-	sumHits     int
+	assembled    bool
+	freshOff     bool
+	freshKept    int
+	lastFull     map[string]bool
+	lastFullText map[string]bool
+	sumShown     map[string]bool
+	sumExpanded  map[string]bool
+	sumHits      int
 }
 
 func newAgent(s *Session, id string, pol Policy) *Agent {
 	return &Agent{
-		e:           s.e,
-		s:           s,
-		id:          id,
-		pol:         pol,
-		calib:       tokens.NewCalibrator(),
-		pairing:     msg.NewPairingState(),
-		calls:       map[string]openCall{},
-		lastRead:    map[string]readInfo{},
-		lastWrite:   map[string]int64{},
-		ready:       map[string]*readyResult{},
-		leafJobs:    map[string]jobSpec{},
-		failCount:   map[[2]int64]int{},
-		retr:        retrievalLog{seen: map[string]retrievalSeen{}},
-		lastFull:    map[string]bool{},
-		sumShown:    map[string]bool{},
-		sumExpanded: map[string]bool{},
+		e:            s.e,
+		s:            s,
+		id:           id,
+		pol:          pol,
+		calib:        tokens.NewCalibrator(),
+		pairing:      msg.NewPairingState(),
+		calls:        map[string]openCall{},
+		lastRead:     map[string]readInfo{},
+		lastWrite:    map[string]int64{},
+		ready:        map[string]*readyResult{},
+		leafJobs:     map[string]jobSpec{},
+		failCount:    map[[2]int64]int{},
+		retr:         retrievalLog{seen: map[string]retrievalSeen{}},
+		lastFull:     map[string]bool{},
+		lastFullText: map[string]bool{},
+		sumShown:     map[string]bool{},
+		sumExpanded:  map[string]bool{},
 	}
 }
 
