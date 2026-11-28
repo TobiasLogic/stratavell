@@ -1,0 +1,567 @@
+{
+ "target": 57000,
+ "over_budget_threshold": 59850.0,
+ "price": {
+  "source": "OpenRouter's listed price for nvidia/nemotron-3-ultra-550b-a55b (the paid id), read 2026-11-28",
+  "prompt_per_million": 0.5,
+  "completion_per_million": 2.2,
+  "cache_read_per_million": 0.1
+ },
+ "bootstrap": {
+  "resamples": 10000,
+  "seed": 0,
+  "method": "percentile, states resampled with replacement"
+ },
+ "difference_sign": "stratavell minus the other strategy",
+ "per_strategy": {
+  "trim": {
+   "runs": 15,
+   "success_raw": 1,
+   "success_primary": 1,
+   "success_narrow": 1,
+   "ended": {
+    "claim_done": 12,
+    "context_lost": 2,
+    "tool_cap": 1
+   },
+   "median_agent_prompt_mean": 37075.5,
+   "median_prompt_tokens_per_run": 825754,
+   "prompt_tokens": 17432180,
+   "completion_tokens": 357960,
+   "cached_tokens": 12577696,
+   "agent_requests": 418,
+   "loca_summary_requests": 0,
+   "stratavell_summary_requests": 0,
+   "memory_calls": 0,
+   "memory_calls_by_tool": {},
+   "memory_calls_in_tool_cap_runs": [
+    0
+   ],
+   "tool_cap_runs": 1,
+   "memory_calls_in_tool_cap_runs_min": 0,
+   "memory_calls_in_tool_cap_runs_max": 0,
+   "memory_results": {},
+   "tool_calls": 566,
+   "minutes": 101.5,
+   "capped_replies": 3,
+   "failed_requests": 0,
+   "cost_estimate_usd": 9.5,
+   "cost_estimate_with_cache_usd": 4.47,
+   "over_budget_states": [
+    "PayableInvoiceCheckerS2LEnv"
+   ],
+   "max_agent_prompt": 66708
+  },
+  "compact": {
+   "runs": 15,
+   "success_raw": 2,
+   "success_primary": 1,
+   "success_narrow": 2,
+   "ended": {
+    "claim_done": 6,
+    "tool_cap": 9
+   },
+   "median_agent_prompt_mean": 22349.6,
+   "median_prompt_tokens_per_run": 1613454,
+   "prompt_tokens": 25462768,
+   "completion_tokens": 587765,
+   "cached_tokens": 17369408,
+   "agent_requests": 953,
+   "loca_summary_requests": 93,
+   "stratavell_summary_requests": 0,
+   "memory_calls": 0,
+   "memory_calls_by_tool": {},
+   "memory_calls_in_tool_cap_runs": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "tool_cap_runs": 9,
+   "memory_calls_in_tool_cap_runs_min": 0,
+   "memory_calls_in_tool_cap_runs_max": 0,
+   "memory_results": {},
+   "tool_calls": 1166,
+   "minutes": 214.8,
+   "capped_replies": 10,
+   "failed_requests": 7,
+   "cost_estimate_usd": 14.02,
+   "cost_estimate_with_cache_usd": 7.08,
+   "over_budget_states": [],
+   "max_agent_prompt": 50886
+  },
+  "compact_archive": {
+   "runs": 15,
+   "success_raw": 3,
+   "success_primary": 2,
+   "success_narrow": 3,
+   "ended": {
+    "claim_done": 5,
+    "tool_cap": 9,
+    "text_reply": 1
+   },
+   "median_agent_prompt_mean": 29404.4,
+   "median_prompt_tokens_per_run": 1271070,
+   "prompt_tokens": 24774472,
+   "completion_tokens": 589322,
+   "cached_tokens": 16567136,
+   "agent_requests": 855,
+   "loca_summary_requests": 91,
+   "stratavell_summary_requests": 136,
+   "memory_calls": 20,
+   "memory_calls_by_tool": {
+    "memory_search": 11,
+    "memory_get_event": 9
+   },
+   "memory_calls_in_tool_cap_runs": [
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    10,
+    8,
+    0
+   ],
+   "tool_cap_runs": 9,
+   "memory_calls_in_tool_cap_runs_min": 0,
+   "memory_calls_in_tool_cap_runs_max": 10,
+   "memory_results": {
+    "search_hits": 10,
+    "page": 8,
+    "other": 2
+   },
+   "tool_calls": 1122,
+   "minutes": 150.1,
+   "capped_replies": 0,
+   "failed_requests": 0,
+   "cost_estimate_usd": 13.68,
+   "cost_estimate_with_cache_usd": 7.06,
+   "over_budget_states": [
+    "PayableInvoiceCheckerS2LEnv"
+   ],
+   "max_agent_prompt": 60804
+  },
+  "stratavell": {
+   "runs": 15,
+   "success_raw": 1,
+   "success_primary": 1,
+   "success_narrow": 1,
+   "ended": {
+    "claim_done": 7,
+    "tool_cap": 6,
+    "text_reply": 2
+   },
+   "median_agent_prompt_mean": 26606.5,
+   "median_prompt_tokens_per_run": 1982499,
+   "prompt_tokens": 28904697,
+   "completion_tokens": 554805,
+   "cached_tokens": 21955072,
+   "agent_requests": 950,
+   "loca_summary_requests": 0,
+   "stratavell_summary_requests": 155,
+   "memory_calls": 325,
+   "memory_calls_by_tool": {
+    "memory_get_event": 174,
+    "memory_search": 5,
+    "memory_update_task": 1,
+    "memory_get_artifact": 144,
+    "memory_expand": 1
+   },
+   "memory_calls_in_tool_cap_runs": [
+    36,
+    41,
+    42,
+    35,
+    57,
+    69
+   ],
+   "tool_cap_runs": 6,
+   "memory_calls_in_tool_cap_runs_min": 35,
+   "memory_calls_in_tool_cap_runs_max": 69,
+   "memory_results": {
+    "page": 291,
+    "search_hits": 5,
+    "other": 1,
+    "not_found": 17,
+    "repeat_notice": 8,
+    "no_result": 3
+   },
+   "tool_calls": 990,
+   "minutes": 158.6,
+   "capped_replies": 4,
+   "failed_requests": 0,
+   "cost_estimate_usd": 15.67,
+   "cost_estimate_with_cache_usd": 6.89,
+   "over_budget_states": [],
+   "max_agent_prompt": 47463
+  }
+ },
+ "success_pairs": {
+  "success_primary": {
+   "trim": {
+    "other": "trim",
+    "both": 0,
+    "stratavell_only": 1,
+    "other_only": 1,
+    "neither": 13,
+    "difference": 0.0,
+    "bootstrap_95": [
+     -0.2,
+     0.2
+    ],
+    "mcnemar_p": 1.0
+   },
+   "compact": {
+    "other": "compact",
+    "both": 0,
+    "stratavell_only": 1,
+    "other_only": 1,
+    "neither": 13,
+    "difference": 0.0,
+    "bootstrap_95": [
+     -0.2,
+     0.2
+    ],
+    "mcnemar_p": 1.0
+   },
+   "compact_archive": {
+    "other": "compact_archive",
+    "both": 1,
+    "stratavell_only": 0,
+    "other_only": 1,
+    "neither": 13,
+    "difference": -0.0667,
+    "bootstrap_95": [
+     -0.2,
+     0.0
+    ],
+    "mcnemar_p": 1.0
+   }
+  },
+  "success_narrow": {
+   "trim": {
+    "other": "trim",
+    "both": 0,
+    "stratavell_only": 1,
+    "other_only": 1,
+    "neither": 13,
+    "difference": 0.0,
+    "bootstrap_95": [
+     -0.2,
+     0.2
+    ],
+    "mcnemar_p": 1.0
+   },
+   "compact": {
+    "other": "compact",
+    "both": 0,
+    "stratavell_only": 1,
+    "other_only": 2,
+    "neither": 12,
+    "difference": -0.0667,
+    "bootstrap_95": [
+     -0.2667,
+     0.1333
+    ],
+    "mcnemar_p": 1.0
+   },
+   "compact_archive": {
+    "other": "compact_archive",
+    "both": 1,
+    "stratavell_only": 0,
+    "other_only": 2,
+    "neither": 12,
+    "difference": -0.1333,
+    "bootstrap_95": [
+     -0.3333,
+     0.0
+    ],
+    "mcnemar_p": 0.5
+   }
+  }
+ },
+ "token_pairs": {
+  "agent_prompt_mean": {
+   "trim": {
+    "other": "trim",
+    "median_difference": -9952.699999999997,
+    "differences": {
+     "ABTestingS2LEnv": -8364.999999999998,
+     "AcademicWarningS2LEnv": -13574.8,
+     "ApplyPhDEmailS2LEnv": -14770.500000000004,
+     "CanvasArrangeExamS2LEnv": -9952.699999999997,
+     "CanvasListTestS2LEnv": -12473.000000000004,
+     "CourseAssistantS2LEnv": 3400.2999999999993,
+     "ExcelMarketResearchS2LEnv": 16209.900000000001,
+     "FilterLowSellingProductsS2LEnv": -12697.200000000004,
+     "MachineOperatingS2LEnv": -14265.399999999998,
+     "NhlB2bAnalysisS2LEnv": 14606.600000000002,
+     "PayableInvoiceCheckerS2LEnv": -21621.5,
+     "SetConfCrDdlS2LEnv": -6023.699999999997,
+     "UpdateMaterialInventoryS2LEnv": -7527.199999999997,
+     "WoocommerceNewWelcomeS2LEnv": -12427.900000000001,
+     "WoocommerceStockAlertS2LEnv": -9790.599999999999
+    },
+    "sign_test": {
+     "stratavell_lower": 12,
+     "stratavell_higher": 3,
+     "ties": 0,
+     "p": 0.03515625
+    }
+   },
+   "compact": {
+    "other": "compact",
+    "median_difference": 2952.800000000003,
+    "differences": {
+     "ABTestingS2LEnv": -6844.9,
+     "AcademicWarningS2LEnv": 5142.299999999999,
+     "ApplyPhDEmailS2LEnv": 2530.0999999999985,
+     "CanvasArrangeExamS2LEnv": 3880.7000000000044,
+     "CanvasListTestS2LEnv": -7381.299999999999,
+     "CourseAssistantS2LEnv": 9771.8,
+     "ExcelMarketResearchS2LEnv": 14453.800000000001,
+     "FilterLowSellingProductsS2LEnv": 8139.399999999998,
+     "MachineOperatingS2LEnv": 1611.0,
+     "NhlB2bAnalysisS2LEnv": 14408.400000000001,
+     "PayableInvoiceCheckerS2LEnv": 2389.3999999999996,
+     "SetConfCrDdlS2LEnv": 2952.800000000003,
+     "UpdateMaterialInventoryS2LEnv": -3190.0999999999985,
+     "WoocommerceNewWelcomeS2LEnv": 1957.699999999997,
+     "WoocommerceStockAlertS2LEnv": 3844.4000000000015
+    },
+    "sign_test": {
+     "stratavell_lower": 3,
+     "stratavell_higher": 12,
+     "ties": 0,
+     "p": 0.03515625
+    }
+   },
+   "compact_archive": {
+    "other": "compact_archive",
+    "median_difference": 1162.199999999997,
+    "differences": {
+     "ABTestingS2LEnv": -5066.999999999998,
+     "AcademicWarningS2LEnv": 553.7999999999993,
+     "ApplyPhDEmailS2LEnv": -5200.4000000000015,
+     "CanvasArrangeExamS2LEnv": 3899.4000000000015,
+     "CanvasListTestS2LEnv": -6620.700000000001,
+     "CourseAssistantS2LEnv": 13633.900000000001,
+     "ExcelMarketResearchS2LEnv": 14099.500000000002,
+     "FilterLowSellingProductsS2LEnv": 1162.199999999997,
+     "MachineOperatingS2LEnv": -9363.599999999999,
+     "NhlB2bAnalysisS2LEnv": 13737.000000000002,
+     "PayableInvoiceCheckerS2LEnv": -4856.5,
+     "SetConfCrDdlS2LEnv": 9857.400000000001,
+     "UpdateMaterialInventoryS2LEnv": -4686.200000000001,
+     "WoocommerceNewWelcomeS2LEnv": 7597.5999999999985,
+     "WoocommerceStockAlertS2LEnv": 5462.799999999999
+    },
+    "sign_test": {
+     "stratavell_lower": 6,
+     "stratavell_higher": 9,
+     "ties": 0,
+     "p": 0.60723876953125
+    }
+   }
+  },
+  "prompt_tokens": {
+   "trim": {
+    "other": "trim",
+    "median_difference": 106753,
+    "differences": {
+     "ABTestingS2LEnv": -117110,
+     "AcademicWarningS2LEnv": 106753,
+     "ApplyPhDEmailS2LEnv": 374457,
+     "CanvasArrangeExamS2LEnv": 2802103,
+     "CanvasListTestS2LEnv": -226246,
+     "CourseAssistantS2LEnv": 2822042,
+     "ExcelMarketResearchS2LEnv": 2713968,
+     "FilterLowSellingProductsS2LEnv": -598878,
+     "MachineOperatingS2LEnv": -35809,
+     "NhlB2bAnalysisS2LEnv": 2288704,
+     "PayableInvoiceCheckerS2LEnv": -1452172,
+     "SetConfCrDdlS2LEnv": 842909,
+     "UpdateMaterialInventoryS2LEnv": 68378,
+     "WoocommerceNewWelcomeS2LEnv": -158531,
+     "WoocommerceStockAlertS2LEnv": 2041949
+    },
+    "sign_test": {
+     "stratavell_lower": 6,
+     "stratavell_higher": 9,
+     "ties": 0,
+     "p": 0.60723876953125
+    }
+   },
+   "compact": {
+    "other": "compact",
+    "median_difference": 148355,
+    "differences": {
+     "ABTestingS2LEnv": -268550,
+     "AcademicWarningS2LEnv": -820920,
+     "ApplyPhDEmailS2LEnv": -473013,
+     "CanvasArrangeExamS2LEnv": 1134145,
+     "CanvasListTestS2LEnv": -670952,
+     "CourseAssistantS2LEnv": -134685,
+     "ExcelMarketResearchS2LEnv": 1640537,
+     "FilterLowSellingProductsS2LEnv": 946504,
+     "MachineOperatingS2LEnv": 228338,
+     "NhlB2bAnalysisS2LEnv": 1490526,
+     "PayableInvoiceCheckerS2LEnv": -339265,
+     "SetConfCrDdlS2LEnv": 499054,
+     "UpdateMaterialInventoryS2LEnv": -1237873,
+     "WoocommerceNewWelcomeS2LEnv": 148355,
+     "WoocommerceStockAlertS2LEnv": 1299728
+    },
+    "sign_test": {
+     "stratavell_lower": 7,
+     "stratavell_higher": 8,
+     "ties": 0,
+     "p": 1.0
+    }
+   },
+   "compact_archive": {
+    "other": "compact_archive",
+    "median_difference": 560574,
+    "differences": {
+     "ABTestingS2LEnv": -235657,
+     "AcademicWarningS2LEnv": 560574,
+     "ApplyPhDEmailS2LEnv": -1389836,
+     "CanvasArrangeExamS2LEnv": 1603641,
+     "CanvasListTestS2LEnv": -10690,
+     "CourseAssistantS2LEnv": 831145,
+     "ExcelMarketResearchS2LEnv": 1585023,
+     "FilterLowSellingProductsS2LEnv": 617708,
+     "MachineOperatingS2LEnv": -55388,
+     "NhlB2bAnalysisS2LEnv": 1398043,
+     "PayableInvoiceCheckerS2LEnv": -887422,
+     "SetConfCrDdlS2LEnv": 1016729,
+     "UpdateMaterialInventoryS2LEnv": -1867229,
+     "WoocommerceNewWelcomeS2LEnv": 149618,
+     "WoocommerceStockAlertS2LEnv": 813966
+    },
+    "sign_test": {
+     "stratavell_lower": 6,
+     "stratavell_higher": 9,
+     "ties": 0,
+     "p": 0.60723876953125
+    }
+   }
+  }
+ },
+ "expectations": {
+  "success_primary": {
+   "E1": true,
+   "E3": true
+  },
+  "success_narrow": {
+   "E1": true,
+   "E3": false
+  },
+  "E2": false,
+  "E4": true
+ },
+ "voids": {
+  "total": 154,
+  "counted": 1,
+  "no_model_reply": 153,
+  "by_reason": {
+   "api error": 1,
+   "preflight": 153
+  },
+  "counted_runs": [
+   {
+    "run": "v1.1-CourseAssistantS2LEnv-compact_archive",
+    "void": "api error",
+    "model_replies": 27
+   }
+  ]
+ },
+ "excluded_slots": [],
+ "scored_runs": 60,
+ "runs_v11": 8,
+ "runs_v12": 52,
+ "first_start": "2026-11-27T13:40:44Z",
+ "last_end": "2026-11-28T01:46:25Z",
+ "cost_estimate_total_usd": 52.87,
+ "cost_estimate_with_cache_total_usd": 25.5,
+ "requests_with_reasoning_reported": 2932,
+ "requests_counted": 3651,
+ "attempts": 214,
+ "states": 15,
+ "states_with_any_success": [
+  "AcademicWarningS2LEnv",
+  "MachineOperatingS2LEnv",
+  "PayableInvoiceCheckerS2LEnv"
+ ],
+ "states_with_any_success_count": 3,
+ "tool_cap_runs": 25,
+ "success_raw_total": 7,
+ "dates": [
+  "2026-11-27",
+  "2026-11-28"
+ ],
+ "protocols": {
+  "v1.1": 8,
+  "v1.2": 52
+ },
+ "load_1min": [
+  13.98,
+  17.39
+ ],
+ "flagged_registered": [
+  {
+   "run": "v1.2-PayableInvoiceCheckerS2LEnv-compact_archive",
+   "tools": [
+    "pdf_tools_read_pdf_pages",
+    "terminal_run_command"
+   ],
+   "success": 1.0
+  },
+  {
+   "run": "v1.2-PayableInvoiceCheckerS2LEnv-stratavell",
+   "tools": [
+    "pdf_tools_read_pdf_pages"
+   ],
+   "success": 0.0
+  },
+  {
+   "run": "v1.2-PayableInvoiceCheckerS2LEnv-trim",
+   "tools": [
+    "pdf_tools_read_pdf_pages"
+   ],
+   "success": 0.0
+  },
+  {
+   "run": "v1.2-PayableInvoiceCheckerS2LEnv-compact",
+   "tools": [
+    "pdf_tools_read_pdf_pages"
+   ],
+   "success": 1.0
+  }
+ ],
+ "flagged_narrow": [],
+ "attribution_check": {
+  "stratavell_jobs": 270,
+  "jobs_without_run": 0,
+  "summary_shaped_requests_since_first_run": 291,
+  "matched_to_one_run": 291,
+  "matched_by": {
+   "job window": 270,
+   "run window, before a retried job's recorded start": 21
+  },
+  "matched_by_job_window": 270,
+  "matched_by_run_window": 21,
+  "retried_jobs": 21,
+  "ambiguous": 0,
+  "unmatched": 0,
+  "trim_runs_with_summary_requests_left": 0,
+  "stratavell_runs_with_loca_summary_requests": 0
+ }
+}

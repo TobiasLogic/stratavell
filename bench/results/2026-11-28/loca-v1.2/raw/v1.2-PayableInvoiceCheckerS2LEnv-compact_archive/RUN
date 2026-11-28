@@ -1,0 +1,11 @@
+name=v1.2-PayableInvoiceCheckerS2LEnv-compact_archive
+start=2026-11-28T01:30:40Z
+load_start=16.47 15.64 15.19
+stratavell_url=http://127.0.0.1:7077
+stratavell_window=79987
+stratavell_mode=passive
+args=-c /mnt/storage/code2/loca/work/configs/PayableInvoiceCheckerS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --context-summary --reset-size 48606 --max-context-size 73568 
+end=2026-11-28T01:35:37Z
+load_end=15.43 15.58 15.29
+preflight=0
+exit=0

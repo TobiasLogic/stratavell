@@ -1,0 +1,11 @@
+name=v1.2-ApplyPhDEmailS2LEnv-trim
+start=2026-11-27T19:46:28Z
+load_start=15.04 15.13 15.17
+stratavell_url=
+stratavell_window=
+stratavell_mode=
+args=-c /mnt/storage/code2/loca/work/configs/ApplyPhDEmailS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --max-context-size 73553 
+end=2026-11-27T19:52:04Z
+load_end=15.83 15.37 15.24
+preflight=0
+exit=0

@@ -1,0 +1,11 @@
+name=v1.2-MachineOperatingS2LEnv-compact_archive
+start=2026-11-27T19:52:10Z
+load_start=17.39 15.71 15.35
+stratavell_url=http://127.0.0.1:7077
+stratavell_window=79599
+stratavell_mode=passive
+args=-c /mnt/storage/code2/loca/work/configs/MachineOperatingS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 --context-summary --reset-size 47417 --max-context-size 72169 
+end=2026-11-27T20:01:56Z
+load_end=14.99 15.65 15.52
+preflight=0
+exit=0

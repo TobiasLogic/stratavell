@@ -129,6 +129,20 @@ The reader tables now show evidence as recorded and with the corrected keys. The
 
 **The shared miss:** every reader missed the same question, F at turn 151 on the public-API rule. A local reproduction showed that the harness skipped retrieval there because of the visibility-key bug listed below.
 
+### Agent test on LOCA-bench, 2026-11-27 and 2026-11-28 (UTC+7)
+
+All runs used free endpoints, $0. Pilots, amendments and their reasons are recorded in the protocols (`bench/review/protocol-agent-loca-v1.md`, `-v1.1.md`, `-v1.2.md`), and the results are in `docs/agent-test.md`.
+
+| time | step | outcome |
+|---|---|---|
+| 11-27 morning | pilots on OpenRouter's free Nemotron 3 Ultra: 8K, then 128K with all four strategies | the first pilot was invalid (three MCP servers silently missing under `uv run`); no strategy finished the 128K task, so the test uses 64K |
+| 11-27 11:33 | protocol v1 pushed (d12f3d5), scored runs started | **stopped** after two runs: LOCA discarded long replies, and the budgets were unequal |
+| 11-27 afternoon and evening | v1.1 pilots: one trim run on OpenRouter (stopped after 31.7 minutes, 26 of 41 replies discarded by the 60-second timeout), then all four strategies on NVIDIA's free tier | NVIDIA runs clean; same prompt counts and the same reply word for word as OpenRouter |
+| 11-27 20:40 | protocol v1.1 (e22f79d), scored runs started on NVIDIA | 9 runs completed in order |
+| 11-27 about 22:15 | DNS outage | the ninth run ended with LOCA's API error and was marked valid by mistake; 153 attempts then failed preflight within 4 minutes, with no model request |
+| 11-27 23:46 | protocol v1.2 (b6604bc, 0b94971), schedule resumed | 52 runs, all valid, no void |
+| 11-28 08:46 | schedule complete | 60 scored runs; analysis in `bench/results/2026-11-28/loca-v1.2/` |
+
 ## Grading changes, all applied to stored answers offline
 
 1. The failing-test question is graded on the assertion message without its `file:line` prefix. Readers that quoted only the message were being marked wrong.
@@ -159,3 +173,9 @@ Changes 1 and 2 were made after reading the v1 answers. All three apply to every
 | reader v4 (2026-11-27) | the three standing-rule keys (`vendor/`, `package store`, `go vet`) also match ordinary session text, so a lost rule could be counted as visible, and the reader test then skipped retrieval. This inflates the baselines' standing-rule numbers; G pins the rules and is unaffected. Over 5 seeds: F + retrieval 21.9% to 7.3%, E + retrieval 22.0% to 7.7% | 635fcb5: each rule keyed on its own sentence; all suites rerun; only rule-visibility fields changed |
 | reader v4 (2026-11-27) | OpenRouter error bodies carry the account's `user_id`, and the reader test stored error text verbatim | 4b2bd32: redacted before storing; `TestRedactAccount`; the stored v4 files were redacted by hand |
 | second review (2026-11-27) | the reader's evidence-available column used the same old keys, so it showed evidence for F at turn 151 although the reader never saw the rule | evidence recomputed from dry runs with the corrected keys and shown next to the recorded value; the one affected question asked again under protocol v4.2 |
+| agent test v1 (2026-11-27) | LOCA's HTTP client gave up on a reply after 60 seconds and resent the request without telling the agent; 66 of 92 replies in one run were discarded | `loca.patch` waits up to 1,800 seconds (b948fa7, e22f79d) |
+| agent test v1.1 outage (2026-11-27) | `schedule.py` looked for an API-error message that LOCA never writes, so a run ended by an API error was marked valid | matches LOCA's own error messages (b6604bc) |
+| agent test v1.1 outage (2026-11-27) | preflight downloaded the tokenizer file at the start of every run, so every run failed while DNS was down | the file is cached by `setup.sh` (b6604bc) |
+| agent test v1.2, before any run (2026-11-27) | the readiness check only tested that NVIDIA's host accepted a connection, which passed while the model did not answer | the proxy's `/ready` asks the model (0b94971) |
+| agent test results (2026-11-28) | `memory_get_artifact` answers "not found" for the sha256 prefix that event headers show, and agents tried it 17 times | not fixed yet; reported in `docs/agent-test.md` |
+| agent test results (2026-11-28) | the registered contamination check also matches the task's own input files under `agent_workspace/files/` | not changed after the runs; both readings reported |

@@ -1,0 +1,11 @@
+name=v1.2-AcademicWarningS2LEnv-stratavell
+start=2026-11-27T19:10:35Z
+load_start=14.94 14.71 14.77
+stratavell_url=http://127.0.0.1:7077
+stratavell_window=79613
+stratavell_mode=
+args=-c /mnt/storage/code2/loca/work/configs/AcademicWarningS2LEnv.json -s react -m nvidia/nemotron-3-ultra-550b-a55b:free --max-tool-uses 100 --max-tokens 16384 
+end=2026-11-27T19:15:30Z
+load_end=16.29 15.64 15.16
+preflight=0
+exit=0

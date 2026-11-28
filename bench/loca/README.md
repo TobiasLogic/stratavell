@@ -88,6 +88,16 @@ The lock files were resolved as of the upstream commit date, 2026-04-29. Unpinne
    - It starts a run only when at least 160 of the day's requests remain under `FREEPROXY_DAILY_CAP`.
    - It reruns a void run at most twice. A void run in which the model returned no reply does not count, and is retried with a `-zN` name. After 3 of these in a row on the same run, it stops with exit code 3.
 
+6. **Analysis.** `analyze.py` picks each slot's valid run the way the scheduler does and computes the protocol's statistics. It reads the runs, the proxy log and the Stratavell server's database read-only. `render.py` fills `results-template.md` into `docs/agent-test.md` and `docs/review/AGENT_TEST_PACKET.txt`:
+
+   ```
+   LOCA_ROOT=... python3 -I bench/loca/analyze.py bench/results/2026-11-28/loca-v1.2
+   python3 -I bench/loca/render.py "$PWD"
+   ```
+
+   - Stratavell's summary requests run in the background, so some land in the next run's request log or between runs. `analyze.py` gives each one to the run that made it, using the server's job table.
+   - The trajectories stay in `LOCA_ROOT`. The results directory keeps each run's manifest, request log, evaluation and assembly report.
+
 ## Sandbox
 
 `sandbox.sh` runs LOCA under bubblewrap:
