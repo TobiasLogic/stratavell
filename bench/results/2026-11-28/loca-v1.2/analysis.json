@@ -57,6 +57,9 @@
    ],
    "over_target_runs": 3,
    "max_loca_summary_prompt": 0,
+   "stratavell_summary_prompt_tokens": 0,
+   "stratavell_summary_completion_tokens": 0,
+   "stratavell_summary_prompt_share_pct": 0.0,
    "max_stratavell_summary_prompt": 0,
    "summary_over_budget_states": [],
    "stratavell_summary_requests_after_last_agent_request": 0,
@@ -112,6 +115,9 @@
    "over_target_states": [],
    "over_target_runs": 0,
    "max_loca_summary_prompt": 75553,
+   "stratavell_summary_prompt_tokens": 0,
+   "stratavell_summary_completion_tokens": 0,
+   "stratavell_summary_prompt_share_pct": 0.0,
    "max_stratavell_summary_prompt": 0,
    "summary_over_budget_states": [
     "PayableInvoiceCheckerS2LEnv"
@@ -181,6 +187,9 @@
    ],
    "over_target_runs": 1,
    "max_loca_summary_prompt": 75428,
+   "stratavell_summary_prompt_tokens": 485907,
+   "stratavell_summary_completion_tokens": 127831,
+   "stratavell_summary_prompt_share_pct": 2.0,
    "max_stratavell_summary_prompt": 19731,
    "summary_over_budget_states": [
     "PayableInvoiceCheckerS2LEnv"
@@ -249,6 +258,9 @@
    "over_target_states": [],
    "over_target_runs": 0,
    "max_loca_summary_prompt": 0,
+   "stratavell_summary_prompt_tokens": 521764,
+   "stratavell_summary_completion_tokens": 145701,
+   "stratavell_summary_prompt_share_pct": 1.8,
    "max_stratavell_summary_prompt": 10617,
    "summary_over_budget_states": [],
    "stratavell_summary_requests_after_last_agent_request": 14,
