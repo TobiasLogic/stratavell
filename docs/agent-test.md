@@ -326,7 +326,7 @@ One Stratavell database served all 30 stratavell and compact + archive runs, so 
 - **Result:** every probe was refused or came back clean, except for one tool.
   - `memory_get_summary_lineage` answered all 780 probes that gave it another session's summary id.
   - It returns that summary's structure: kind, level, sequence range, number of source events, and the ids of the summaries above and below it. It returns no summary text and no event content.
-  - This is a Stratavell bug, and it is in the released code too.
+  - This is a Stratavell bug. It was in v0.1.2 and earlier, and is fixed in v0.1.3 (PR #4).
 - **Effect on the study:** none observed. No run called `memory_get_summary_lineage`, and an agent had no way to learn another session's summary id.
 - **Database:** no record links one session's data to another's: summary sources, jobs, blob references, search documents, paths, symbols and task items. No event is shared, and no access grant exists.
 
@@ -400,7 +400,7 @@ After the second outside review, all secondary:
 ## What a next study should change
 
 These come from the results and the outside reviews. None of them is part of this study.
-- **Fix the isolation bug first:** `memory_get_summary_lineage` must check the session, with regression tests.
+- **The isolation bug** is fixed in v0.1.3, with regression tests for the engine, the HTTP API and the MCP server (PR #4).
 - **Retrieval:**
   - Make archived outputs cheaper to get back: resolve hash prefixes, fetch more per call, and select rows or fields instead of reading pages.
   - Keep outputs the agent is about to need, rather than masking them at once.

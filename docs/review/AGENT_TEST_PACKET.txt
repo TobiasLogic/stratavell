@@ -330,7 +330,7 @@ One Stratavell database served all 30 stratavell and compact + archive runs, so 
 - **Result:** every probe was refused or came back clean, except for one tool.
   - `memory_get_summary_lineage` answered all 780 probes that gave it another session's summary id.
   - It returns that summary's structure: kind, level, sequence range, number of source events, and the ids of the summaries above and below it. It returns no summary text and no event content.
-  - This is a Stratavell bug, and it is in the released code too.
+  - This is a Stratavell bug. It was in v0.1.2 and earlier, and is fixed in v0.1.3 (PR #4).
 - **Effect on the study:** none observed. No run called `memory_get_summary_lineage`, and an agent had no way to learn another session's summary id.
 - **Database:** no record links one session's data to another's: summary sources, jobs, blob references, search documents, paths, symbols and task items. No event is shared, and no access grant exists.
 
@@ -404,7 +404,7 @@ After the second outside review, all secondary:
 ## What a next study should change
 
 These come from the results and the outside reviews. None of them is part of this study.
-- **Fix the isolation bug first:** `memory_get_summary_lineage` must check the session, with regression tests.
+- **The isolation bug** is fixed in v0.1.3, with regression tests for the engine, the HTTP API and the MCP server (PR #4).
 - **Retrieval:**
   - Make archived outputs cheaper to get back: resolve hash prefixes, fetch more per call, and select rows or fields instead of reading pages.
   - Keep outputs the agent is about to need, rather than masking them at once.
@@ -691,7 +691,7 @@ The second review checked revision 2 against the appended protocol, and recalcul
 
 Still open:
 - **Raw data:** the request logs, the job table, the run manifests, the evaluations and the isolation test's results are in `bench/results/2026-11-28/loca-v1.2/`. The trajectories are kept locally and not published, because their directory listings name the local user.
-- **The lineage bug** is not fixed in the code that ran. A fix belongs in Stratavell, after the study.
+- **The lineage bug** is in the code that ran. It is fixed in Stratavell v0.1.3, outside this study's code.
 
 ## Answers to the third review
 
@@ -699,7 +699,7 @@ The third review accepted the report as a preliminary report with negative resul
 - **Budget readings:** both are now in "Short version" and "Budget check". Counting agent requests, trim and compact + archive went over. Counting all requests, compact did too. Stratavell stayed under in both.
 - **Background summaries in compact + archive:** now disclosed under "Requests and summaries", with their tokens.
 - **Its engineering list and its next-study design:** summarized under "What a next study should change". They are not part of this study.
-- **The lineage bug:** to be fixed in Stratavell, outside this study and its code.
+- **The lineage bug:** fixed in Stratavell v0.1.3 (PR #4), outside this study and its code.
 
 Its cost comparison holds: stratavell's estimate with cached tokens at the cache price is below compact's, while its prompt tokens are higher. That comparison is descriptive.
 
